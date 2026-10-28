@@ -1,0 +1,33 @@
+{
+  "date": "2026-10-28",
+  "kind": "live-device-observations",
+  "hardware": "Raspberry Pi 5 Model B Rev 1.1; Mini PiTFT 135x240; USB PnP microphone",
+  "generation": {"provider": "local Ollama 0.40.11", "model": "llama3.2:1b", "model_digest_prefix": "baf6a787fdff"},
+  "speech": {"provider": "local faster-whisper 1.2.1", "model": "tiny.en", "capture_seconds": 6},
+  "typed_baseline": {
+    "number": 24,
+    "elapsed_seconds": 4.69,
+    "sha256": "3fe6729a8499c0f48084a7192a5933af4af7ce1db4dbae0fd729ff2215df2b6c"
+  },
+  "voice_trials": [
+    {"outcome": "rejected", "reason": "model output did not complete within token budget", "previous_program_preserved": true},
+    {
+      "outcome": "activated",
+      "number": 1008,
+      "foreground": "#0000FF",
+      "background": "#00FF00",
+      "elapsed_seconds": 12.65,
+      "sha256": "516799652c2fbb52dfdd9e5b173cc09fe381ae0086f11c8a5cece2fe75b15675",
+      "source": "n = randint(1000, 2000)\nshow(n, label='Random', foreground='#0000FF', background='#00FF00')",
+      "physical_confirmation": "User confirmed a blue number appeared after speaking"
+    }
+  ],
+  "limitations": [
+    "Application source generation and activation, not firmware flashing",
+    "One successful activation in two observed voice attempts; not a reliability estimate",
+    "The model also changed the background; exact interpretation of unspecified styling is not guaranteed",
+    "Earlier untuned generations were rejected by fixed checks",
+    "Driver acknowledgement is not optical screen readback",
+    "Google authentication worked but live generation was unavailable; Google transcription unverified"
+  ]
+}

@@ -3,6 +3,7 @@ __pycache__/
 .venv/
 .env*
 context/private/
+/state/
 .DS_Store
 node_modules/
 web3d/dist/

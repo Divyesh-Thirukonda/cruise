@@ -1,75 +1,86 @@
-# Cruise: a controller you can describe
+# Modulate: speak an idea into a physical experience
 
-Status: proposed product direction, updated 2026-10-28. Cruise is a working name from the repository folder. Hardware inventory and Indie Developer track are user-confirmed; no working prototype or model integration is claimed.
+Status: user-directed concept revision, October 28, 2026. Modulate replaces the working name Cruise. The broader scope is spoken creation of games on the device and control of paired computers. The first [voice-to-number prototype](number-prototype.md) is working with local Meta generation; the broader game/paired-computer experiences below remain targets.
 
-## The idea, sharpened
+## Project one-liner
 
-**Tell one physical controller what you are trying to do. It maps its available controls to that job, explains the layout, and lets you refine it in plain language.**
+**Modulate is a modular device you program by speaking: a Meta-powered agent generates and checks software that turns its connected controls into playable games and tools for your other devices.**
 
-Start with independent creators who move between making music and producing video. The initial problem is time spent mapping controls, remembering shortcuts, and rebuilding layouts when a workflow changes. Validate that problem with creators before describing it as established demand.
+## The idea, refined
 
-The gadget changes its behavior and labels; its physical parts remain the same. A knob can control a mix in one mode and scrub a timeline in another. A button can trigger a sound or an editing action. It becomes a speaker only if audio hardware exists: prompts cannot create missing capabilities.
+Describe what you want the device to do. Modulate gives a Meta-powered agent the connected components, screen, supported device actions, and current program as context. The agent writes the code and control mappings, checks the result with tools, repairs failures within a limit, and stages a new experience for the same physical hardware.
 
-The strongest demonstration is a new, useful mapping produced from an unfamiliar request, then used immediately on real hardware. A menu of three prerecorded presets would leave the central reinvention claim unproven.
+The user should be able to move from “Hey Meta, make a kart-racing game” to playing that game on the device's own screen, then say “Make this knob control my computer's volume” after linking their computer. A later instruction such as “Make the steering less sensitive” should modify the current experience without requiring the user to open an editor.
 
-## Why this could stand out
+“Modular” means software adapts to the components actually connected. The initial assembly uses owned plug-in peripherals. Hot swapping, automatic discovery of arbitrary boards, a custom enclosure, and a module marketplace are not established capabilities.
 
-The proposed theme is **Push the Frontier**: a Meta model translates human intent into a usable interface for a physical system. The model has a substantive job: reconcile a request with the device's actual controls, available host actions, and the user's preferences.
+The user's “make Mario Kart” phrasing communicates a familiar game mechanic. The demo target is an original, small 2D kart racer with original or licensed assets. It does not promise Nintendo's game, characters, tracks, or a full commercial game engine.
 
-Do not pitch it as the first programmable controller or assume it replaces every specialized device. The differentiator to demonstrate is the whole loop: describe a job, receive a feasible mapping, use it, then revise it conversationally without opening a mapping editor.
+## Who it is for
 
-| Judging category | What we should prove |
-| --- | --- |
-| Impact — 30% | A creator completes a concrete task with less setup effort; show a measured comparison with manual mapping and a user's own feedback. |
-| Meta AI tooling — 25% | A real Meta model produces a novel, capability-aware configuration and handles a follow-up request or missing capability. Show the actual call and resulting configuration. |
-| Technical depth and execution — 20% | Invalid configurations cannot activate; switching preserves a usable previous state; hardware events reach the intended host action. |
-| Demo — 25% | The same visible device performs two useful jobs, responds to an unrehearsed refinement, and recovers from a rejected request. |
+Start with people who want to make small interactive gadgets, games, and personal controls without writing device code or manually mapping every input. The initial hypothesis is that spoken programming can shorten the path from an idea to a useful physical interaction. Validate that with actual users and an observed baseline; demand and time savings have not been established.
 
-Weights are taken from the supplied participant guide; see [hackathon context](hackathon.md). These are proposed evidence targets, not a forecast of judging results or a guarantee of a prize.
+The earlier music/video creator workflow and phone-game controller examples are superseded as the primary demo. The current game runs on the device's screen. Phone support can be a later extension after this loop works.
 
-## A finishable first version
+## Two concrete experiences
 
-Commit to one controller, one host computer, and two transformations:
+| Request | Intended behavior | Evidence required |
+| --- | --- | --- |
+| “Hey Meta, make a kart-racing game.” | Generate a small game for the connected display and controls; test it and activate it on the device | Actual Meta response, generated source/package, independent check results, physical input moving the kart on the PiTFT |
+| “Make steering less sensitive and make the green button boost.” | Revise the existing code or bindings using the current program and hardware context | A new revision, fresh checks, and a visible effect beyond switching a stored preset |
+| “Make this knob control my computer's volume.” | Select the paired computer's supported volume action and bind encoder movement with bounded steps | Explicit pairing, a working host bridge, observed OS volume change, and correct behavior after disconnect |
 
-1. **Music mode:** a small performance or mixing surface with a few real actions supported by the chosen music application or a locally built audio demo.
-2. **Video mode:** the same controls operate a small set of real editing or playback actions supported by the chosen video application or a locally built timeline demo.
+With the confirmed inventory, use the encoder to steer and buttons for game actions. A joystick is part of the desired interaction but is not in the confirmed inventory; do not silently assume it exists. The tiny 135×240 screen makes a simple readable game the first target. Display refresh and input timing must be measured on the actual Pi.
 
-Choose the exact applications and actions only after proving the host integration. If a demo application is our own, say so clearly; do not imply integration with a commercial editor. Prefer a few actions that work reliably over a large catalog of claimed integrations.
+## Voice is part of the product
 
-The minimum interaction is typed text. Voice, image understanding, more hardware modules, and a third mode are optional once the core loop works. The best stretch feature is a grounded follow-up such as, “Keep the transport buttons, make this knob move one frame at a time, and label the controls for a beginner.”
+The intended entry point is a microphone. Test capture from the owned Bluetooth speaker/microphone before treating it as supported. A permissioned host microphone and push-to-talk are disclosed development steps; typed text is a debug fallback. A successful typed demo alone does not prove the voice experience.
 
-Use the [confirmed parts](hardware.md): Pi 5, Mini PiTFT, one encoder, and two external buttons first. The small display shows mode names and short labels; the host UI handles prompts and full previews. Gesture and motion sensors are available for a later mapping, after repeatable readings are demonstrated. A browser simulator is a useful development tool and an explicitly labeled fallback; it does not establish the physical-device claim by itself.
+“Hey Meta” is the user's proposed wake phrase. Wake detection, speech recognition, and Meta reasoning are separate pieces to select and test; the phrase does not establish access to an official Meta assistant or speech SDK. Show listening, transcription, generation, and ready/error states, provide mute/cancel, and make a misheard request correctable before it changes behavior. Do not keep raw recordings by default.
 
-## Why the model matters
+## What the agent actually builds
 
-The proposed Meta integration turns a request, the current mapping, and real device/host capabilities into a new configuration. A deterministic validator checks it before activation; physical events then run locally without inference. A follow-up request must produce a useful change beyond selecting a saved preset.
+The first engineering proposal is to generate bounded game/application code and a versioned binding configuration for a fixed runtime. This preserves the user's code-generation ambition while keeping the physical drivers and recovery mechanism stable. The user's broader firmware-generation ambition remains recorded, but actual firmware rewriting is outside the first prototype and requires its own isolation, flashing, and recovery design.
 
-The [architecture](architecture.md) defines the proposed contract, capability checks, activation acknowledgement, and rollback. Verify actual model access and provider behavior before implementing that adapter. The [build plan](plan.md) defines the evidence to collect, including failures, measured latency, user feedback, and a manual-mapping comparison. Do not present planned targets as observed results.
+The agent's meaningful loop is **inspect capabilities → generate → run checks → inspect failures → repair within a limit → stage activation**. The verification harness and permission boundary belong to the runtime, not to generated code. Model-generated tests can supplement those checks but cannot be the only proof. Passing a smoke test is evidence of the behaviors tested, not proof of arbitrary code correctness.
+
+Once a revision is active, the game loop and controls execute locally. “Generate live” means the response is produced for the request during the session; it is not a claim of instant generation, guaranteed latency, or a model call per frame. A failed generation leaves the last working revision usable.
+
+## Linking a computer
+
+The companion website is a functional pairing and preview surface. The user links a specific device to a specific computer and grants a small action set. The proposed host bridge exposes system-volume control and state through a revocable session. The agent receives those granted actions as context and generates bindings to them; it does not install arbitrary generated host programs.
+
+A webpage's media-volume control affects its media element; it does not prove OS system-volume control. The first computer OS and bridge implementation remain open. See the [architecture](architecture.md) for this distinction and the activation contract.
+
+## Why Meta and an inference provider matter
+
+A Meta model must contribute at runtime to interpreting intent, selecting feasible controls, writing a fresh program, and using verification feedback. The host/server calls the model with the request, actual capabilities, current revision, and bounded check results. This is the substantive integration to demonstrate.
+
+Fireworks and Baseten have been discussed as candidate providers for serving Meta models. The initial build needs one verified provider adapter, not both. Exact model identifiers, account access, tool-call behavior, structured responses, latency, and spending controls must be checked before selection. Speech-model access is a separate question. No provider integration or credits have been established.
 
 ## Three-minute demo spine
 
 | Time | What the viewer sees |
 | --- | --- |
-| 0:00–0:20 | One creator's concrete mapping problem, the actual device, and the promise: describe the job, then use the controls. |
-| 0:20–0:55 | A typed music request, visible generation and preview, activation, then a physical control producing an audible or visible result. |
-| 0:55–1:30 | A video-workflow request; the same device switches behavior and completes a real task. Keep device, layout, and resulting application action in view. |
-| 1:30–2:05 | A new follow-up changes one mapping or accommodates a constraint. Show the actual model-produced change and use it immediately. |
-| 2:05–2:30 | An unavailable or invalid action is rejected while the existing configuration continues working; show recovery or rollback. |
-| 2:30–2:50 | A concise architecture view and genuine measurements. Identify where Meta inference is used and what the team built during the event. |
-| 2:50–3:00 | The practical benefit, public repository, and working demo entry point. |
+| 0:00–0:20 | The physical device and a user speaking an idea; explain the setup work Modulate aims to remove |
+| 0:20–1:00 | A game request, actual generation and checks, then a physical control moving the kart on the device screen |
+| 1:00–1:30 | A fresh spoken refinement, the changed revision, and its effect in play |
+| 1:30–2:05 | Pairing state, a spoken request to bind volume, and the same knob changing the computer's OS volume |
+| 2:05–2:30 | An unsupported input or failing package is rejected; demonstrate the previous working mode or recovery |
+| 2:30–2:50 | Where Meta inference runs, how verification gates activation, and observed timings with limitations |
+| 2:50–3:00 | What was built during the event, the practical benefit, and repository/demo entry points |
 
-This is a target script, not a claim that any segment exists. Record a clean backup take, and distinguish recorded evidence from live operation. Keep the story centered on the device; a polished campaign or website can support it once the core demo is dependable.
+This is a target script, not existing footage. If generation takes longer, label edits or time compression and preserve an uncut timing run. A host preview, cached program, or prerecorded response must not stand in for live device/model evidence without disclosure.
 
-## Scope cuts and immediate decisions
+## Evidence and scope
 
-Defer a module marketplace, custom PCB, custom enclosure, mobile application, broad operating-system automation, continuous autonomous remapping, model training, and a full DJ workstation. None is required to prove the core idea in this event.
+| Judging category | What we should prove |
+| --- | --- |
+| Impact — 30% | A target user gets from spoken idea to working game/control with an observed comparison to manual setup |
+| Meta AI tooling — 25% | A live Meta-powered generation and bounded repair loop produces a novel program or refinement grounded in capabilities |
+| Technical depth and execution — 20% | Independent verification, isolated code execution, trusted pairing/actions, acknowledged activation, and rollback work under failure |
+| Demo — 25% | One visible device plays a generated game, changes through speech, and becomes a useful paired-computer control |
 
-Before expanding implementation, settle these decisions:
+Weights are organizer facts from the supplied guide; these evidence targets are team recommendations. Do not promise a score or prize.
 
-1. Bring up the inventoried hardware and prove one physical input reaches one host action.
-2. Choose the primary creator workflow and two small action sets the team can demonstrate end to end.
-3. Verify access to an eligible Meta model and test one real structured configuration response.
-4. Freeze the first configuration contract, then implement preview, activation, and recovery around it.
-5. Confirm the team and submission representative, reflect the user-selected Indie Developer track in the submission, and assign work according to actual availability.
-
-If the first physical input or provider call stalls, resolve that bottleneck before spending time on branding or additional modes.
+Defer arbitrary commercial games, phone-game integration, generated low-level drivers, firmware flashing, broad desktop automation, custom hardware fabrication, and additional modes. Build the real microphone-to-device loop, one original game, one trusted computer action, and one fresh refinement first. See the [build plan](plan.md) for dependencies and explicitly labeled fallbacks.

@@ -8,7 +8,7 @@ The hardware stays the same; its controls, labels, and behavior change. The prop
 
 ## Status
 
-Repository and project planning established on October 27, 2026 for the Meta Global AI Developer Hackathon. **No working device, model integration, or application is implemented yet.** Hardware inventory, competition track, and API access are still to be confirmed.
+Repository and project planning established on October 27, 2026 for the Meta Global AI Developer Hackathon. **No working device, model integration, or application is implemented yet.** On October 28, the user confirmed the **Indie Developer** track and the [available hardware](context/hardware.md): Pi 5 (8 GB), Mini PiTFT, rotary encoder, two Qwiic buttons, gesture/IMU sensors, and supporting parts. Assembly, drivers, and API access remain unverified.
 
 ## First demo to build
 
@@ -17,7 +17,7 @@ Repository and project planning established on October 27, 2026 for the Meta Glo
 3. Give it a fresh request, such as swapping two controls or changing a knob's range. Show the validated change and its physical effect.
 4. Request something the attached hardware cannot do. Show a useful limitation and preserve the working configuration.
 
-This is a build target, not a claim about current capabilities. The exact controls and host actions will follow the team's hardware inventory.
+This is a build target, not a claim about current capabilities. Start with the Pi, display, encoder, and two buttons; add gesture/motion sensing after the basic loop works. See the [hardware plan](context/hardware.md) for the button address conflict and bring-up order.
 
 ## Project context
 
@@ -25,6 +25,7 @@ This is a build target, not a claim about current capabilities. The exact contro
 | --- | --- |
 | [Agent instructions](AGENTS.md) | How coding agents should work in this repository |
 | [Product brief](context/product-brief.md) | Audience, differentiation, scope, and demo story |
+| [Hardware](context/hardware.md) | Confirmed inventory, proposed connections, and bring-up checks |
 | [Hackathon facts](context/hackathon.md) | Source-backed rules, rubric, dates, and unresolved discrepancies |
 | [Architecture](context/architecture.md) | Proposed capability-aware configuration and device execution |
 | [Build plan](context/plan.md) | Priorities, milestones, and evidence to collect |

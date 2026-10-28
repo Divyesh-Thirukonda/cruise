@@ -7,7 +7,8 @@ See [hackathon context](hackathon.md) for sources, the rubric, and unresolved so
 ## Entry and project eligibility
 
 - [ ] Confirm participant acceptance and review/accept the final Official Rules through the organizer's process.
-- [ ] Choose the competition track and confirm it matches the registered team.
+- [x] Choose the competition track: **Indie Developer**, confirmed by the user on October 28, 2026.
+- [ ] Confirm the organizer's registration/submission reflects the selected track.
 - [ ] Confirm the roster has no more than four participants and designate one representative.
 - [ ] State the selected theme and explain how the working product fits it.
 - [ ] Verify a real Meta model integration; record provider, exact tested model identifier, and the model's substantive role.

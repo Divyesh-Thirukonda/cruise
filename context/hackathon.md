@@ -18,7 +18,7 @@ The private conversation screenshot and raw clipboard exports are not repository
 | Project concept | A reusable physical controller whose behavior and control mappings can be reinvented through a prompt |
 | Recommended theme | **Push the Frontier**: give a physical device a new capability using Meta models |
 | Alternate theme | **Build for Your World**: solve a concrete creator workflow problem the team knows firsthand |
-| Competition track | **Undecided**; Indie Developer appears relevant for individual builders/students, but confirm the team's eligibility and registered track |
+| Competition track | **Indie Developer**, confirmed by the user on October 28, 2026; separately verify eligibility and that the submission reflects this selection |
 | Team roster / representative | To confirm; no more than four participants, one designated representative |
 
 Every project enters one track. The participant guide supplies the weighted rubric below for judging; the overview's separate application-selection criteria are not the project rubric.
@@ -93,4 +93,4 @@ Use the more detailed participant guide for provisional planning, while retainin
 3. The overview advertises $100 in Fireworks credits for select participants; the guide says $25 for selected teams. Do not budget either amount as received.
 4. The guide places final office hours at the November 4, 9:00 PM deadline alongside regular weekday hours. Resolve submission questions by November 3 rather than relying on last-minute support.
 5. The overview says selected participants must accept Official Rules, but the supplied text does not include those final rules. Obtain and review them, including participant eligibility and any submission-specific terms.
-6. Confirm team acceptance, roster, track, representative, model access, submission form fields, and the current schedule. The sources do not establish these facts for this team.
+6. Confirm team acceptance, roster, representative, model access, submission form fields, and the current schedule. The user selected Indie Developer on October 28; verify that selection in the organizer's form. The source extracts do not establish enrollment for this team.

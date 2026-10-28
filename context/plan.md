@@ -2,9 +2,11 @@
 
 This is a proposed schedule, not completed work. Dates are 2026 in `America/New_York`. Optimize a reliable end-to-end demonstration before spending time on a campaign or additional device personalities.
 
+October 28 update: the user confirmed **Indie Developer** and the [hardware inventory](hardware.md). Next is Pi/display bring-up and one encoder-to-host action. Resolve the two Qwiic buttons' address collision before combining them. Model access and team/representative details remain open.
+
 | Target | Deliverable | Exit evidence |
 | --- | --- | --- |
-| Oct 27–28 | Confirm team/track, inventory hardware, verify one Meta inference call, select one creator task | Actual parts list, exact model/provider, sanitized successful response; no invented API integration |
+| Oct 27–28 | Track and inventory confirmed; finish team details, verify one Meta inference call, select one creator task | User-confirmed parts list; still need exact model/provider and sanitized successful response |
 | Oct 28–29 | First physical control drives a host action; define manifest and configuration contract | Short uncut input-to-effect recording; valid and invalid configuration fixtures |
 | Oct 29–30 | Prompt produces a configuration and activates it on the device | Same runtime handles manual fixture and model output; provider failure preserves working controls |
 | Oct 31 | Two creator modes and a fresh follow-up edit | Controls and labels switch together; novel request is visibly applied |

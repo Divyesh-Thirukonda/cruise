@@ -4,7 +4,7 @@
 
 Build Cruise, a prompt-programmable physical controller, for the Meta Global AI Developer Hackathon. Preserve the judging context and improve the idea through working demonstrations and evidence.
 
-Read `README.md`, `context/product-brief.md`, `context/hackathon.md`, and `context/plan.md` before substantial changes. Consult `context/architecture.md` before changing the model/device contract. Keep this file short; detailed context belongs in `context/`.
+Read `README.md`, `context/product-brief.md`, `context/hackathon.md`, and `context/plan.md` before substantial changes. Consult `context/hardware.md` for the user-confirmed inventory and `context/architecture.md` before changing the model/device contract. Keep this file short; detailed context belongs in `context/`.
 
 ## Product priorities
 
@@ -16,6 +16,7 @@ Read `README.md`, `context/product-brief.md`, `context/hackathon.md`, and `conte
 ## Engineering boundaries
 
 - The repository currently contains planning only. Do not describe planned functionality as implemented. Add accurate setup and verification instructions with the first runnable code.
+- The user confirmed the Indie Developer track and hardware inventory on October 28, 2026. Target the owned Pi 5 and peripherals; distinguish owned parts from tested capabilities. Resolve the two Qwiic buttons' default address collision before sharing the bus.
 - Verify current provider documentation and actual account access before selecting model IDs, endpoints, SDK calls, or structured-output features. Names in the supplied guide are not validated API identifiers.
 - Prefer a bounded, versioned declarative configuration with allowlisted actions. Treat model output as untrusted input; do not execute generated shell commands, firmware, or arbitrary host code.
 - Keep model calls out of the real-time input path. Validate against the connected hardware and host capabilities, then stage and atomically activate a configuration with acknowledgement and rollback.

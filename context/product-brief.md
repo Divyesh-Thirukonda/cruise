@@ -1,6 +1,6 @@
 # Cruise: a controller you can describe
 
-Status: proposed product direction, 2026-10-27. Cruise is a working name from the repository folder. No hardware, model integration, or working product is claimed by this brief.
+Status: proposed product direction, updated 2026-10-28. Cruise is a working name from the repository folder. Hardware inventory and Indie Developer track are user-confirmed; no working prototype or model integration is claimed.
 
 ## The idea, sharpened
 
@@ -38,7 +38,7 @@ Choose the exact applications and actions only after proving the host integratio
 
 The minimum interaction is typed text. Voice, image understanding, more hardware modules, and a third mode are optional once the core loop works. The best stretch feature is a grounded follow-up such as, “Keep the transport buttons, make this knob move one frame at a time, and label the controls for a beginner.”
 
-Use parts already available. Record the actual board, controls, transport, display capabilities, and any output hardware before choosing the firmware stack. An on-screen layout can label controls if there is no device display. A browser simulator is a useful development tool and an explicitly labeled fallback; it does not establish the physical-device claim by itself.
+Use the [confirmed parts](hardware.md): Pi 5, Mini PiTFT, one encoder, and two external buttons first. The small display shows mode names and short labels; the host UI handles prompts and full previews. Gesture and motion sensors are available for a later mapping, after repeatable readings are demonstrated. A browser simulator is a useful development tool and an explicitly labeled fallback; it does not establish the physical-device claim by itself.
 
 ## Why the model matters
 
@@ -66,10 +66,10 @@ Defer a module marketplace, custom PCB, custom enclosure, mobile application, br
 
 Before expanding implementation, settle these decisions:
 
-1. Inventory hardware already on hand and prove one physical input reaches one host action.
+1. Bring up the inventoried hardware and prove one physical input reaches one host action.
 2. Choose the primary creator workflow and two small action sets the team can demonstrate end to end.
 3. Verify access to an eligible Meta model and test one real structured configuration response.
 4. Freeze the first configuration contract, then implement preview, activation, and recovery around it.
-5. Confirm the team, track, and submission representative; assign hardware/runtime, model/compiler, and demo/evaluation work according to actual availability.
+5. Confirm the team and submission representative, reflect the user-selected Indie Developer track in the submission, and assign work according to actual availability.
 
 If the first physical input or provider call stalls, resolve that bottleneck before spending time on branding or additional modes.

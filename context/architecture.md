@@ -1,6 +1,8 @@
 # Proposed architecture
 
-Status: design only. Choose the board, transport, host stack, and model after confirming available hardware and account access. Avoid committing to purchases to make this plan work.
+Status: design only. The user confirmed a Raspberry Pi 5 (8 GB) and peripherals on October 28, 2026; see [hardware](hardware.md). Target that board, while transport, host stack, drivers, and model access still need verification. Avoid committing to purchases to make this plan work.
+
+Proposed first deployment: a Pi service reads I2C controls and renders the SPI PiTFT; a local-network connection carries control events to a host demo application with prompt entry and preview. The Meta model can be called from a trusted service, keeping credentials outside browser code. Do not assume the Pi acts as a USB keyboard/MIDI peripheral or runs the chosen model locally. Start with the encoder and two external buttons; advertise sensors only after they pass bring-up.
 
 ## Control loop
 

@@ -1,37 +1,59 @@
-# Build plan
+# Modulate build plan
 
-This is a proposed schedule, not completed work. Dates are 2026 in `America/New_York`. Optimize a reliable end-to-end demonstration before spending time on a campaign or additional device personalities.
+Proposed schedule, revised October 28, 2026 in `America/New_York`. The first [voice-to-number prototype](number-prototype.md) proves PiTFT rendering, USB microphone capture, local speech recognition, live Meta generation, bounded code execution and activation. This partially satisfies early milestones; generated games, external controls and paired-computer actions remain unimplemented. The broader direction remains voice-driven games and computer control.
 
-October 28 update: the user confirmed **Indie Developer** and the [hardware inventory](hardware.md). Next is Pi/display bring-up and one encoder-to-host action. Resolve the two Qwiic buttons' address collision before combining them. Model access and team/representative details remain open.
+## Build order
+
+1. **Prove physical input and display.** Bring up the PiTFT, encoder, and buttons, resolving the button address collision first. A handwritten original game fixture can prove input and rendering; label it as a fixture, not generated output.
+2. **Prove voice capture and a Meta call.** Test the owned microphone, then a clearly identified permissioned host microphone if necessary. Start with push-to-talk. Verify one real Meta provider call, transcribed request handling, and failure behavior before adding the wake phrase.
+3. **Define the runtime and package contract.** Freeze a small game API, capability manifest, bindings, and independent verification harness. Select and test isolation and resource limits before running model-produced code. Preserve a known working revision.
+4. **Complete the generation loop.** A Meta-powered agent reads capabilities, produces original game code and bindings, invokes checks, inspects failures, and makes bounded repairs. Stage the exact checked package, activate with acknowledgement, and play it on the PiTFT.
+5. **Connect one computer action.** Select one host OS and implement a trusted system-volume bridge. Pair through a functional companion website, expose only granted capabilities, and verify revocation and disconnect. Then let the agent map the knob to this action.
+6. **Refine and recover.** Show a fresh spoken game or binding change, rejected unsupported requests, failed verification, failed activation, and recovery. Add wake detection only after capture/transcription and the main loop are dependable.
+
+The [architecture](architecture.md) defines the proposed contract and failure boundaries. A model's own success message cannot replace independent execution checks.
+
+## Milestones
 
 | Target | Deliverable | Exit evidence |
 | --- | --- | --- |
-| Oct 27–28 | Track and inventory confirmed; finish team details, verify one Meta inference call, select one creator task | User-confirmed parts list; still need exact model/provider and sanitized successful response |
-| Oct 28–29 | First physical control drives a host action; define manifest and configuration contract | Short uncut input-to-effect recording; valid and invalid configuration fixtures |
-| Oct 29–30 | Prompt produces a configuration and activates it on the device | Same runtime handles manual fixture and model output; provider failure preserves working controls |
-| Oct 31 | Two creator modes and a fresh follow-up edit | Controls and labels switch together; novel request is visibly applied |
-| Nov 1 | Recovery and user validation | Disconnect/rollback demonstration; feedback from at least three target users if available |
-| Nov 2 | Feature freeze; rehearse and gather measurements | Consecutive mode-switch trials, recorded failures, measured timings, clear hardware shot |
-| Nov 3 | Record three-minute demo and draft submission | Accessible video, readable public README, original-contribution summary, clean-clone run instructions |
-| Nov 4 | Final checks and submission | Team target: submit by 7 PM Eastern; organizer deadline in supplied guide: 9 PM Eastern |
+| Oct 28–29 | Input/display fixture, microphone trial, first Meta call; choose one runtime and host OS | Physical steering on screen; recorded capture/transcript outcome; sanitized real response; decisions recorded |
+| Oct 29–30 | Isolated execution, fixed check harness, package validation and staged activation | Invalid API, nonterminating program, malformed bindings, and stale revision rejected; previous revision retained |
+| Oct 30–31 | Spoken request generates a playable original game on the device; bounded repair | Source/package hash, independent verification report, active revision acknowledgement, physical play footage, timing |
+| Oct 31 | Fresh spoken refinement and one paired PC-volume action | New checked revision; actual OS volume changes; pairing target and scope visible; reconnect/revocation outcomes |
+| Nov 1 | Recovery and user validation; wake phrase if feasible | Failure/rollback recording; feedback from at least three target users if available; clearly recorded voice path |
+| Nov 2 | Feature freeze and rehearsal | Consecutive activation trials, recorded failures, game rendering/input measurements, clear device footage |
+| Nov 3 | Three-minute video and submission draft | Accessible video/repo, original-contribution summary, clean-clone instructions for actual code |
+| Nov 4 | Final checks and submission | Team target: submit by 7 PM Eastern; supplied organizer deadline: 9 PM Eastern |
 
-If behind, drop the second external integration before dropping real hardware proof, Meta inference, or recovery. A local demo host with music/video-editing controls is acceptable if described accurately. A simulator can accelerate development and serve as a disclosed fallback, but does not prove physical execution.
+These are planning targets, not guarantees. Reassess scope at each unproven dependency rather than describing future work as completed.
+
+## Scope cuts and disclosed fallbacks
+
+- Use encoder steering until joystick inventory and readings are confirmed. Do not buy hardware to satisfy the sketch without instruction.
+- Reduce game complexity to a readable small 2D racer before dropping play on the actual device screen. A host preview does not prove the on-device claim.
+- Use push-to-talk before wake detection. A host microphone is acceptable as a visibly identified prototype input; typed text is a debug path and does not fulfill the voice target.
+- Use one provider, one runtime, one game, one host OS, and one computer action. Defer phone-game integration, additional applications, training, generated drivers, and firmware flashing.
+- If the system-volume bridge is blocked, report that gap. A browser-audio demonstration must be called browser volume and does not fulfill system-volume control.
+- Use a simulator or cached package for development or disclosed recovery only. Do not replace failed live inference with an unlabeled preset.
 
 ## Suggested ownership, pending team agreement
 
-Split by deliverable: hardware/runtime, model/configuration, and host/demo. These are roles, not invented team members. Agree on one person responsible for integration and submission; the maximum team size in the guide is four.
+Split by deliverable: hardware/display/voice capture; Meta agent/package verification; runtime/activation and paired-computer bridge. These are proposed responsibilities, not named team members. Agree on integration ownership and the submission representative; the guide allows at most four participants.
 
 ## Evidence tied to the rubric
 
 | Criterion | What to collect |
 | --- | --- |
-| Impact — 30% | A specific creator's repeated setup problem, observed manual baseline, and whether Cruise improves that task; label small-sample findings |
-| Meta AI tooling — 25% | Sanitized proof of live Meta inference; unseen prompt and follow-up; capability-aware limitation handling |
-| Technical depth — 20% | Contract validation, activation acknowledgement, rollback, reproducible setup, and latency measurements |
-| Demo — 25% | Continuous physical input-to-effect shot, two meaningful transformations, concise story, and a practiced failure fallback |
+| Impact — 30% | A target user's setup problem, observed manual baseline, and actual outcome with Modulate; label small samples |
+| Meta AI tooling — 25% | Sanitized live model identity, generated code, fresh request, tool checks and any repair, capability-aware rejection |
+| Technical depth — 20% | Isolation/permission failures, independent harness results, pairing scope, package/revision consistency, activation and rollback |
+| Demo — 25% | Voice-to-game footage with physical input; same knob changing paired-computer volume; an unfamiliar refinement and failure recovery |
 
 ## Measurement template
 
-Record each trial with date, commit, device, model/provider, prompt category, inference mode (live/replay/mock), success/failure, prompt-to-ready milliseconds, and input-to-effect milliseconds. Preserve failures in the denominator. Set numeric performance targets after the first measured baseline; do not present target numbers as results.
+Record date, commit, device/host, model/provider, capability manifest version, package hash, active revision, prompt category, microphone source, wake/push-to-talk/typed path, live/replay/mock status, check outcomes, repair count, acknowledgement, and success/failure. Keep secrets and raw audio out of public traces.
 
-Use at least 10 consecutive mode-switch trials as a proposed rehearsal gate, then test an unfamiliar prompt and an unavailable capability. This is an internal quality target, not an organizer rule or proof of statistical reliability.
+Measure capture/transcription, generation, verification/repair, activation, and total request-to-ready separately. Measure game frame timing, physical-input-to-effect, and knob-to-volume acknowledgement after activation. Preserve failures in the denominator. Numeric latency targets should follow the first baseline, not precede it as advertised performance.
+
+Use at least 10 consecutive activation/mode-switch trials as a proposed rehearsal gate, followed by an unfamiliar spoken prompt and an unavailable capability request. This is an internal evidence target, not an organizer rule or statistical reliability claim.

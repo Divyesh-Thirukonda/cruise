@@ -15,9 +15,9 @@ The private conversation screenshot and raw clipboard exports are not repository
 
 | Decision | Current position |
 | --- | --- |
-| Project concept | A reusable physical controller whose behavior and control mappings can be reinvented through a prompt |
+| Project concept | Modulate: a modular device whose Meta-powered agent turns spoken requests into checked game/application code and mappings for its controls and paired devices; user-directed revision, Oct 28 |
 | Recommended theme | **Push the Frontier**: give a physical device a new capability using Meta models |
-| Alternate theme | **Build for Your World**: solve a concrete creator workflow problem the team knows firsthand |
+| Alternate theme | **Build for Your World**: solve a concrete problem making personal games, gadgets, or device controls that the team knows firsthand |
 | Competition track | **Indie Developer**, confirmed by the user on October 28, 2026; separately verify eligibility and that the submission reflects this selection |
 | Team roster / representative | To confirm; no more than four participants, one designated representative |
 
@@ -31,10 +31,12 @@ Every project enters one track. The participant guide supplies the weighted rubr
 
 | Criterion | Weight | Organizer intent, paraphrased | Evidence this project should produce |
 | --- | ---: | --- | --- |
-| Impact | 30% | A useful real-world outcome, a clear beneficiary, adoption potential, and theme fit | A specific creator workflow, an observed pain point, and an honest before/after demonstration |
-| Use of Meta AI Tooling | 25% | Creative, substantive model use beyond a basic integration | Live conversion of intent into hardware-aware mappings, handling a novel request, and visible model provenance |
-| Technical Depth & Execution | 20% | Sound engineering, refinement, and care | Validated configurations, constrained device capabilities, recovery from bad requests, measured reliability, and reproducible setup |
+| Impact | 30% | A useful real-world outcome, a clear beneficiary, adoption potential, and theme fit | A target user's spoken idea becomes a useful physical game/control; observe the problem and compare with manual setup |
+| Use of Meta AI Tooling | 25% | Creative, substantive model use beyond a basic integration | Live Meta generation of capability-aware game code/mappings, tool-based checks and repair, a novel spoken refinement, and model provenance |
+| Technical Depth & Execution | 20% | Sound engineering, refinement, and care | Independent package checks, isolated execution, scoped pairing/actions, acknowledged activation, recovery, measurements, and reproducible setup |
 | Demo | 25% | An impressive working product that holds up live and is compelling on video | The same physical device changing useful roles, controls producing real effects, and a clear three-minute story |
+
+The evidence column is the team's proposed Modulate demonstration, revised October 28; it does not add organizer requirements or claim completed work. The supplied rubric and weights are unchanged.
 
 Planning score: `0.30 × impact + 0.25 × Meta tooling + 0.20 × execution + 0.25 × demo`, on a 0–10 scale. Self-scores help prioritize work; they cannot predict a win.
 
@@ -49,7 +51,7 @@ Planning score: `0.30 × impact + 0.25 × Meta tooling + 0.20 × execution + 0.2
 - Provide a publicly accessible repository and accessible **three-minute demo video**. The guide identifies video, code, and live product as judging artifacts; confirm the live-product fields in the actual submission form.
 - Present only the features, code, and functionality created during the hackathon. Clearly distinguish new contributions from any pre-existing code or product; unclear attribution can cause disqualification.
 - Use code, data, audio, images, and other assets the team has rights to use. Follow the event and platform rules.
-- The guide discourages generic projects and lists prohibited/problematic examples. Keep this entry centered on the actual physical-device capability and creator workflow rather than a generic chatbot.
+- The guide discourages generic projects and lists prohibited/problematic examples. Keep this entry centered on actual physical-device behavior, generated games, and useful connected-device controls rather than a generic chatbot.
 - Late submissions are not accepted.
 
 Public visibility is the guide's explicit repository requirement. An open-source license is a separate team choice; decide it before release rather than assuming visibility grants reuse rights.

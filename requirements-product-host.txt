@@ -1,0 +1,4 @@
+# Direct dependencies verified on macOS / Python 3.14.7, 2026-10-28.
+# Provider HTTP, local server and macOS volume bridge use the standard library.
+Pillow==12.3.0
+quickjs-ng==0.17.0.2

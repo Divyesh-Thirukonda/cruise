@@ -1,0 +1,14 @@
+# Direct dependencies verified on Pi 5 / Python 3.11.2, 2026-10-28.
+# Create the venv with --system-site-packages for OS Pillow and lgpio.
+# OS prerequisites: libseccomp2, libportaudio2, python3-lgpio, python3-pil.
+Pillow==9.4.0
+quickjs-ng==0.17.0.2
+adafruit-blinka==10.0.0
+adafruit-circuitpython-rgb-display==3.14.6
+adafruit-circuitpython-seesaw==1.18.2
+sparkfun-qwiic-joystick==2.0.0
+sparkfun-qwiic-button==2.0.3
+sounddevice==0.5.6
+faster-whisper==1.2.1
+# Explicit streaming 48 kHz -> 16 kHz microphone conversion.
+av==12.3.0

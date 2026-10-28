@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>Modulate — Device studio</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#request">Skip to request composer</a>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Modulate studio home"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>modulate<span class="brand-period">.</span></a>
+      <span class="workspace-label">DEVICE STUDIO <span>/</span> LOCAL</span>
+      <div class="header-actions">
+        <span class="connection-badge" id="connection-badge" data-status="connecting"><span class="status-dot"></span><span id="connection-label">Connecting</span></span>
+        <button class="button button-quiet inspect-button" id="inspect-open" type="button"><span aria-hidden="true">&lt;/&gt;</span> Code &amp; checks</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="intro" aria-labelledby="page-title">
+        <div><p class="eyebrow">YOUR HARDWARE, A NEW IDEA</p><h1 id="page-title">What should it become?</h1><p class="intro-copy">Describe a game or a new job for your controls.</p></div>
+        <div class="runtime-label"><span class="tiny-cross" aria-hidden="true">+</span><span>CREATE · CHECK · PLAY</span></div>
+      </section>
+
+      <div id="service-notice" class="notice notice-warning" role="status" hidden></div>
+      <div id="action-notice" class="notice" role="status" hidden></div>
+
+      <div class="studio-grid">
+        <div class="workspace-column">
+          <section class="preview-panel" aria-labelledby="preview-title">
+            <div class="panel-heading preview-heading">
+              <div><span class="eyebrow">CURRENT EXPERIENCE</span><h2 id="preview-title">A blank canvas</h2></div>
+              <span class="chip preview-chip" id="program-kind">NO ACTIVE PROGRAM</span>
+            </div>
+            <div class="device-stage">
+              <div class="device-shell">
+                <div class="device-topline"><span class="device-wordmark">MODULATE</span><span class="device-dimensions">240 × 135</span></div>
+                <div class="screen-bezel">
+                  <div class="screen-content">
+                    <img id="preview-image" alt="Actual output of the active Modulate program" width="240" height="135" hidden>
+                    <div class="screen-placeholder" id="preview-placeholder">
+                      <span class="pixel-symbol" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                      <strong id="placeholder-title">Ready for an idea.</strong>
+                      <span id="placeholder-detail">Your program will appear here.</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="device-bottomline"><span class="shell-indicator" aria-hidden="true"></span><span>PROGRAMMABLE BY YOU</span><span class="shell-slots" aria-hidden="true">▰ ▰ ▰</span></div>
+              </div>
+            </div>
+            <div class="preview-footer"><span class="preview-origin"><span class="status-dot" id="preview-dot"></span><span id="preview-origin">Host preview · awaiting a program</span></span><span class="mono" id="active-revision">REV —</span></div>
+          </section>
+
+          <section class="composer-panel" aria-labelledby="composer-title">
+            <form id="request-form">
+              <label for="request" class="composer-label" id="composer-title"><span class="sparkle" aria-hidden="true">✳</span> Give it a new job</label>
+              <textarea id="request" name="request" rows="3" maxlength="4000" placeholder="Make an original kart racer. Use the joystick to steer and button A to boost…" aria-describedby="composer-hint" required></textarea>
+              <div class="composer-bottom"><button type="button" class="voice-help" id="voice-help" aria-expanded="false" aria-controls="voice-instructions"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 3v14M6 6v8M2 8v4M14 6v8M18 8v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Device microphone</button><div class="composer-actions"><span id="composer-hint">⌘ / Ctrl + Enter</span><button class="button button-primary" id="request-submit" type="submit">Create <span aria-hidden="true">↗</span></button></div></div>
+              <p class="inline-help" id="voice-instructions" hidden>Hold both screen buttons for a moment, then speak into the device microphone for the six-second recording. This page accepts text and does not access your browser microphone.</p>
+            </form>
+            <div class="suggestions" aria-label="Example requests"><span>TRY</span><button type="button" data-example="Create an original kart racer">A kart racer <span aria-hidden="true">↗</span></button><button type="button" data-example="Use the knob for my Mac volume">Control Mac volume <span aria-hidden="true">↗</span></button></div>
+          </section>
+
+          <div class="workspace-bottom"><p id="generation-note">A new request creates and checks a program before activation.</p><button class="text-button" type="button" id="rollback" disabled><span aria-hidden="true">↶</span> Restore previous version</button></div>
+        </div>
+
+        <aside class="activity-column">
+          <section class="agent-panel" aria-labelledby="agent-title">
+            <div class="panel-heading"><h2 id="agent-title">Inside the agent</h2><span class="chip" id="agent-status" data-status="idle"><span class="status-dot"></span>READY</span></div>
+            <div class="agent-summary"><span class="agent-emblem" aria-hidden="true">✳</span><div><strong id="agent-summary-title">An idea starts the process.</strong><p id="agent-summary-detail">Follow tool calls, specialist work, and checks as they happen.</p></div><button type="button" id="cancel" class="button button-small button-danger" hidden>Cancel</button></div>
+            <div class="timeline-container"><ol class="timeline" id="timeline" aria-label="Agent activity"></ol><div id="timeline-empty" class="timeline-empty"><span class="empty-line" aria-hidden="true"></span><p>No activity yet</p><span>Your first request starts the timeline.</span></div></div>
+            <div class="agent-footnote"><span class="status-dot"></span><span id="agent-footnote">Activity comes from the running agent.</span></div>
+          </section>
+
+          <section class="connections-panel" aria-labelledby="connections-title">
+            <div class="panel-heading"><h2 id="connections-title">Connected hardware</h2><span class="mini-label" id="device-name">NO DEVICE</span></div>
+            <div id="control-list" class="control-list"><p class="muted small">Waiting for a device capability report.</p></div>
+            <details class="hardware-notes" id="hardware-notes" hidden><summary id="hardware-notes-summary">Device notes</summary><ul id="hardware-warnings"></ul></details>
+            <div class="wake-row"><div><span>Wake listening</span><small id="wake-detail">Off · use push-to-talk</small></div><button type="button" role="switch" aria-checked="false" aria-label="Wake listening" class="switch" id="wake-toggle" disabled><span></span></button></div>
+          </section>
+
+          <section class="host-panel" aria-labelledby="host-title">
+            <div class="host-heading"><span class="computer-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span><div><h2 id="host-title">Your Mac</h2><p id="pairing-status">Pair to give your controls a new job.</p></div><span class="chip" id="paired-chip" hidden>PAIRED</span></div>
+            <div class="volume-display" id="volume-display" hidden><div><span>System volume</span><strong id="volume-value">—</strong></div><div class="volume-track" role="meter" aria-label="Mac system volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="volume-meter"><span id="volume-fill"></span></div></div>
+            <div class="host-actions"><button class="button button-outline" id="pairing-open" type="button">Pair a device <span aria-hidden="true">+</span></button><button class="text-button danger-text" id="revoke" type="button" hidden>Revoke access</button><span class="small muted" id="host-scope">Volume controls only</span></div>
+          </section>
+        </aside>
+      </div>
+
+      <footer class="studio-footer"><div><span class="footer-mark" aria-hidden="true">✳</span><span id="provider-label">Provider connecting</span><span class="footer-divider">/</span><span id="model-label">Awaiting model details</span></div><div><span id="budget-label">Budget unavailable</span><span class="footer-divider">·</span><span id="last-sync">Awaiting connection</span></div></footer>
+    </main>
+  </div>
+
+  <dialog class="drawer" id="inspect-dialog" aria-labelledby="inspect-title">
+    <div class="drawer-heading"><div><p class="eyebrow">UNDER THE SURFACE</p><h2 id="inspect-title">Code &amp; checks</h2></div><button class="icon-button" type="button" data-close="inspect-dialog" aria-label="Close code and checks">×</button></div>
+    <div class="revision-tabs" role="group" aria-label="Package to inspect"><button class="selected" type="button" id="inspect-active" aria-pressed="true">Active</button><button type="button" id="inspect-candidate" aria-pressed="false">Candidate</button></div>
+    <p class="inspect-meta" id="inspect-meta">No package to inspect.</p>
+    <div class="inspect-tabs" role="tablist" aria-label="Package details"><button type="button" role="tab" id="tab-code" aria-controls="inspect-content" aria-selected="true" data-view="code">Source</button><button type="button" role="tab" id="tab-assets" aria-controls="inspect-content" aria-selected="false" data-view="assets">Assets</button><button type="button" role="tab" id="tab-checks" aria-controls="inspect-content" aria-selected="false" data-view="checks">Checks</button></div>
+    <div class="code-toolbar"><span id="code-language">JAVASCRIPT</span><button class="text-button" type="button" id="copy-code">Copy</button></div>
+    <div id="inspect-content" role="tabpanel" aria-labelledby="tab-code" tabindex="0"><pre><code id="source-code">No program yet. Create an experience to inspect its source.</code></pre></div>
+    <p class="drawer-footnote">This is the actual package and recorded check output. Inspection does not change the running program.</p>
+  </dialog>
+
+  <dialog class="pairing-dialog" id="pairing-dialog" aria-labelledby="pairing-title">
+    <div class="drawer-heading"><div><p class="eyebrow">A TRUSTED CONNECTION</p><h2 id="pairing-title">Pair your device</h2></div><button class="icon-button" type="button" data-close="pairing-dialog" aria-label="Close pairing">×</button></div>
+    <p class="pairing-intro">Check that this code matches “Link this Mac?” on your device. Press screen button A to allow, or B to decline.</p>
+    <output class="pairing-code" id="pairing-code" aria-label="One-time pairing code">······</output>
+    <p class="pairing-expiry" id="pairing-expiry" role="status">Creating a one-time code…</p>
+    <div class="pairing-host" id="pairing-host" hidden><span>HOST ADDRESS</span><code id="pairing-host-url"></code></div>
+    <div class="pairing-permissions"><span class="status-dot"></span><p>Grants system-volume control. You can revoke access here at any time.</p></div>
+    <button type="button" class="button button-primary full-width" id="pairing-refresh">Create a new code</button>
+  </dialog>
+</body>
+</html>

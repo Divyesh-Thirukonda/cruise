@@ -22,6 +22,15 @@ One of each item below, including one cable kit:
 | [SparkFun Qwiic Cable Kit](https://www.sparkfun.com/sparkfun-qwiic-cable-kit.html) | Peripheral connections; confirm supplied cable lengths and count |
 | Bluetooth wireless speaker with microphone, model unspecified | Candidate audio output; microphone/profile compatibility untested |
 
+## On hold
+
+The user marked these **on hold**, so they are not available for the initial assembly:
+
+| Part | Later role, if obtained and tested |
+| --- | --- |
+| [Raspberry Pi Active Cooler](https://www.raspberrypi.com/products/active-cooler/) | Pi cooling; confirm physical clearance with the PiTFT |
+| [Logitech C270 webcam](https://www.logitech.com/en-us/shop/p/c270-hd-webcam.960-000694) | Optional camera input; exclude camera capability from the initial device manifest |
+
 ## Not available
 
 The user marked these absent: PCF8574 GPIO expander (#5545), MPR121 capacitive-touch breakout (#4830), breadboard (#4539), copper foil tape, alligator clips, 9 g servo, micro-HDMI cable, and Qwiic SHIM (#15794).
@@ -33,6 +42,10 @@ Do not include those parts in the device's capabilities or make them a prerequis
 Start with **Pi 5 + Mini PiTFT + encoder + two Qwiic buttons**. Add the APDS9960 and IMU only after a reliable physical input changes a real host action.
 
 The [Mini PiTFT documentation](https://www.adafruit.com/product/4393) describes a 1.14-inch, 135×240 SPI display, two onboard buttons, and a bottom STEMMA QT/Qwiic connector. That connector provides the I2C path for the external peripherals, so a separate Qwiic SHIM is unnecessary for this proposed arrangement. Use the screen for short mode names, labels, values, and connection state; put full prompt entry and configuration preview on the host computer. Do not assume it is a touchscreen.
+
+With the Pi powered off and unplugged, seat the PiTFT's **2×12 socket over the first 12 pairs of GPIO pins: physical pins 1–24**. Align pin 1 at the header end by the Pi's rounded corner/mounting hole, using the [Adafruit orientation and pinout guide](https://learn.adafruit.com/adafruit-mini-pitft-135x240-color-tft-add-on-for-raspberry-pi/pinouts). Check both rows and both ends before applying power; do not offset the socket by one pin or pair. The display mounts directly to the header and needs no loose jumper wires.
+
+Use **QT-to-QT/Qwiic cables with a keyed four-pin plug at each end** for the peripheral chain. Set aside the dangling Dupont breakout cable shown in the supplied photo; it is not needed for this assembly. The other loose/unidentified boards in that photo do not establish additional inventory or capabilities.
 
 ```text
 Pi 5 GPIO header → Mini PiTFT
@@ -53,7 +66,15 @@ This is a proposed daisy-chain topology, not a tested wiring diagram. Switch off
 | APDS9960 | `0x39` | Keep `0x39` ([Adafruit driver](https://adafruit.github.io/Adafruit_APDS9960/html/_adafruit___a_p_d_s9960_8h.html)) |
 | LSM6DS3TR-C | `0x6A` | Keep `0x6A` ([Adafruit guide](https://learn.adafruit.com/adafruit-lsm6ds3tr-c-6-dof-accel-gyro-imu?view=all)) |
 
-Both button colors share the factory address. Connect only one button while configuring its address with the manufacturer's supported method; then power-cycle and verify persistence before adding the other. Check actual board addresses because they may already have been changed. The proposed addresses avoid the other listed devices; an address scan alone does not prove device identity or correct operation. See the [SparkFun hookup guide](https://learn.sparkfun.com/tutorials/sparkfun-qwiic-button-hookup-guide/all).
+Both button colors share the factory address. Configure the **green button alone** before building the full chain:
+
+1. Power off and unplug the Pi. Connect the PiTFT QT port directly to the green button with one QT-to-QT cable; leave the red button disconnected.
+2. Boot with I2C enabled and the SparkFun `qwiic_button` Python library installed. Check the button's current address; a previously configured board may no longer be at `0x6F`.
+3. If it is at `0x6F`, use [SparkFun's address-change example](https://github.com/sparkfun/qwiic_button_py/blob/main/examples/qwiic_button_ex6_changeI2CAddress.py) and enter `6E` at its prompt. The example calls `set_I2C_address(0x6E)`; do not use the setter's return value as proof that the change succeeded.
+4. Shut down and power-cycle with the green button still isolated. Verify it responds at `0x6E` and its press/LED operation works.
+5. Shut down and unplug again, then connect the full encoder → red → green chain. Verify the red button at `0x6F` and green at `0x6E` independently.
+
+The proposed addresses avoid the other listed devices. An address scan alone does not prove identity or correct operation. See the [SparkFun hookup guide](https://learn.sparkfun.com/tutorials/sparkfun-qwiic-button-hookup-guide/all). These steps are documented guidance, not evidence that the user's hardware has been configured.
 
 ## Bring-up order and evidence
 

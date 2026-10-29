@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 from modulate.controls import neutral_input
 from modulate.device import Controller
+from modulate.voice import VoiceListener
 
 
 class FakeSpeaker:
@@ -36,9 +37,11 @@ class FakeSpeaker:
         self.stopped += 1
         self.emit("stopped")
 
-    def speak(self, text):
+    def speak(self, text, *, before_playback=None):
         if not self.value["available"]:
             return False
+        if before_playback is not None:
+            before_playback()
         self.spoken.append(text)
         self.value["request_id"] = len(self.spoken)
         self.emit("queued")
@@ -162,12 +165,30 @@ class DeviceSpeakerTests(unittest.TestCase):
         self.VoiceListener.set_enabled.assert_called_with(True)
 
     def test_microphone_is_disabled_before_speaker_receives_text(self):
-        speak = self.speaker.speak
-        def checked(text):
-            self.VoiceListener.set_enabled.assert_called_with(False)
-            return speak(text)
-        with patch.object(self.speaker, "speak", side_effect=checked):
+        emit = self.speaker.emit
+        def checked(state):
+            if state == "queued":
+                self.VoiceListener.set_enabled.assert_called_with(False)
+            return emit(state)
+        with patch.object(self.speaker, "emit", side_effect=checked):
             self.apply(self.response())
+
+    def test_unavailable_speech_retries_preserve_wake_epoch_then_pause_when_recovered(self):
+        voice = self.controller.voice = VoiceListener(lambda text: True, lambda status: None)
+        voice.set_enabled(True)
+        epoch = voice._epoch
+        self.speaker.value["available"] = False
+        response = self.response()
+        for _ in range(8):
+            self.apply(response)
+        self.assertEqual(voice._epoch, epoch)
+        self.assertTrue(voice._enabled)
+        self.assertIsNone(self.controller.speech_ack)
+        self.speaker.value["available"] = True
+        self.apply(response)
+        self.assertEqual(voice._epoch, epoch + 1)
+        self.assertFalse(voice._enabled)
+        self.assertEqual(self.controller.speech_ack, response["speech"]["id"])
 
     def test_big_game_buttons_do_not_stop_speech_but_tft_b_does(self):
         self.apply(self.response())

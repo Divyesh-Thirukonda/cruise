@@ -193,6 +193,7 @@ class Speaker:
         self.backend = backend if backend is not None else LocalSpeechBackend()
         self.on_status = on_status
         self._changed = threading.Condition(threading.RLock())
+        self._notifications = threading.RLock()
         self._thread = None
         self._stopped = True
         self._pending = None
@@ -209,11 +210,14 @@ class Speaker:
                     "request_id": self._sequence or None, "last_delivery": self._last_delivery}
 
     def _notify(self):
-        if self.on_status:
-            try:
-                self.on_status(self.snapshot())
-            except Exception:
-                pass
+        # Caller and playback threads both publish status. Keep snapshot and
+        # delivery ordered so a delayed "queued" callback cannot follow "idle".
+        with self._notifications:
+            if self.on_status:
+                try:
+                    self.on_status(self.snapshot())
+                except Exception:
+                    pass
 
     def start(self):
         with self._changed:
@@ -228,11 +232,18 @@ class Speaker:
         self._notify()
         return available
 
-    def speak(self, text):
+    def speak(self, text, *, before_playback=None):
+        """Queue accepted speech, optionally pausing capture before it can play.
+
+        The trusted hook runs only after validation and availability checks,
+        while the queue is locked. Rejected retries must not interrupt capture.
+        """
         text = _validate_text(text)
         with self._changed:
             if self._stopped or not self._info.get("available"):
                 return False
+            if before_playback is not None:
+                before_playback()
             self._sequence += 1
             self._pending = (self._sequence, text)
             if self._active_cancel:

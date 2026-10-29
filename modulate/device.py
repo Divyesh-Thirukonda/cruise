@@ -183,10 +183,10 @@ class Controller:
         text = speech.get("text")
         if type(text) is not str or not text.strip() or len(text) > 1200:
             return
-        # Invalidate microphone inference before any audible output begins.
-        self.voice.set_enabled(False)
         try:
-            accepted = self.speaker.speak(text)
+            # Only accepted speech interrupts capture. Unavailable output is
+            # retried by heartbeat without invalidating every wake recording.
+            accepted = self.speaker.speak(text, before_playback=lambda: self.voice.set_enabled(False))
         except ValueError:
             accepted = False
         if accepted:

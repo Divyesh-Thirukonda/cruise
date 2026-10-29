@@ -59,10 +59,62 @@ class SpeakerTests(unittest.TestCase):
         speaker = Speaker(backend=self.backend)
         self.addCleanup(speaker.stop)
         self.assertFalse(speaker.start())
-        self.assertFalse(speaker.speak("Synthetic request"))
+        pause = Mock()
+        self.assertFalse(speaker.speak("Synthetic request", before_playback=pause))
+        pause.assert_not_called()
         self.assertEqual(speaker.snapshot()["state"], "unavailable")
         self.assertIsNone(speaker.snapshot()["last_delivery"])
         self.assertEqual(self.backend.calls, [])
+
+    def test_capture_pause_hook_only_runs_for_accepted_speech_before_playback(self):
+        pause = Mock()
+        self.assertFalse(self.speaker.speak("Stopped", before_playback=pause))
+        self.speaker.start()
+        for text in ("", "bad\0text", "x" * (MAX_TEXT_CHARACTERS + 1)):
+            with self.assertRaises(ValueError):
+                self.speaker.speak(text, before_playback=pause)
+        pause.assert_not_called()
+        play = self.backend.play
+        def checked_play(text, cancel):
+            pause.assert_called_once_with()
+            return play(text, cancel)
+        self.backend.release.set()
+        with patch.object(self.backend, "play", side_effect=checked_play):
+            self.assertTrue(self.speaker.speak("Accepted", before_playback=pause))
+            wait_until(lambda: self.speaker.snapshot()["last_delivery"] == "delivered")
+        self.assertEqual(self.backend.calls, ["Accepted"])
+
+    def test_delayed_active_status_cannot_overwrite_new_idle_status(self):
+        entered, release, second_done = threading.Event(), threading.Event(), threading.Event()
+        self.addCleanup(release.set)
+        delivered = []
+        def callback(status):
+            if status["state"] == "queued":
+                entered.set()
+                release.wait(1)
+            delivered.append(status["state"])
+        self.speaker.on_status = callback
+        # Force the callback scheduling that previously left the controller's
+        # cache queued after playback was already idle, permanently muting wake.
+        self.speaker._state = "queued"
+        first = threading.Thread(target=self.speaker._notify)
+        first.start()
+        self.assertTrue(entered.wait(1))
+        with self.speaker._changed:
+            self.speaker._state = "idle"
+        def idle_notification():
+            self.speaker._notify()
+            second_done.set()
+        second = threading.Thread(target=idle_notification)
+        second.start()
+        try:
+            self.assertFalse(second_done.wait(0.05))
+        finally:
+            release.set()
+            first.join(1)
+            second.join(1)
+        self.assertFalse(first.is_alive() or second.is_alive())
+        self.assertEqual(delivered, ["queued", "idle"])
 
     def test_latest_request_replaces_active_and_single_pending_without_content_in_status(self):
         self.speaker.start()

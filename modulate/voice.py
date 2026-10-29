@@ -7,7 +7,7 @@ while capture continues; final recognition may pause capture. Ambient inference
 stays visually passive. Cached faster-whisper tiny.en weights must already exist.
 
 The selected USB microphone captures native 48 kHz mono int16 in 25-ms blocks.
-PyAV/FFmpeg resamples on the worker to 16 kHz for VAD and Whisper; the microphone
+PyAV/FFmpeg resamples on the worker to 16 kHz for bundled Silero VAD and Whisper; the microphone
 is never replaced by a default device. Requests end after three seconds of
 silence; audio reaching the 25-second cap is discarded, never auto-submitted.
 
@@ -23,6 +23,8 @@ import queue
 import re
 import threading
 import time
+
+from .speech_activity import SpeechActivity
 
 
 SAMPLE_RATE = 16_000
@@ -126,11 +128,16 @@ class EnergyVAD:
         self.started_at = None
         self.silence = self.voiced = 0
 
-    def feed(self, audio, timestamp):
+    def feed(self, audio, timestamp, *, speaking=None):
         if len(audio) != BLOCK_BYTES:
             self.reset()
             raise VoiceError("Unexpected audio block size; partial recording discarded")
-        speaking = pcm_rms(audio) >= self.threshold
+        # Production capture supplies the local speech model's classification.
+        # Energy remains available for deterministic buffer-only tests.
+        if speaking is None:
+            speaking = pcm_rms(audio) >= self.threshold
+        elif type(speaking) is not bool:
+            raise VoiceError("Invalid speech activity classification")
         if not self.active:
             self.prebuffer.append(audio)
             if not speaking:
@@ -410,6 +417,10 @@ class VoiceListener:
             raise VoiceError("Selected microphone changed; choose its index again instead of switching silently")
         self._clear_audio()
         converter = PCMResampler()
+        try:
+            activity = SpeechActivity()
+        except Exception:
+            raise VoiceError("Local speech activity model unavailable; check the installed speech dependencies") from None
         native_blocks = 0
         voiced = 0
         probe = completed = None
@@ -433,6 +444,19 @@ class VoiceListener:
                         raise VoiceError("Local wake recognition failed; partial recording discarded")
                     remainder = wake_remainder(probe["text"] or "")
                     if remainder is not None:
+                        # A fresh wake after rejected ambient speech belongs to
+                        # its own request, without the earlier conversation.
+                        offset = probe.get("offset", 0)
+                        if offset:
+                            origin = probe["segment_started_at"]
+                            if completed is not None and completed.started_at == origin:
+                                completed = Utterance(completed.audio[offset * BLOCK_BYTES:],
+                                                      origin + offset * BLOCK_SECONDS)
+                            elif self._vad.active and self._vad.started_at == origin:
+                                self._vad.chunks = self._vad.chunks[offset:]
+                                self._vad.started_at += offset * BLOCK_SECONDS
+                            else:
+                                raise VoiceError("Wake audio changed; partial recording discarded")
                         confirmed = True
                         if not remainder:
                             self._gate.accept(probe["text"], now=time.monotonic())
@@ -469,8 +493,9 @@ class VoiceListener:
                 native_blocks += 1
                 blocks = converter.feed(audio)
                 for audio in blocks:
-                    voiced += int(pcm_rms(audio) >= self._vad.threshold)
-                    utterance = self._vad.feed(audio, timestamp)
+                    speaking = activity.feed(audio)
+                    voiced += int(speaking)
+                    utterance = self._vad.feed(audio, timestamp, speaking=speaking)
                     if utterance is not None:
                         if ptt:
                             return utterance
@@ -484,9 +509,18 @@ class VoiceListener:
                         completed_voiced = voiced
                     if (completed is not None and len(completed.audio) + len(self._vad.chunks) * BLOCK_BYTES >= MAX_AUDIO_BYTES):
                         raise VoiceError("Speech reached the 25-second limit; nothing submitted. Try a shorter request")
-                    if (not ptt and probe is None and not self._gate.armed(timestamp)
-                            and self._vad.active and self._vad.silence >= 20 and self._vad.voiced >= 3):
-                        probe = self._start_probe(b"".join(self._vad.chunks), voiced)
+                    retry_probe = (probe is not None and probe["handled"]
+                                   and wake_remainder(probe["text"] or "") is None
+                                   and voiced >= probe["voiced"] + 3 and completed is None)
+                    if (not ptt and (probe is None or retry_probe) and not confirmed
+                            and not self._gate.armed(timestamp) and self._vad.active
+                            and self._vad.silence >= 20 and self._vad.voiced >= 3):
+                        offset = max(0, probe["end_chunk"] - 10) if retry_probe else 0
+                        fresh = self._start_probe(b"".join(self._vad.chunks[offset:]), voiced)
+                        if fresh is not None:
+                            fresh.update(offset=offset, end_chunk=len(self._vad.chunks),
+                                         segment_started_at=self._vad.started_at)
+                            probe = fresh
                 if confirmed and not self._gate.armed(time.monotonic()) and not self._vad.active and completed is None:
                     confirmed = False
                 if ptt and not self._vad.active and native_blocks >= PTT_NO_SPEECH_BLOCKS:

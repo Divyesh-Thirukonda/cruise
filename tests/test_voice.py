@@ -131,6 +131,21 @@ class VADTests(unittest.TestCase):
         self.assertFalse(vad.active)
         self.assertEqual(vad.chunks, [])
 
+    def test_classified_background_noise_does_not_start_or_extend_request(self):
+        vad = EnergyVAD()
+        noise = array("h", [900, -900] * (BLOCK_SAMPLES // 2)).tobytes()
+        for index in range(1200):
+            self.assertIsNone(vad.feed(noise, index * BLOCK_SECONDS, speaking=False))
+        self.assertFalse(vad.active)
+        for index in range(8):
+            self.assertIsNone(vad.feed(SPEECH, 31 + index * BLOCK_SECONDS, speaking=True))
+        for index in range(119):
+            self.assertIsNone(vad.feed(noise, 32 + index * BLOCK_SECONDS, speaking=False))
+        result = vad.feed(noise, 35, speaking=False)
+        self.assertIsNotNone(result)
+        self.assertEqual(len(result.audio), (9 + 8 + 120) * BLOCK_BYTES)
+        self.assertFalse(vad.active)
+
 
 class FakeSoundDevice:
     def __init__(self, devices=None):
@@ -184,6 +199,10 @@ class ListenerTests(unittest.TestCase):
                         return_value=SimpleNamespace(feed=feed, flush=lambda: []))
         patcher.start()
         self.addCleanup(patcher.stop)
+        activity = patch("modulate.voice.SpeechActivity", return_value=SimpleNamespace(
+            feed=lambda block: block == SPEECH))
+        activity.start()
+        self.addCleanup(activity.stop)
 
     def test_disabled_listener_does_not_load_model_or_open_capture(self):
         with patch.object(self.listener, "_capture") as capture, patch.object(self.listener, "_load_model") as load:
@@ -565,6 +584,52 @@ class ListenerTests(unittest.TestCase):
         self.listener._deliver(utterance.transcript, utterance, False, self.listener._epoch)
         self.assertEqual(self.requests, ["make a game"])
         transcribe.assert_called_once()
+
+    def test_rejected_ambient_probe_does_not_hide_later_wake_before_three_second_pause(self):
+        transcripts = iter(["ordinary background conversation", "Hey Meta make a game"])
+        blocks = ([NATIVE_SPEECH] * 40 + [NATIVE_SILENCE] * 20
+                  + [NATIVE_SPEECH] * 40 + [NATIVE_SILENCE] * 120)
+        utterance, reads, transcribe = self.capture_wake(blocks, lambda _: next(transcripts))
+        self.assertEqual(reads, len(blocks))
+        self.assertEqual(transcribe.call_count, 2)
+        self.assertTrue(utterance.invoked)
+        self.assertEqual(utterance.transcript, "Hey Meta make a game")
+        self.assertLess(len(utterance.audio), len(blocks) * BLOCK_BYTES)
+        self.listener._deliver(utterance.transcript, utterance, False, self.listener._epoch)
+        self.assertEqual(self.requests, ["make a game"])
+
+    def test_slow_retry_probe_trims_its_completed_segment_without_cutting_new_speech(self):
+        retry_started, release_retry = threading.Event(), threading.Event()
+        self.addCleanup(release_retry.set)
+        calls = []
+
+        def recognize(audio):
+            calls.append(audio)
+            if len(calls) == 1:
+                return "ordinary background conversation"
+            retry_started.set()
+            self.assertTrue(release_retry.wait(1))
+            return "Hey Meta"
+
+        def hook(index):
+            if index == 120:
+                self.assertTrue(retry_started.wait(1))
+            if index == 230:  # Original segment completed; newer speech is active.
+                release_retry.set()
+
+        blocks = ([NATIVE_SPEECH] * 40 + [NATIVE_SILENCE] * 20
+                  + [NATIVE_SPEECH] * 40 + [NATIVE_SILENCE] * 120
+                  + [NATIVE_SPEECH] * 40 + [NATIVE_SILENCE] * 120)
+        utterance, reads, transcribe = self.capture_wake(blocks, recognize, hook)
+        expected = b"".join(SPEECH if block == NATIVE_SPEECH else SILENCE for block in blocks[50:])
+        self.assertEqual(reads, len(blocks))
+        self.assertEqual(transcribe.call_count, 2)
+        self.assertEqual(utterance.audio, expected, "Only the original 50-block ambient prefix is removed")
+        self.assertTrue(utterance.invoked)
+        self.assertIsNone(utterance.transcript, "The retained followup still needs final recognition")
+        self.assertEqual(self.requests, [])
+        self.listener._deliver("Hey Meta make a game", utterance, False, self.listener._epoch)
+        self.assertEqual(self.requests, ["make a game"])
 
     def test_bare_repeated_wake_acknowledges_early_and_keeps_stream_for_followup(self):
         blocks = [NATIVE_SPEECH] * 40 + [NATIVE_SILENCE] * 120 + [NATIVE_SPEECH] * 40 + [NATIVE_SILENCE] * 120

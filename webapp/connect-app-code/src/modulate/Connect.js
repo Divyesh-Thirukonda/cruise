@@ -283,8 +283,9 @@ export default function Connect() {
   return <div className="mc-app">
     <a className="mc-skip" href="#mc-main">Skip to content</a>
     <div className={`mc-sidebar-backdrop ${menuOpen ? 'is-open' : ''}`} onClick={() => setMenuOpen(false)} />
-    <aside className={`mc-sidebar ${menuOpen ? 'is-open' : ''}`}>
+    <aside className={`mc-sidebar ${menuOpen ? 'is-open' : ''}`} id="mc-navigation">
       <a href="/connect" className="mc-brand-link" aria-label="Modulate home"><Brand /></a>
+      <button className="mc-sidebar-close" type="button" aria-label="Close navigation" onClick={() => setMenuOpen(false)}><X size={22} /></button>
       <div className="mc-workspace"><span className="mc-workspace-icon"><Cpu size={19} /></span><div><strong>Device workspace</strong><span>{authenticated ? session?.companion?.name || 'Connected companion' : 'Connect your Modulate'}</span></div><ChevronRight size={16} /></div>
       <span className="mc-nav-label">WORKSPACE</span>
       <nav aria-label="Modulate workspace">{NAV.map(([key, Icon, label]) => <button key={key} className={view === key ? 'is-selected' : ''} aria-current={view === key ? 'page' : undefined} onClick={() => navigate(key)}><Icon size={21} /><span>{label}</span>{key === 'activity' && agentRunning && <span className="mc-nav-busy" />}</button>)}</nav>
@@ -292,14 +293,13 @@ export default function Connect() {
       <button className={`mc-nav-help ${view === 'setup' ? 'is-selected' : ''}`} onClick={() => navigate('setup')}><CircleHelp size={21} />Setup guide<ArrowUpRight size={15} /></button>
       <div className="mc-sidebar-bottom">
         <div className="mc-sidebar-device"><div className="mc-sidebar-device-top"><span className="mc-device-mini"><Cpu size={24} /></span><Badge live={deviceConnected}>{deviceConnected ? 'Online' : authenticated ? 'Offline' : 'Not connected'}</Badge></div><strong>{state?.device?.name || 'Your Modulate'}</strong><p>{deviceConnected ? `${controls.length} connected controls · Raspberry Pi` : 'Give your hardware a new job.'}</p>{authenticated ? <Button quiet icon={Power} onClick={() => run('disconnect', () => connectApi('disconnect', {}), 'This browser has been disconnected.')} disabled={Boolean(busy)}>Disconnect browser</Button> : <Button quiet icon={Link2} onClick={() => navigate('studio')}>Connect a device</Button>}</div>
-        <div className="mc-sidebar-footer"><ShieldCheck size={15} /><span>Private by connection</span><span className="mc-version">v0.1</span></div>
+        <div className="mc-sidebar-footer" role="status"><Badge live={online && authenticated}>{loading ? 'Connecting' : authenticated ? online ? 'Companion online' : 'Companion offline' : 'No device linked'}</Badge></div>
       </div>
     </aside>
 
     <div className="mc-main-shell">
-      <header className="mc-topbar"><div className="mc-topbar-left"><button className="mc-menu-button" aria-label="Open navigation" onClick={() => setMenuOpen(true)}><Menu size={22} /></button><span>Workspace</span><ChevronRight size={14} /><strong>{NAV.find(item => item[0] === view)?.[2] || 'Setup guide'}</strong></div><div className="mc-topbar-right"><Badge live={online && authenticated}>{loading ? 'Connecting' : authenticated ? online ? 'Companion online' : 'Companion offline' : 'No device linked'}</Badge><button className="mc-profile" onClick={() => navigate('permissions')} aria-label="Manage connection permissions"><ShieldCheck size={18} /></button></div></header>
       <main className="mc-main" id="mc-main">
-        <div className="mc-page-heading"><div><h1>{pageTitles[view][0]}</h1><p>{pageTitles[view][1]}</p></div>{authenticated && <Button icon={RefreshCw} quiet disabled={Boolean(busy)} onClick={refresh}>Refresh</Button>}</div>
+        <div className="mc-page-heading"><div className="mc-page-title"><button className="mc-menu-button" type="button" aria-label="Open navigation" aria-expanded={menuOpen} aria-controls="mc-navigation" onClick={() => setMenuOpen(true)}><Menu size={22} /></button><div><h1>{pageTitles[view][0]}</h1><p>{pageTitles[view][1]}</p></div></div>{authenticated && <Button icon={RefreshCw} quiet disabled={Boolean(busy)} onClick={refresh}>Refresh</Button>}</div>
         {notice && <div className={`mc-notice mc-notice-${notice.type}`} role="status">{notice.type === 'success' ? <CheckCircle2 size={18} /> : <Bell size={18} />}<span>{notice.text}</span><button aria-label="Dismiss notification" onClick={() => setNotice(null)}><X size={16} /></button></div>}
         {authenticated && !online && <div className="mc-notice mc-notice-warning" role="status"><Wifi size={18} /><span>Your companion is offline. Keep Modulate Studio running on the paired Mac. Retrying automatically.</span></div>}
         {computer?.active && <div className="mc-live-control" role="status"><span className="mc-pulse-dot" /><strong>Modulate is using your Mac</strong><span>{computer.scope || 'Paired Mac desktop'}</span><Button danger icon={Square} onClick={() => act('computer', '/api/computer', { action: 'revoke' })} disabled={genericDisabled}>Pause access</Button></div>}

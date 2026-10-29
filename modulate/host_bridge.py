@@ -1,4 +1,4 @@
-"""Trusted, volume-only host bridge. This module never starts a network listener.
+"""Trusted volume/brightness bridge. This module never starts a network listener.
 
 The companion server must protect local pairing administration separately and
 carry bearer tokens over authenticated TLS. Generated programs receive neither
@@ -22,7 +22,8 @@ import time
 import uuid
 
 
-ACTIONS = ("volume.get", "volume.delta", "volume.mute")
+ACTIONS = ("volume.get", "volume.delta", "volume.mute", "volume.set")
+BRIGHTNESS_ACTIONS = ("brightness.get", "brightness.delta", "brightness.set")
 PAIRING_SECONDS = 120
 SESSION_SECONDS = 8 * 60 * 60
 ATTEMPT_WINDOW = 60
@@ -84,7 +85,38 @@ class MacOSVolumeBackend:
                   'end run')
 
     def capabilities(self):
-        return {"supported": True, "platform": "macos"}
+        if not hasattr(self, "_brightness_supported"):
+            try:
+                self.get_brightness()
+                self._brightness_supported = True
+            except BackendError:
+                self._brightness_supported = False
+        return {"supported": True, "platform": "macos", "brightness": self._brightness_supported}
+
+    @staticmethod
+    def _brightness(action, value=None):
+        args = [sys.executable, "-m", "modulate.system_settings", action]
+        if value is not None:
+            args.append(str(value))
+        try:
+            result = subprocess.run(args, cwd=Path(__file__).resolve().parent.parent,
+                                    env={"LANG": "C.UTF-8"}, capture_output=True, text=True,
+                                    check=True, timeout=3)
+            data = json.loads(result.stdout)
+            value = data["brightness"]
+            if type(value) is not int or not 0 <= value <= 100:
+                raise ValueError
+            return value
+        except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError):
+            raise BackendError("Native brightness is unavailable for this display") from None
+
+    def get_brightness(self):
+        return self._brightness("get")
+
+    def set_brightness(self, value):
+        if type(value) is not int or not 0 <= value <= 100:
+            raise BackendError("Brightness must be an integer from 0 to 100")
+        return self._brightness("set", value)
 
     @staticmethod
     def _run(script, *arguments):
@@ -166,6 +198,8 @@ class BridgeStore:
         supported = info.get("supported") is True
         result = {"supported": supported, "platform": info.get("platform", "unknown"),
                   "actions": list(ACTIONS) if supported else [], "delta_limit": 10}
+        if supported and info.get("brightness") is True:
+            result["actions"].extend(BRIGHTNESS_ACTIONS)
         if not supported:
             result["reason"] = info.get("reason", "OS volume control is unavailable")
         return result
@@ -324,19 +358,35 @@ class BridgeStore:
                 raise ReplayError("Sequence must be a positive safe integer")
             if sequence <= session["last_sequence"]:
                 raise ReplayError("Command sequence was already used or is stale")
-            if action not in ACTIONS:
+            if action not in self.capabilities()["actions"]:
                 raise BridgeError("Unsupported host action")
-            if action == "volume.delta" and (type(value) is not int or not -10 <= value <= 10):
+            if action.endswith(".delta") and (type(value) is not int or not -10 <= value <= 10):
                 raise BridgeError("Volume delta must be an integer between -10 and 10")
+            if action.endswith(".set") and (type(value) is not int or not 0 <= value <= 100):
+                raise BridgeError("Setting must be an integer between 0 and 100")
             if action == "volume.mute" and type(value) is not bool:
                 raise BridgeError("Mute value must be a boolean")
-            if action == "volume.get" and value is not None:
+            if action.endswith(".get") and value is not None:
                 raise BridgeError("Volume get takes no value")
             session["last_sequence"] = sequence
             # Write ahead: a timeout/crash must never make a delta replayable.
             self._save(state)
             try:
-                if action == "volume.delta":
+                if action.startswith("brightness."):
+                    if action == "brightness.set":
+                        self.backend.set_brightness(value)
+                    elif action == "brightness.delta":
+                        current = self.backend.get_brightness()
+                        if type(current) is not int or not 0 <= current <= 100:
+                            raise BackendError("Host returned invalid brightness")
+                        self.backend.set_brightness(max(0, min(100, current + value)))
+                    current = self.backend.get_brightness()
+                    if type(current) is not int or not 0 <= current <= 100:
+                        raise BackendError("Host returned invalid brightness")
+                    return {"brightness": current, "sequence": sequence}
+                if action == "volume.set":
+                    self.backend.set_volume(value)
+                elif action == "volume.delta":
                     current = _volume_result(self.backend.get())
                     self.backend.set_volume(max(0, min(100, current["volume"] + value)))
                 elif action == "volume.mute":

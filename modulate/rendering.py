@@ -4,7 +4,7 @@ from io import BytesIO
 from math import floor
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 
 @lru_cache(maxsize=24)
@@ -34,7 +34,7 @@ class Renderer:
             self.sprites[name] = image
         self.scaled = {}
 
-    def render(self, commands):
+    def render(self, commands, camera=None):
         image = Image.new("RGB", (240, 135), "black")
         draw = ImageDraw.Draw(image)
         for command in commands:
@@ -65,6 +65,27 @@ class Renderer:
                     self.scaled[key] = sprite.resize((sprite.width * scale, sprite.height * scale), Image.Resampling.NEAREST)
                 sprite = self.scaled[key]
                 image.paste(sprite, (_pixel(command["x"]), _pixel(command["y"])), sprite)
+            elif op == "camera":
+                x, y = _pixel(command["x"]), _pixel(command["y"])
+                w, h = command["w"], command["h"]
+                if camera is None:
+                    draw.rectangle((x, y, x + w - 1, y + h - 1), fill="#17242F")
+                    draw.text((x + 5, y + 5), "Camera connecting", font=font(10), fill="#D6DFE7")
+                    continue
+                source = ImageOps.fit(camera.convert("RGB"), (w, h))
+                if command["mirror"]:
+                    source = ImageOps.mirror(source)
+                factor = command["pixelate"]
+                if factor > 1:
+                    source = source.resize((max(1, w // factor), max(1, h // factor)), Image.Resampling.BILINEAR)
+                    source = source.resize((w, h), Image.Resampling.NEAREST)
+                palette = command["palette"]
+                if palette != "natural":
+                    gray = ImageOps.grayscale(source)
+                    colors = {"mono": ("#101820", "#F2F8EF"), "neon": ("#24064F", "#64FFC4"),
+                              "warm": ("#351030", "#FFCC65")}
+                    source = ImageOps.colorize(gray, *colors[palette])
+                image.paste(source, (x, y))
         return image
 
 

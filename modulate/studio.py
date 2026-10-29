@@ -200,6 +200,8 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
                     result = product.draft(data.get("job_id"), data.get("action"), data.get("text"))
                 elif path == "/api/computer":
                     result = product.computer_session(data.get("action"), minutes=data.get("minutes", 15))
+                elif path == "/api/camera/stop":
+                    result = product.stop_camera()
                 elif path == "/api/computer/approval":
                     result = product.approve_computer_action(data.get("id"), data.get("approved"))
                 elif path == "/api/response/dismiss":
@@ -270,6 +272,8 @@ def main():
     except KeyboardInterrupt:
         product.cancel()
     finally:
+        if product.camera:
+            product.camera.stop()
         studio.server_close()
         device_server.shutdown()
         device_server.server_close()

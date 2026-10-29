@@ -38,6 +38,8 @@ _TOOL_PROGRESS = {
     "ask_user": ("planning", "One quick question"),
     "computer_observe": ("planning", "Looking at the computer"),
     "computer_act": ("planning", "Using the computer"),
+    "camera_control": ("planning", "Connecting the Mac camera"),
+    "system_control": ("planning", "Adjusting the Mac"),
 }
 
 
@@ -242,8 +244,11 @@ class Product(AssistantIO):
                     "devices": copy.deepcopy(self.device["devices"]), "warnings": list(self.device["warnings"]),
                     "button_sources": dict(self.device["button_sources"]),
                     "paired_host": paired,
-                    "computer": {key: value for key, value in self.computer.status().items()
+                    "computer": {key: value for key, value in self.computer_status().items()
                                  if key in {"supported", "enabled", "scope"}},
+                    "camera": {"supported": self.camera_status()["supported"],
+                               "source": "paired_mac", "local_stream_only": True,
+                               "width": 240, "height": 135},
                     "speaker": {"available": self.telemetry.get("speaker", {}).get("available", False)}}
 
     def candidate_changed(self, identifier, package):
@@ -259,18 +264,19 @@ class Product(AssistantIO):
             raise AgentError("Control title must contain 1–80 characters")
         capabilities = self.capabilities()
         paired = capabilities["paired_host"]
-        if not paired or package["target"] != paired["session_id"] or "volume.delta" not in paired["actions"]:
-            raise AgentError("Pair and grant this computer's volume control before generating a binding")
+        if not paired or package["target"] != paired["session_id"]:
+            raise AgentError("Pair this Mac before generating a control binding")
         if "encoder" not in capabilities["controls"]:
             raise AgentError("The encoder is unavailable")
         bindings = package["bindings"]
         if not isinstance(bindings, list) or len(bindings) != 1:
-            raise AgentError("The first control runtime supports one encoder volume binding")
+            raise AgentError("The control runtime supports one encoder setting binding")
         binding = bindings[0]
         if not isinstance(binding, dict) or set(binding) != {"control", "action", "scale"}:
             raise AgentError("Binding requires control, action, scale")
-        if binding["control"] != "encoder" or binding["action"] != "volume.delta":
-            raise AgentError("Only encoder → volume.delta is supported by this host grant")
+        if (binding["control"] != "encoder" or binding["action"] not in {"volume.delta", "brightness.delta"}
+                or binding["action"] not in paired["actions"]):
+            raise AgentError("The paired Mac must support the requested encoder setting")
         if type(binding["scale"]) is not int or not 1 <= abs(binding["scale"]) <= 10:
             raise AgentError("Encoder scale must be a nonzero integer within -10..10")
         return json.loads(json.dumps(package))
@@ -357,16 +363,15 @@ class Product(AssistantIO):
             if "declined" in message or "approval expired" in message:
                 return ("That computer action was not approved, so I stopped. Start a new request if you want to reconsider it.", None)
             if any(word in message for word in ("permission", "enable computer", "access is disabled", "chrome", "helper unavailable")):
-                return ("I can't use the granted Chrome window right now. Check computer access and permissions in Studio and bring that window forward.",
-                        "Once you've fixed the Chrome connection, should I continue the original request?")
+                return ("The Mac's native access or paired connection is unavailable. Check the Mac permission status in Studio.",
+                        "Once access is restored, should I continue the original request?")
             if any(word in message for word in ("disconnected", "synchroniz", "acknowledg", "activation", "timed out")):
                 return ("I couldn't confirm the operation with the device or computer. Check the connection and what is currently visible before retrying.",
                         "After checking the connection and current result, should I try the original request once more?")
             if "question limit" in message:
                 return ("I still need a clearer goal. Please start a new request that says what should happen and which app or device to use.", None)
             if "limit" in message or "same operation failed" in message:
-                return ("I reached the bounded attempt limit without finishing. Please narrow the goal or explain the result you want.",
-                        "What should I change about the original request before trying again?")
+                return ("I tried to repair the request but reached the attempt limit. Your current app is still available; the details are in Studio.", None)
         return ("An unexpected error stopped this request. Your active app is still available. Check Studio and describe what happened before starting a new request.", None)
 
     def request(self, text, source="website", followup_id=None):
@@ -596,6 +601,7 @@ class Product(AssistantIO):
             else:
                 if not set(package["controls"]) <= set(self.device["controls"]):
                     raise AgentError("A required input is unavailable")
+                self.validate_camera(package)
             if self.pending and self.pending["phase"] not in {"confirmed", "abort"}:
                 raise AgentError("Another activation is pending")
             token = uuid.uuid4().hex
@@ -707,7 +713,7 @@ class Product(AssistantIO):
                 frame_package = self.pending["package"]
             commands = packet.get("commands")
             if commands and frame_package and frame_package["kind"] == "game":
-                commands = validate_commands(commands, frame_package["assets"]["sprites"])
+                commands = validate_commands(commands, frame_package["assets"]["sprites"], bool(frame_package.get("camera")))
             retired = self.retired_sessions | ({self.source_session} if switching and self.source_session else set())
             # Persist the anti-replay watermark before acknowledgements or host actions.
             _save_json(self.sequence_path, {"source": session_id, "last_sequence": sequence, "retired": sorted(retired)})
@@ -726,6 +732,7 @@ class Product(AssistantIO):
                 except BridgeError:
                     self.volume_token = None
                     self.volume = None
+            self._sync_computer_pairing()
             if recovered is not None:
                 self._restore_failure(failure, recovered)
             if self.pending and self.pending["phase"] not in {"confirmed", "abort"} and (
@@ -736,27 +743,36 @@ class Product(AssistantIO):
             self._acknowledge(packet.get("ack"))
             if failure is None:
                 self._restore_host_program()
+            self._sync_camera()
             if self.active and self.device_revision == self.revision:
                 if self.active["package"]["kind"] == "game" and commands:
-                    commands = validate_commands(commands, self.active["package"]["assets"]["sprites"])
+                    commands = validate_commands(commands, self.active["package"]["assets"]["sprites"], bool(self.active["package"].get("camera")))
                     if not self.renderer:
                         self.renderer = Renderer(self.active["package"])
-                    self._device_preview(png(self.renderer.render(commands)))
+                    camera_image = None
+                    if self.active["package"].get("camera") and self.camera and self._camera_wanted():
+                        camera_frame = self.camera.frame()
+                        if camera_frame:
+                            from io import BytesIO
+                            from PIL import Image
+                            camera_image = Image.open(BytesIO(camera_frame["jpeg"])).convert("RGB")
+                    self._device_preview(png(self.renderer.render(commands, camera_image)))
                 elif self.active["package"]["kind"] == "control" and self.volume_token:
                     package = self.active["package"]
                     try:
                         self.validate_control(package)
                         session = self.bridge.session(self.volume_token)
+                        setting_action = package["bindings"][0]["action"]
                         delta = max(-10, min(10, self.input["encoder_delta"] * package["bindings"][0]["scale"]))
                         if delta:
                             self.volume_read_at = time.monotonic()
-                            self.volume = self.bridge.execute(self.volume_token, session["next_sequence"], "volume.delta", delta)
+                            self.volume = self.bridge.execute(self.volume_token, session["next_sequence"], setting_action, delta)
                             self.volume_read_at = time.monotonic()
                         elif self.volume_read_at is None or time.monotonic() - self.volume_read_at >= 1:
                             # Poll only the trusted host bridge. A failed poll also
                             # consumes this interval, even if the token is resent.
                             self.volume_read_at = time.monotonic()
-                            self.volume = self.bridge.execute(self.volume_token, session["next_sequence"], "volume.get")
+                            self.volume = self.bridge.execute(self.volume_token, session["next_sequence"], setting_action.replace(".delta", ".get"))
                             self.volume_read_at = time.monotonic()
                     except (BridgeError, AgentError):
                         self.volume_token = None
@@ -767,6 +783,7 @@ class Product(AssistantIO):
                 if self.pending["phase"] == "stage":
                     pending["package"] = self.pending["package"]
             return {**self._assistant_heartbeat(packet),
+                    "camera_frame": self._camera_packet(),
                     "activation": pending, "active_revision": self.revision, "wake": self.wake,
                     "agent_running": self.running, "agent_state": self.agent_state(),
                     "clarification": self._clarification_state(),
@@ -864,6 +881,11 @@ class Product(AssistantIO):
             self.volume = None
             self.volume_read_at = None
             self.pairing = None
+            self.computer.revoke()
+            if self.camera:
+                self.camera.stop()
+            if self.running:
+                self.cancel()
             if self.pending and self.pending["phase"] not in {"confirmed", "abort"} and self.pending["package"]["kind"] == "control":
                 self.pending.update(phase="abort", error="Host control grant revoked")
                 self.changed.notify_all()
@@ -890,6 +912,7 @@ class Product(AssistantIO):
                     "active": self.active, "candidate": self.candidate,
                     "agent": self.agent_state(),
                     "computer": self.computer_status(), "response": self._response_state(),
+                    "camera": self.camera_status(),
                     "speech": self.speech_status(),
                     "voice_draft": copy.deepcopy(self.voice_draft),
                     "clarification": self._clarification_state(),

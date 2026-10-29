@@ -5,7 +5,7 @@ import time
 import unittest
 
 from modulate.game_runtime import (Game, GameError, validate_package, validate_input,
-    validate_state, validate_commands, verify, MAX_CODE_BYTES)
+    validate_state, validate_commands, validate_frame, verify, MAX_CODE_BYTES, DEFAULT_INPUT)
 
 
 GAME_CODE = """
@@ -33,6 +33,11 @@ def fixture(code=GAME_CODE):
                 "palette": ["transparent", "#FF3300"], "pixels": [[0, 1, 0], [1, 1, 1]]}}}}
 
 
+def camera_command(**changes):
+    return {"op": "camera", "x": 0, "y": 0, "w": 240, "h": 135,
+            "mirror": False, "pixelate": 1, "palette": "natural", **changes}
+
+
 class PackageTests(unittest.TestCase):
     def test_normalization_copies_assets_and_controls(self):
         original = fixture()
@@ -58,6 +63,57 @@ class PackageTests(unittest.TestCase):
         package["install"] = "curl bad"
         with self.assertRaises(GameError):
             validate_package(package)
+
+    def test_optional_camera_target_is_bounded_copied_and_cannot_embed_pixels(self):
+        self.assertNotIn("camera", validate_package(fixture()))
+        original = {**fixture(), "camera": {"target": "a" * 32}}
+        normalized = validate_package(original)
+        original["camera"]["target"] = "b" * 32
+        self.assertEqual(normalized["camera"], {"target": "a" * 32})
+        # Pairing membership is a trusted host check, not worker authority.
+        invalid = [None, {}, [], {"target": ""}, {"target": " "}, {"target": True},
+                   {"target": "x" * 129}, {"target": "camera\n"}, {"target": "📷"},
+                   {"target": "a" * 32, "pixels": [[1]]},
+                   {"target": "a" * 32, "image_url": "data:image/jpeg;base64,synthetic"}]
+        for camera in invalid:
+            with self.subTest(camera=camera), self.assertRaises(GameError):
+                validate_package({**fixture(), "camera": camera})
+
+    def test_camera_commands_require_declared_source_and_allow_only_one_per_frame(self):
+        package = fixture()
+        frame = {"state": {}, "commands": [camera_command()]}
+        with self.assertRaises(GameError):
+            validate_frame(frame, package)
+        package["camera"] = {"target": "a" * 32}
+        self.assertEqual(validate_frame(frame, package), frame)
+        for commands in ([camera_command(), camera_command()],
+                         [camera_command(), {"op": "clear", "color": "#000000"}, camera_command()]):
+            with self.subTest(commands=commands), self.assertRaises(GameError):
+                validate_frame({"state": {}, "commands": commands}, package)
+
+    def test_camera_parameters_reject_unsafe_sizes_types_and_unrecognized_fields(self):
+        sprites = fixture()["assets"]["sprites"]
+        bad = [("w", 0), ("w", 241), ("w", 12.0), ("w", True),
+               ("h", 0), ("h", 136), ("h", 1.5), ("h", False),
+               ("mirror", 1), ("mirror", "false"), ("pixelate", 0), ("pixelate", 17),
+               ("pixelate", 1.0), ("pixelate", True), ("palette", "sepia"),
+               ("palette", None), ("palette", []), ("x", float("nan")),
+               ("y", float("inf")), ("x", -1025), ("y", 1025)]
+        for key, value in bad:
+            with self.subTest(key=key, value=value), self.assertRaises(GameError):
+                validate_commands([camera_command(**{key: value})], sprites, allow_camera=True)
+        for key in camera_command():
+            incomplete = camera_command()
+            del incomplete[key]
+            with self.subTest(missing=key), self.assertRaises(GameError):
+                validate_commands([incomplete], sprites, allow_camera=True)
+        for extra in ("pixels", "image_url", "path", "target"):
+            with self.subTest(extra=extra), self.assertRaises(GameError):
+                validate_commands([camera_command(**{extra: "synthetic"})], sprites, allow_camera=True)
+        for palette in ("natural", "mono", "neon", "warm"):
+            self.assertTrue(validate_commands([camera_command(x=-1024, y=1024, w=1, h=1,
+                                                               mirror=True, pixelate=16, palette=palette)],
+                                             sprites, allow_camera=True))
 
     def test_sprite_size_palette_and_rows(self):
         cases = [("width", 33), ("height", 0), ("width", True),
@@ -123,6 +179,31 @@ class PackageTests(unittest.TestCase):
 
 
 class WorkerTests(unittest.TestCase):
+    def test_camera_game_receives_controls_but_no_pixels_camera_object_or_host_api(self):
+        # Handwritten fixture only. Real worker execution checks the API boundary;
+        # it captures no camera and does not establish vision or app quality.
+        code = """
+        function init(){return {apis:[typeof camera,typeof cameraFrame,typeof pixels,
+          typeof Image,typeof document,typeof fetch],keys:[],cameraInput:'unseen'};}
+        function update(s,input){s.keys=Object.keys(input).sort();
+          s.cameraInput=typeof input.camera;return s;}
+        function draw(){return [
+          {op:'clear',color:'#000000'},
+          {op:'camera',x:0,y:0,w:240,h:135,mirror:true,pixelate:4,palette:'neon'},
+          {op:'sprite',id:'ship',x:4,y:4,scale:1}];}
+        """
+        package = {**fixture(code), "camera": {"target": "a" * 32}}
+        with Game(package) as game:
+            self.assertEqual(game.initial_frame["state"]["apis"], ["undefined"] * 6)
+            frame = game.step({"encoder_delta": 2})
+            self.assertEqual(frame["state"]["keys"], sorted(DEFAULT_INPUT))
+            self.assertEqual(frame["state"]["cameraInput"], "undefined")
+            self.assertEqual(frame["commands"][1]["op"], "camera")
+            self.assertFalse(game.isolation["host_callbacks"])
+            for field in ("camera", "pixels", "image_url", "jpeg"):
+                with self.subTest(field=field), self.assertRaises(GameError):
+                    game.step({field: "synthetic-camera-data"})
+
     def test_generated_logic_input_effect_and_persistent_state(self):
         with Game(fixture()) as game:
             initial = game.initial_frame

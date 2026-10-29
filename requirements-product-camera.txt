@@ -1,0 +1,9 @@
+# Optional local Mac camera capture; no cloud image/model dependency.
+# AVFoundation/dispatch APIs verified against Apple and PyObjC documentation.
+pyobjc-framework-AVFoundation==12.2.2; sys_platform == 'darwin'
+pyobjc-framework-CoreMedia==12.2.2; sys_platform == 'darwin'
+pyobjc-framework-CoreAudio==12.2.2; sys_platform == 'darwin'
+pyobjc-framework-Cocoa==12.2.2; sys_platform == 'darwin'
+pyobjc-framework-Quartz==12.2.2; sys_platform == 'darwin'
+pyobjc-framework-libdispatch==12.2.2; sys_platform == 'darwin'
+Pillow==12.3.0

@@ -13,11 +13,13 @@ import uuid
 
 from .agent import AgentError
 from .computer import ComputerController, ComputerError
+from .mac_access import MacAccess
 
 
-class AssistantIO:
+class AssistantIO(MacAccess):
     def _init_assistant_io(self, computer=None):
         self.computer = computer if computer is not None else ComputerController()
+        self._init_mac_access()
         self.response = None
         self.speech_message = None
         self.speech_stop_id = int(time.time() * 1000)
@@ -36,7 +38,9 @@ class AssistantIO:
             self.tts = ElevenLabsTTS(self.directory)
 
     def computer_status(self):
+        self._sync_computer_pairing()
         value = self.computer.status()
+        value["paused"] = self.computer_paused
         value["pending_approval"] = ({"id": self.computer_approval["id"],
                                       "description": self.computer_approval["description"]}
                                      if self.computer_approval else None)
@@ -48,13 +52,17 @@ class AssistantIO:
                 raise AgentError("Connect the controller before enabling computer control")
             if self.running:
                 raise AgentError("Finish or cancel the current request first")
-            try:
-                return self.computer.enable(minutes=minutes)
-            except ComputerError as error:
-                raise AgentError(str(error)) from None
+            self.computer_paused = False
+            self._save_mac_access()
+            self._sync_computer_pairing()
+            return self.computer_status()
         if action != "revoke":
             raise AgentError("Unknown computer-session action")
+        self.computer_paused = True
+        self._save_mac_access()
         self.computer.revoke()
+        if self.camera:
+            self.camera.stop()
         if self.running and self.agent.private_request:
             self.cancel()
         with self.changed:
@@ -67,16 +75,19 @@ class AssistantIO:
         return self.computer_status()
 
     def computer_authorized(self):
+        self._require_mac()
+        self._sync_computer_pairing()
         if not self.connected():
             self.computer.cancel()
             raise AgentError("Controller disconnected; computer work stopped")
         if not self.computer.status().get("enabled"):
-            raise AgentError("Enable computer control in Studio before asking me to use the Mac")
+            raise AgentError("Mac control needs its native Screen Recording and Accessibility permissions")
         if self.agent.cancelled.is_set():
             raise AgentError("Computer request cancelled")
 
     def computer_observe(self):
         self.computer_authorized()
+        self._start_access_guard()
         try:
             with self.lock:
                 focus = self.computer_focus_pending

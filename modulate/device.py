@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 from collections import deque
 import fcntl
 import json
@@ -14,6 +15,7 @@ import threading
 import textwrap
 import time
 import uuid
+from io import BytesIO
 
 from PIL import Image, ImageDraw
 
@@ -73,9 +75,15 @@ class Controller:
         self.pairing_path = self.directory / "pairing.json"
         self.pairing_mtime = None
         self.reload_pairing()
+        self.camera_image = None
+        self.camera_identity = None
+        self.camera_received_at = 0.0
+        self.camera_frames_received = 0
+        self.camera_watermarks = {}
+        self.camera_session = None
         self.runtime = DeviceActivation(self.directory / "runtime", self.present,
                                         lambda: self.controls.capabilities()["controls"],
-                                        lambda: self.pairing.get("session_id"))
+                                        lambda: self.pairing.get("session_id"), self._live_camera_image)
         # The first heartbeat must advertise the restored durable revision,
         # before the render loop runs, so the host does not stage a false recovery.
         self.state = self.runtime.snapshot()
@@ -351,6 +359,8 @@ class Controller:
                           "capabilities": self.controls.capabilities(), "input": sample,
                           "commands": self.commands if self.state.get("kind") == "game" else [],
                           "telemetry": {"fps": round(self.fps, 1), "voice": self.voice_state,
+                                        "camera": {"frames_received": self.camera_frames_received,
+                                                   "frame_fresh": self._live_camera_image() is not None},
                                         "voice_history": list(self.voice_history),
                                         "speaker": dict(self.speaker_state),
                                         "processing": {"busy": bool(self._busy()),
@@ -522,11 +532,59 @@ class Controller:
                 self.host = response
             self.runtime.acknowledge_failure(response.get("failure_ack"))
             self.runtime.process(response.get("activation"))
+            self._update_camera(response.get("camera_frame"))
             self._update_build(response)
             self._update_speech(response)
             self._sync_voice()
             if response.get("activation"):
                 self.status_key = None  # Commit/rollback may have presented a frame.
+
+    def _live_camera_image(self):
+        if (getattr(self, "camera_identity", None)
+                and self.camera_identity[0] != self.runtime.snapshot().get("revision")):
+            self.camera_image = self.camera_identity = None
+        if (getattr(self, "camera_image", None) is None
+                or time.monotonic() - self.camera_received_at >= 2
+                or not self.camera_identity
+                or self.camera_identity[0] != self.runtime.snapshot().get("revision")):
+            return None
+        return self.camera_image
+
+    def _update_camera(self, packet):
+        if packet is None:
+            self.camera_image = self.camera_identity = None
+            return
+        try:
+            active = self.runtime.snapshot()
+            if (type(packet) is not dict or set(packet) != {"revision", "session", "sequence", "jpeg"}
+                    or active.get("kind") != "game" or not active.get("revision")
+                    or packet["revision"] != active["revision"]
+                    or not self._job_id(packet["session"])
+                    or type(packet["sequence"]) is not int or not 1 <= packet["sequence"] < 2**53
+                    or type(packet["jpeg"]) is not str or len(packet["jpeg"]) > 86_000):
+                raise ValueError
+            identity = (packet["revision"], packet["session"], packet["sequence"])
+            watermarks = getattr(self, "camera_watermarks", {})
+            last_session = getattr(self, "camera_session", None)
+            if (identity[1] in watermarks and (last_session != identity[1]
+                    or identity[2] <= watermarks[identity[1]])):
+                return
+            raw = base64.b64decode(packet["jpeg"], validate=True)
+            if not 2 <= len(raw) <= 64_000:
+                raise ValueError
+            with Image.open(BytesIO(raw)) as image:
+                if image.format != "JPEG" or image.size != (240, 135):
+                    raise ValueError
+                decoded = image.convert("RGB")
+            self.camera_image, self.camera_identity = decoded, identity
+            watermarks[identity[1]] = identity[2]
+            if len(watermarks) > 64:
+                del watermarks[next(iter(watermarks))]
+            self.camera_watermarks, self.camera_session = watermarks, identity[1]
+            self.camera_received_at = time.monotonic()
+            self.camera_frames_received = getattr(self, "camera_frames_received", 0) + 1
+        except (ValueError, TypeError, KeyError, OSError):
+            self.camera_image = self.camera_identity = None
 
     def _publish(self, sample, frame, current, input_revision):
         with self.lock:
@@ -553,18 +611,19 @@ class Controller:
 
     def draw_volume(self):
         volume = self.host.get("volume") or {}
-        value = volume.get("volume", 0)
+        brightness = "brightness" in volume
+        value = volume.get("brightness" if brightness else "volume", 0)
         image = Image.new("RGB", (240, 135), "#101820")
         draw = ImageDraw.Draw(image)
         draw.text((10, 8), "MODULATE / THIS MAC", font=font(12), fill="#64E3B5")
         draw.text((10, 30), f"{value}%", font=font(44), fill="white")
-        draw.text((125, 50), "MUTED" if volume.get("muted") else "VOLUME", font=font(13), fill="#D6DFE7")
+        draw.text((125, 50), "BRIGHTNESS" if brightness else "MUTED" if volume.get("muted") else "VOLUME", font=font(11), fill="#D6DFE7")
         draw.rectangle((10, 92, 230, 100), fill="#273943")
         draw.rectangle((10, 92, 10 + max(0, min(100, value)) * 2.2, 100), fill="#64E3B5")
         linked = self.host.get("paired") and time.monotonic() - self.last_response < 4
         draw.text((10, 112), "Turn knob / Hey Meta..." if linked else "Pair the Mac in Studio", font=font(11), fill="#D6DFE7")
         self.present(image)
-        self._displayed("control", "Volume")
+        self._displayed("control", "Brightness" if brightness else "Volume")
 
     def draw_processing(self):
         with self.lock:
@@ -643,7 +702,7 @@ class Controller:
                 elif feedback:
                     self.status(feedback["title"], feedback["detail"])
                 elif offer:
-                    self.status("Link this Mac?", f"Code: {offer['code']}\nA: allow volume control\nB: decline")
+                    self.status("Link this Mac?", f"Code: {offer['code']}\nA: allow Mac control\nB: decline")
                 elif voice_overlay:
                     if voice_message.startswith("Listening for your answer"):
                         self.status("Your answer", "Answer the question\nNo Hey Meta needed")

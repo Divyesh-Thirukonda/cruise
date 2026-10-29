@@ -1,4 +1,4 @@
-"""Opt-in Chrome-window computer control, separate from generated app workers.
+"""Paired primary-desktop computer control, separate from generated app workers.
 
 Native operations run in a short-lived helper with a deadline. No shell,
 clipboard, browser profile, or file-content interface is exposed. Screenshots
@@ -9,7 +9,6 @@ from __future__ import annotations
 import base64
 import io
 import json
-import math
 from pathlib import Path
 import re
 import subprocess
@@ -22,25 +21,23 @@ import uuid
 MAX_IMAGE_BYTES = 349_000
 MAX_ACTIONS = 100
 OBSERVATION_SECONDS = 30
-MIN_BROWSER_WIDTH = 320
-MIN_BROWSER_HEIGHT = 200
 STATUS_CACHE_SECONDS = 2
-SCOPE = "Google Chrome: the window selected when access was enabled"
-KEYS = {("enter",), ("esc",), ("tab",), ("shift", "tab"),
-        ("up",), ("down",), ("left",), ("right",), ("pageup",),
-        ("pagedown",), ("home",), ("end",), ("space",), ("backspace",),
-        ("command", "l"), ("command", "f"), ("command", "a"),
-        ("command", "r"), ("command", "t"), ("command", "["),
-        ("command", "]")}
+SCOPE = "Paired Mac: full primary desktop"
+MODIFIERS = {"command", "ctrl", "alt", "shift"}
+KEY_NAMES = set("abcdefghijklmnopqrstuvwxyz0123456789`-=[]\\;',./") | {
+    "enter", "esc", "tab", "up", "down", "left", "right", "pageup", "pagedown",
+    "home", "end", "space", "backspace", "delete", "capslock"} | {f"f{n}" for n in range(1, 21)}
+BUNDLE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]*(?:\.[A-Za-z0-9][A-Za-z0-9-]*)+\Z")
+
 
 
 class ComputerError(ValueError):
     """Public error without screenshot contents, typed text, or OS diagnostics."""
 
 
-def _same_window(left, right):
+def _same_desktop(left, right):
     return (isinstance(left, dict) and isinstance(right, dict)
-            and all(left.get(key) == right.get(key) for key in ("pid", "id", "bounds", "primary")))
+            and all(left.get(key) == right.get(key) for key in ("id", "bounds")))
 
 
 def _image_bytes(image):
@@ -108,14 +105,11 @@ class MacOSBackend:
     def inspect(self):
         return self._call("inspect")
 
-    def capture(self, window, cancelled):
-        return self._call("capture", {"window": window}, cancelled=cancelled)
+    def capture(self, desktop, cancelled):
+        return self._call("capture", {"desktop": desktop}, cancelled=cancelled)
 
-    def focus(self, window, cancelled):
-        return self._call("focus", {"window": window}, cancelled=cancelled)
-
-    def perform(self, window, action, cancelled):
-        return self._call("action", {"window": window, "action": action}, cancelled=cancelled)
+    def perform(self, desktop, action, cancelled):
+        return self._call("action", {"desktop": desktop, "action": action}, cancelled=cancelled)
 
 
 class ComputerController:
@@ -148,103 +142,97 @@ class ComputerController:
         except Exception:
             raise ComputerError("Computer permissions could not be checked") from None
 
-    def _expire(self):
-        if self.grant and self.clock() >= self.grant["deadline"]:
-            self.grant = self.observation = None
-            self.cancelled.set()
-            self.error = "Computer access expired"
+    def sync_pairing(self, session_id):
+        """Trusted owner supplies only a currently connected, authorized pairing.
+
+        The owner validates expiry/revocation on every heartbeat/tool and sends
+        None when disconnected. Pairing survives restart in the owner, not here.
+        Repeated sync never clears cancellation or resets the per-task limit.
+        """
+        if session_id is None:
+            return self.revoke()
+        if (type(session_id) is not str or not 1 <= len(session_id) <= 128
+                or not session_id.isascii() or not session_id.isprintable()
+                or any(c.isspace() for c in session_id)):
+            raise ComputerError("Invalid paired computer session")
+        if self.grant and self.grant["session_id"] == session_id:
+            return self._status_snapshot()  # Heartbeats must not wait behind native work.
+        self.cancelled.set()  # A changed pairing interrupts work owned by the old one.
+        with self.lock:
+            if not self.grant or self.grant["session_id"] != session_id:
+                self.grant = {"session_id": session_id, "actions": 0}
+                self.observation = None
+                self.cancelled.clear()
+                self.error = None
+            return self._status_snapshot()
 
     def _status_snapshot(self, *, active=None):
-        grant = self.grant
-        enabled = grant is not None and self.clock() < grant["deadline"]
+        enabled = (self.grant is not None and self._cached_info["supported"]
+                   and all(self._cached_info["permissions"].values()))
         return {"supported": self._cached_info["supported"], "enabled": enabled,
-                "expires_at": grant["expires_at"] if enabled else None, "scope": SCOPE,
+                "expires_at": None, "scope": SCOPE,
                 "permissions": dict(self._cached_info["permissions"]), "error": self.error,
                 "active": self.active if active is None else active}
 
     def status(self):
-        # UI polling must not queue permission helpers behind an active action.
-        # This snapshot is display metadata; observe/act always inspect afresh.
         if not self.lock.acquire(blocking=False):
             return self._status_snapshot(active=True)
         try:
-            self._expire()
             try:
                 if self.clock() - self._cached_at >= STATUS_CACHE_SECONDS:
                     self._inspect()
                 if self.grant and (not self._cached_info["supported"]
                                    or not all(self._cached_info["permissions"].values())):
-                    self.grant = self.observation = None
-                    self.cancelled.set()
-                    self.error = "Computer permission was removed"
+                    self.observation = None
+                    self.error = "Allow Screen Recording and Accessibility for the computer helper"
             except ComputerError as error:
                 self._cached_info = {"supported": False,
                                      "permissions": {"screen_recording": False, "accessibility": False}}
                 self._cached_at = self.clock()
                 self.error = str(error)
-                self.grant = self.observation = None
+                self.observation = None
             return self._status_snapshot()
         finally:
             self.lock.release()
 
-    def enable(self, minutes=15):
-        if type(minutes) not in (int, float) or not math.isfinite(minutes) or not 1 <= minutes <= 120:
-            raise ComputerError("Computer access must last 1–120 minutes")
+    def enable(self, minutes=None):
+        """Compatibility check only; authorization comes exclusively from pairing."""
         with self.lock:
-            info = self._inspect()
-            if not info["supported"] or not all(info["permissions"].values()):
-                raise ComputerError("Allow Screen Recording and Accessibility for the computer helper first")
-            window = info.get("window")
-            self._valid_window(window)
-            self.grant = {"session_id": uuid.uuid4().hex, "window": window,
-                          "deadline": self.clock() + minutes * 60,
-                          "expires_at": self.wall_clock() + minutes * 60, "actions": 0}
-            self.observation = None
-            self.cancelled.clear()
-            self.error = None
-            return {"session_id": self.grant["session_id"], "enabled": True,
-                    "expires_at": self.grant["expires_at"], "scope": SCOPE}
+            self._check()
+            return self._status_snapshot()
 
     @staticmethod
-    def _valid_window(window):
-        if (not isinstance(window, dict) or type(window.get("id")) is not int
-                or type(window.get("pid")) is not int or window.get("app") != "com.google.Chrome"):
-            raise ComputerError("Bring the Google Chrome window to the front first")
-        for key in ("bounds", "primary"):
-            values = window.get(key)
-            if (not isinstance(values, list) or len(values) != 4
-                    or any(type(value) is not int for value in values) or min(values[2:]) <= 0):
-                raise ComputerError("Computer window geometry is unavailable")
-        x, y, w, h = window["bounds"]
-        px, py, pw, ph = window["primary"]
-        if x < px or y < py or x + w > px + pw or y + h > py + ph:
-            raise ComputerError("Keep the complete Chrome window on the primary display")
+    def _valid_desktop(desktop):
+        if (type(desktop) is not dict or type(desktop.get("id")) is not int or desktop["id"] < 0
+                or set(desktop) != {"id", "bounds"}):
+            raise ComputerError("Primary display identity is unavailable")
+        values = desktop["bounds"]
+        if (type(values) is not list or len(values) != 4 or any(type(value) is not int for value in values)
+                or not 1 <= values[2] <= 32768 or not 1 <= values[3] <= 32768
+                or any(abs(value) > 32768 for value in values[:2])):
+            raise ComputerError("Primary display geometry is unavailable")
 
     def _check(self):
-        self._expire()
         if not self.grant:
-            raise ComputerError("Computer access is disabled or expired")
+            raise ComputerError("Pair and connect the controller before using this Mac")
         if self.cancelled.is_set():
-            raise ComputerError("Computer action cancelled; observe again before continuing")
+            raise ComputerError("Computer action cancelled; start a new request to continue")
         info = self._inspect()
         if not info["supported"] or not all(info["permissions"].values()):
-            self.grant = self.observation = None
-            raise ComputerError("Computer permission was removed")
-        self._valid_window(info.get("window"))
-        if not _same_window(self.grant["window"], info["window"]):
             self.observation = None
-            raise ComputerError("Chrome focus or window geometry changed; enable access again")
-        return info["window"]
+            raise ComputerError("Allow Screen Recording and Accessibility for the computer helper")
+        self._valid_desktop(info.get("desktop"))
+        return info["desktop"]
 
     def observe(self):
         with self.lock:
-            self.cancelled.clear()
             self.observation = None
-            window = self._check()
+            desktop = self._check()
             self.active = True
             try:
-                capture = self.backend.capture(window, self.cancelled)
-                self._check()
+                capture = self.backend.capture(desktop, self.cancelled)
+                if not _same_desktop(desktop, self._check()):
+                    raise ComputerError("Primary display changed during capture; observe again")
                 image_url = capture.get("image_url")
                 width, height = capture.get("width"), capture.get("height")
                 if (type(width) is not int or type(height) is not int or not 1 <= width <= 1280
@@ -253,10 +241,10 @@ class ComputerController:
                         or len(image_url) > MAX_IMAGE_BYTES * 4 // 3 + 30):
                     raise ComputerError("Computer helper returned an invalid screenshot")
                 identifier = uuid.uuid4().hex
-                self.observation = {"id": identifier, "at": self.clock(), "width": width, "height": height}
+                self.observation = {"id": identifier, "at": self.clock(), "desktop": desktop}
                 self.error = None
                 return {"observation_id": identifier, "width": width, "height": height,
-                        "coordinate_space": "normalized_1000", "image_url": image_url}
+                        "coordinate_space": "normalized_1000", "scope": SCOPE, "image_url": image_url}
             except ComputerError as error:
                 self.error = str(error)
                 raise
@@ -267,54 +255,37 @@ class ComputerController:
                 self.active = False
 
     def begin_task(self):
-        """A new user request may resume a cancelled, still-valid grant."""
         with self.lock:
             self.cancelled.clear()
             self.observation = None
+            if self.grant:
+                self.grant["actions"] = 0
 
     def focus(self):
-        """Bring only the granted window forward; caller limits this to once per task."""
+        """Compatibility check; full-desktop tasks never force an app forward."""
         with self.lock:
-            self._expire()
-            if not self.grant:
-                raise ComputerError("Computer access is disabled or expired")
-            if self.cancelled.is_set():
-                raise ComputerError("Computer action cancelled")
-            info = self._inspect()
-            if not info["supported"] or not all(info["permissions"].values()):
-                self.grant = self.observation = None
-                raise ComputerError("Computer permission was removed")
-            self.observation = None
-            self.active = True
-            try:
-                self.backend.focus(self.grant["window"], self.cancelled)
-                self._check()
-                self.error = None
-                return {"focused": True}
-            except ComputerError as error:
-                self.error = str(error)
-                raise
-            except Exception:
-                self.error = "Could not focus the granted Chrome window; bring it forward and start a new request"
-                raise ComputerError(self.error) from None
-            finally:
-                self.active = False
+            self._check()
+            return {"focused": False, "scope": SCOPE}
 
     def act(self, observation_id, action):
         with self.lock:
-            window = self._check()
+            desktop = self._check()
             observation, self.observation = self.observation, None
             if (not observation or observation_id != observation["id"]
-                    or self.clock() - observation["at"] >= OBSERVATION_SECONDS):
-                raise ComputerError("Observe the Chrome window again before acting")
+                    or self.clock() - observation["at"] >= OBSERVATION_SECONDS
+                    or not _same_desktop(observation["desktop"], desktop)):
+                raise ComputerError("Observe the current primary desktop again before acting")
             if self.grant["actions"] >= MAX_ACTIONS:
-                raise ComputerError("Computer session action limit reached")
-            action = self._action(action, observation, window)
-            self.grant["actions"] += 1  # An uncertain OS result must not be replayed.
+                raise ComputerError("Computer request action limit reached")
+            action = self._action(action, observation, desktop)
+            self.grant["actions"] += 1
             self.active = True
             try:
-                self._check()
-                self.backend.perform(window, action, self.cancelled)
+                if not _same_desktop(desktop, self._check()):
+                    raise ComputerError("Primary display changed; observe again")
+                self.backend.perform(desktop, action, self.cancelled)
+                if self.cancelled.is_set():
+                    raise ComputerError("Computer action cancelled; inspect the current result")
                 self.error = None
                 return {"performed": True, "action": action["type"],
                         "remaining_actions": MAX_ACTIONS - self.grant["actions"]}
@@ -328,43 +299,48 @@ class ComputerController:
                 self.active = False
 
     @staticmethod
-    def _action(action, observation, window):
+    def _action(action, observation, desktop):
         if not isinstance(action, dict):
             raise ComputerError("Invalid computer action")
         kind = action.get("type")
         schemas = {"click": {"type", "x", "y"}, "double_click": {"type", "x", "y"},
-                   "scroll": {"type", "dx", "dy"}, "type_text": {"type", "text"}, "key": {"type", "keys"}}
+                   "right_click": {"type", "x", "y"}, "drag": {"type", "x", "y", "to_x", "to_y"},
+                   "scroll": {"type", "dx", "dy"}, "type_text": {"type", "text"},
+                   "key": {"type", "keys"}, "launch_app": {"type", "bundle_id"}}
         if not isinstance(kind, str) or kind not in schemas or set(action) != schemas[kind]:
             raise ComputerError("Unknown computer action or arguments")
         result = dict(action)
-        if kind in {"click", "double_click"}:
-            # Muse Spark grounds points on the exact image's 0–1000 grid:
+        if kind in {"click", "double_click", "right_click", "drag"}:
+            # Spark uses the exact screenshot's 0–1000 grid, including Retina:
             # https://dev.meta.ai/docs/image-understanding#coordinate-system
-            # https://dev.meta.ai/docs/cookbook/computer-use-macos
-            for coordinate in ("x", "y"):
-                value = action[coordinate]
-                if type(value) is not int or not 0 <= value <= 1000:
-                    raise ComputerError("Click coordinates must be normalized integers from 0 to 1000")
-            x, y, w, h = window["bounds"]
-            # Map the cropped screenshot's proportions to logical window pixels.
-            # This also works for Retina/downscaled images; no display offset or
-            # screenshot-size correction belongs in the model's coordinates.
-            result.update(x=x + min(w - 1, round(action["x"] * w / 1000)),
-                          y=y + min(h - 1, round(action["y"] * h / 1000)))
+            x, y, width, height = desktop["bounds"]
+            for horizontal, vertical in (("x", "y"), ("to_x", "to_y")) if kind == "drag" else (("x", "y"),):
+                if any(type(action[key]) is not int or not 0 <= action[key] <= 1000 for key in (horizontal, vertical)):
+                    raise ComputerError("Coordinates must be normalized integers from 0 to 1000")
+                result[horizontal] = x + min(width - 1, round(action[horizontal] * width / 1000))
+                result[vertical] = y + min(height - 1, round(action[vertical] * height / 1000))
         elif kind == "scroll":
             if any(type(action[key]) is not int or not -8 <= action[key] <= 8 for key in ("dx", "dy")):
                 raise ComputerError("Scroll must contain bounded integer ticks")
         elif kind == "type_text":
-            value = action["text"]
-            if not isinstance(value, str) or not 1 <= len(value) <= 1000 or not value.isprintable():
-                raise ComputerError("Type one printable line of at most 1000 characters")
-            scheme = re.match(r"\s*([a-z][a-z0-9+.-]*):", value, re.I)
-            if scheme and scheme[1].lower() not in {"http", "https"}:
-                raise ComputerError("Executable and local URL schemes are unavailable")
+            text = action["text"]
+            if (type(text) is not str or not 1 <= len(text) <= 1000
+                    or any(not character.isprintable() and character not in "\n\t" for character in text)):
+                raise ComputerError("Type at most 1000 printable characters, newlines or tabs")
         elif kind == "key":
             keys = action["keys"]
-            if not isinstance(keys, list) or any(not isinstance(key, str) for key in keys) or tuple(keys) not in KEYS:
-                raise ComputerError("That key combination is unavailable")
+            if type(keys) is not list or not 1 <= len(keys) <= 5 or any(type(key) is not str for key in keys):
+                raise ComputerError("Invalid key combination")
+            aliases = {"cmd": "command", "control": "ctrl", "option": "alt", "escape": "esc", "return": "enter"}
+            keys = [aliases.get(key.lower(), key.lower()) for key in keys]
+            if (len(set(keys)) != len(keys) or any(key not in MODIFIERS for key in keys[:-1])
+                    or keys[-1] not in KEY_NAMES):
+                raise ComputerError("Invalid key combination")
+            result["keys"] = keys
+        elif kind == "launch_app":
+            identifier = action["bundle_id"]
+            if type(identifier) is not str or len(identifier) > 180 or not BUNDLE_ID.fullmatch(identifier):
+                raise ComputerError("Use an installed application's bundle identifier")
         return result
 
     def cancel(self):
@@ -381,146 +357,59 @@ class ComputerController:
         return {"enabled": False}
 
 
-def _front_chrome_window(windows, pid, primary):
-    """Select the front browser-sized window, excluding Chrome accessory UI.
-
-    Quartz's on-screen list is in front-to-back order. Preserve that order;
-    choosing the largest window could target a different browser in back.
-    https://developer.apple.com/documentation/coregraphics/cgwindowlistoption/optiononscreenonly
-    """
-    for window in windows or ():
-        try:
-            if (window.get("kCGWindowOwnerPID") != pid or window.get("kCGWindowLayer") != 0
-                    or not window.get("kCGWindowIsOnscreen", True)):
-                continue
-            alpha = window.get("kCGWindowAlpha", 1)
-            if not isinstance(alpha, (int, float)) or not math.isfinite(alpha) or alpha <= 0:
-                continue
-            box = window["kCGWindowBounds"]
-            values = [box[key] for key in ("X", "Y", "Width", "Height")]
-            if any(isinstance(value, bool) or not isinstance(value, (int, float))
-                   or not math.isfinite(value) for value in values):
-                continue
-            x, y, width, height = values
-            left, top = math.ceil(x), math.ceil(y)
-            bounds = [left, top, math.floor(x + width) - left, math.floor(y + height) - top]
-            # Chrome's screen-sharing badge is itself a layer-zero window.
-            # Require usable browser dimensions, in logical display pixels.
-            if bounds[2] < MIN_BROWSER_WIDTH or bounds[3] < MIN_BROWSER_HEIGHT:
-                continue
-            identifier = window["kCGWindowNumber"]
-            if isinstance(identifier, bool) or not isinstance(identifier, int) or identifier <= 0:
-                continue
-        except (AttributeError, KeyError, TypeError, ValueError, OverflowError):
-            continue
-        return {"app": "com.google.Chrome", "pid": int(pid), "id": int(identifier),
-                "bounds": bounds, "primary": list(primary)}
-    return None
-
-
 def _native_inspect():
     import ApplicationServices
-    import AppKit
     import Quartz
     permissions = {"screen_recording": bool(Quartz.CGPreflightScreenCaptureAccess()),
                    "accessibility": bool(ApplicationServices.AXIsProcessTrusted())}
-    result = {"supported": True, "permissions": permissions, "window": None}
-    if not all(permissions.values()):
-        return result
-    app = AppKit.NSWorkspace.sharedWorkspace().frontmostApplication()
-    if app is None or app.bundleIdentifier() != "com.google.Chrome":
-        return result
-    pid = int(app.processIdentifier())
-    screen = Quartz.CGDisplayBounds(Quartz.CGMainDisplayID())
-    primary = [int(screen.origin.x), int(screen.origin.y), int(screen.size.width), int(screen.size.height)]
-    windows = Quartz.CGWindowListCopyWindowInfo(
-        Quartz.kCGWindowListOptionOnScreenOnly | Quartz.kCGWindowListExcludeDesktopElements,
-        Quartz.kCGNullWindowID)
-    result["window"] = _front_chrome_window(windows, pid, primary)
+    result = {"supported": True, "permissions": permissions, "desktop": None}
+    if all(permissions.values()):
+        identifier = Quartz.CGMainDisplayID()
+        screen = Quartz.CGDisplayBounds(identifier)
+        result["desktop"] = {"id": int(identifier), "bounds": [int(screen.origin.x), int(screen.origin.y),
+                              int(screen.size.width), int(screen.size.height)]}
+        ComputerController._valid_desktop(result["desktop"])
     return result
 
 
-def _native_guard(window):
+def _native_guard(desktop):
     current = _native_inspect()
-    if not all(current["permissions"].values()) or not _same_window(current["window"], window):
-        raise ComputerError("Computer permission or focused window changed")
-    ComputerController._valid_window(current["window"])
+    if not all(current["permissions"].values()) or not _same_desktop(current["desktop"], desktop):
+        raise ComputerError("Computer permission or primary display changed")
+    ComputerController._valid_desktop(current["desktop"])
 
 
-def _native_focus_target(window):
-    """Resolve an existing visible grant without requiring it to be frontmost."""
-    import ApplicationServices as AX
+def _native_launch_app(bundle_id):
+    # Resolve only an installed bundle, with no arbitrary URL/arguments/shell.
+    # Apple documents completion on a concurrent queue, so a bounded Event wait
+    # does not need an AppKit UI loop in this short-lived helper.
+    # https://developer.apple.com/documentation/appkit/nsworkspace/urlforapplication(withbundleidentifier:)
+    # https://developer.apple.com/documentation/appkit/nsworkspace/openapplication(at:configuration:completionhandler:)
     import AppKit
-    import Quartz
-    ComputerController._valid_window(window)
-    if not Quartz.CGPreflightScreenCaptureAccess() or not AX.AXIsProcessTrusted():
-        raise ComputerError("Computer permission was removed")
-    app = AppKit.NSRunningApplication.runningApplicationWithProcessIdentifier_(window["pid"])
-    if app is None or app.bundleIdentifier() != "com.google.Chrome":
-        raise ComputerError("The granted Chrome window is no longer available")
-    screen = Quartz.CGDisplayBounds(Quartz.CGMainDisplayID())
-    primary = [int(screen.origin.x), int(screen.origin.y), int(screen.size.width), int(screen.size.height)]
-    windows = Quartz.CGWindowListCopyWindowInfo(
-        Quartz.kCGWindowListOptionOnScreenOnly | Quartz.kCGWindowListExcludeDesktopElements,
-        Quartz.kCGNullWindowID)
-    candidates = [_front_chrome_window([entry], window["pid"], primary) for entry in windows or ()]
-    matching = [entry for entry in candidates if entry and entry["bounds"] == window["bounds"]]
-    # AX exposes geometry, not a public CGWindowID mapping. Refuse ambiguity
-    # rather than raising another window that happens to have the same bounds.
-    if len(matching) != 1 or not _same_window(matching[0], window):
-        raise ComputerError("The granted Chrome window changed or cannot be identified uniquely")
-    return app
+    workspace = AppKit.NSWorkspace.sharedWorkspace()
+    url = workspace.URLForApplicationWithBundleIdentifier_(bundle_id)
+    if url is None:
+        raise ComputerError("The requested application is not installed")
+    configuration = AppKit.NSWorkspaceOpenConfiguration.configuration()
+    configuration.setActivates_(True)
+    complete = threading.Event()
+    outcome = {}
+    def finished(app, error):
+        outcome["success"] = app is not None and error is None
+        complete.set()
+    workspace.openApplicationAtURL_configuration_completionHandler_(url, configuration, finished)
+    if not complete.wait(3) or not outcome.get("success"):
+        raise ComputerError("Application launch was not confirmed; observe the desktop before retrying")
+    return {"performed": True}
 
 
-def _native_focus(window):
-    import ApplicationServices as AX
-    import AppKit
-    app = _native_focus_target(window)
-    application = AX.AXUIElementCreateApplication(window["pid"])
-    error, windows = AX.AXUIElementCopyAttributeValue(application, AX.kAXWindowsAttribute, None)
-    if error:
-        raise ComputerError("Chrome's accessible windows could not be read")
-    matches = []
-    for candidate in windows or ():
-        p_error, position = AX.AXUIElementCopyAttributeValue(candidate, AX.kAXPositionAttribute, None)
-        s_error, size = AX.AXUIElementCopyAttributeValue(candidate, AX.kAXSizeAttribute, None)
-        if p_error or s_error:
-            continue
-        p_ok, point = AX.AXValueGetValue(position, AX.kAXValueCGPointType, None)
-        s_ok, extent = AX.AXValueGetValue(size, AX.kAXValueCGSizeType, None)
-        if not p_ok or not s_ok:
-            continue
-        bounds = [math.ceil(point.x), math.ceil(point.y),
-                  math.floor(point.x + extent.width) - math.ceil(point.x),
-                  math.floor(point.y + extent.height) - math.ceil(point.y)]
-        if bounds == window["bounds"]:
-            matches.append(candidate)
-    if len(matches) != 1:
-        raise ComputerError("The granted Chrome window cannot be raised unambiguously")
-    _native_focus_target(window)  # Recheck identity/geometry immediately before changing focus.
-    if AX.AXUIElementPerformAction(matches[0], AX.kAXRaiseAction):
-        raise ComputerError("The granted Chrome window could not be raised")
-    if not app.activateWithOptions_(AppKit.NSApplicationActivateIgnoringOtherApps):
-        raise ComputerError("The granted Chrome window could not be activated")
-    # App activation is asynchronous. Never retry the focus action itself.
-    deadline = time.monotonic() + .4
-    while True:
-        try:
-            _native_guard(window)
-            return {"focused": True}
-        except ComputerError:
-            if time.monotonic() >= deadline:
-                raise
-            time.sleep(.02)
-
-
-def _release_input(automation, method, *arguments):
+def _release_input(automation, method, *arguments, **keywords):
     # A corner stop must still permit releasing an input we already pressed.
     # All movement/press operations keep the failsafe enabled.
     enabled = automation.FAILSAFE
     try:
         automation.FAILSAFE = False
-        getattr(automation, method)(*arguments, _pause=False)
+        getattr(automation, method)(*arguments, _pause=False, **keywords)
     finally:
         automation.FAILSAFE = enabled
 
@@ -532,9 +421,7 @@ def _native(operation, payload):
         if any(importlib.util.find_spec(name) is None for name in ("mss", "pyautogui", "Quartz", "AppKit", "ApplicationServices")):
             raise ComputerError("Computer dependencies unavailable")
         return _native_inspect()
-    window = payload["window"]
-    if operation == "focus":
-        return _native_focus(window)
+    window = payload["desktop"]
     _native_guard(window)
     if operation == "capture":
         from mss import MSS
@@ -557,15 +444,26 @@ def _native(operation, payload):
     action = payload["action"]
     kind = action["type"]
     _native_guard(window)
-    if kind in {"click", "double_click"}:
+    if kind == "launch_app":
+        return _native_launch_app(action["bundle_id"])
+    if kind in {"click", "double_click", "right_click"}:
         pyautogui.moveTo(action["x"], action["y"], duration=0.15)
         for _ in range(2 if kind == "double_click" else 1):
             _native_guard(window)
             try:
-                pyautogui.mouseDown(_pause=False)
+                pyautogui.mouseDown(button="right" if kind == "right_click" else "left", _pause=False)
             finally:
-                _release_input(pyautogui, "mouseUp")
+                _release_input(pyautogui, "mouseUp", button="right" if kind == "right_click" else "left")
             time.sleep(0.1)
+    elif kind == "drag":
+        pyautogui.moveTo(action["x"], action["y"], duration=0.15)
+        _native_guard(window)
+        try:
+            pyautogui.mouseDown(_pause=False)
+            pyautogui.moveTo(action["to_x"], action["to_y"], duration=0.4)
+            _native_guard(window)
+        finally:
+            _release_input(pyautogui, "mouseUp")
     elif kind == "scroll":
         x, y, w, h = window["bounds"]
         pyautogui.moveTo(x + w // 2, y + h // 2, duration=0.1)
@@ -586,7 +484,7 @@ def _native(operation, payload):
                 _release_input(pyautogui, "keyUp", key)
     elif kind == "type_text":
         # Unicode key events avoid the clipboard and shell. Deliver small chunks
-        # so focus is checked again during longer text entry.
+        # so permissions and display identity are checked during longer text entry.
         text = action["text"]
         for offset in range(0, len(text), 20):
             _native_guard(window)

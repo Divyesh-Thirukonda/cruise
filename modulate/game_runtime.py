@@ -85,7 +85,7 @@ def _color(value: object, transparent: bool = False) -> str:
 
 def validate_package(package: object) -> dict:
     """Return an independent normalized package; validate assets before spawn."""
-    package = _keys(package, {"kind", "title", "code", "assets", "controls"})
+    package = _keys(package, {"kind", "title", "code", "assets", "controls"}, {"camera"})
     if package["kind"] != "game":
         raise GameError("Package kind must be game")
     title = _text(package["title"], 80, "title", empty=False)
@@ -138,6 +138,10 @@ def validate_package(package: object) -> dict:
         raise GameError("At least one supplied sprite must contain a visible pixel")
     result = {"kind": "game", "title": title, "code": code,
               "assets": {"sprites": normalized}, "controls": list(controls)}
+    if "camera" in package:
+        camera = _keys(package["camera"], {"target"})
+        target = _text(camera["target"], 128, "camera target", empty=False)
+        result["camera"] = {"target": target}
     if len(_json(result).encode("utf-8")) > MAX_PACKAGE_BYTES:
         raise GameError("Package exceeds 128 KiB")
     return result
@@ -186,14 +190,16 @@ def validate_state(state: object) -> dict:
     return state
 
 
-def validate_commands(commands: object, sprites: dict) -> list[dict]:
+def validate_commands(commands: object, sprites: dict, allow_camera=False) -> list[dict]:
     if type(commands) is not list or not 1 <= len(commands) <= MAX_COMMANDS:
         raise GameError("draw must return 1–128 commands")
     fields = {"clear": {"op", "color"}, "rect": {"op", "x", "y", "w", "h", "color"},
               "circle": {"op", "x", "y", "r", "color"},
               "line": {"op", "x1", "y1", "x2", "y2", "color"},
               "text": {"op", "x", "y", "text", "color", "size"},
-              "sprite": {"op", "id", "x", "y", "scale"}}
+              "sprite": {"op", "id", "x", "y", "scale"},
+              "camera": {"op", "x", "y", "w", "h", "mirror", "pixelate", "palette"}}
+    cameras = 0
     for command in commands:
         if type(command) is not dict or type(command.get("op")) is not str or command["op"] not in fields:
             raise GameError("Unknown drawing command")
@@ -216,13 +222,22 @@ def validate_commands(commands: object, sprites: dict) -> list[dict]:
             if type(command["id"]) is not str or command["id"] not in sprites:
                 raise GameError("Sprite command references an unknown asset")
             _integer(command["scale"], 1, 8, "sprite scale")
+        elif op == "camera":
+            cameras += 1
+            if not allow_camera or cameras > 1:
+                raise GameError("One camera command requires a declared camera source")
+            _integer(command["w"], 1, WIDTH, "camera width")
+            _integer(command["h"], 1, HEIGHT, "camera height")
+            _integer(command["pixelate"], 1, 16, "camera pixelation")
+            if type(command["mirror"]) is not bool or command["palette"] not in ("natural", "mono", "neon", "warm"):
+                raise GameError("Invalid camera mirror or palette")
     return commands
 
 
 def validate_frame(frame: object, package: dict) -> dict:
     frame = _keys(frame, {"state", "commands"})
     validate_state(frame["state"])
-    validate_commands(frame["commands"], package["assets"]["sprites"])
+    validate_commands(frame["commands"], package["assets"]["sprites"], bool(package.get("camera")))
     return frame
 
 

@@ -198,7 +198,7 @@
     const supported = computer?.supported === true;
     const permissions = computer?.permissions || {};
     const pending = ui.mutating.has("computer");
-    const scope = typeof computer?.scope === "string" ? computer.scope : "Google Chrome window";
+    const scope = typeof computer?.scope === "string" ? computer.scope : "Paired Mac desktop";
     text("computer-status", !ui.online ? "Status unknown" : !computer ? "Unavailable" : !supported ? "Permission required" : expired && computer.enabled ? "Session expired" : active ? "Controlling" : enabled ? "Enabled" : "Off");
     $("computer-status").dataset.status = active ? "running" : "idle";
     $("computer-panel").dataset.active = String(active);
@@ -213,13 +213,17 @@
     text("computer-error", error);
     const seconds = Number.isFinite(expires) ? Math.max(0, Math.ceil((expires - Date.now()) / 1000)) : null;
     text("computer-expiry", !ui.online ? "Reconnect to check or stop the session." : enabled && seconds !== null ? `Access expires in ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}. You can stop it at any time.` : expired && computer?.enabled ? "This session has expired. Enable a new session to continue." : "");
-    $("computer-enable").hidden = enabled;
-    $("computer-duration-label").hidden = enabled;
+    $("computer-enable").hidden = enabled || computer?.paused !== true;
+    $("computer-duration-label").hidden = true;
     $("computer-duration").disabled = pending;
     $("computer-enable").disabled = !ui.online || !supported || permissions.screen_recording !== true || permissions.accessibility !== true || pending;
     $("computer-revoke").hidden = computer?.enabled !== true;
     $("computer-revoke").disabled = !ui.online || pending;
     $("computer-stop-live").disabled = !ui.online || pending;
+    if (enabled) text("computer-expiry", "Access follows the paired device. Pause or revoke it at any time.");
+    const camera = ui.state?.camera;
+    text("camera-status", camera?.error || (camera?.state === "running" ? "Camera live · local Mac → Pi stream" : camera?.state === "starting" ? "Camera connecting…" : "Camera idle · starts when requested"));
+    $("camera-stop").hidden = camera?.running !== true;
     const approval = computer?.pending_approval;
     const visible = enabled && typeof approval?.id === "string" && typeof approval?.description === "string";
     ui.approvalId = visible ? approval.id : null;
@@ -265,7 +269,7 @@
     renderComputer();
     if ($(kind === "enable" ? "computer-enable" : "computer-revoke").disabled) return;
     const payload = {action: kind};
-    if (kind === "enable") payload.minutes = Number($("computer-duration").value);
+    // Pairing supplies access; resuming does not create a second timed grant.
     return action("computer", "/api/computer", payload,
       kind === "enable" ? `Computer control enabled for ${payload.minutes} minutes.` : "Computer control stopped.");
   }
@@ -302,7 +306,7 @@
     const kind = active?.kind || packageData?.kind;
     $("preview-placeholder").dataset.mode = kind === "control" ? "volume" : "empty";
     text("preview-title", active?.title || packageData?.title || "A blank canvas");
-    text("program-kind", running ? (active ? "PROGRAM PAUSED" : "PROCESSING") : active ? (kind === "control" ? "CONTROL MODE" : kind === "game" ? "GAME RUNNING" : "ACTIVE PROGRAM") : "NO ACTIVE PROGRAM");
+    text("program-kind", running ? (active ? "PROGRAM PAUSED" : "PROCESSING") : active ? (kind === "control" ? "CONTROL MODE" : kind === "game" ? (packageData?.camera ? "LIVE CAMERA" : "GAME RUNNING") : "ACTIVE PROGRAM") : "NO ACTIVE PROGRAM");
     $("program-kind").dataset.status = running ? "busy" : active ? "active" : "idle";
     text("active-revision", active?.revision ? `REV ${String(active.revision).slice(0, 8).toUpperCase()}` : "REV —");
     text("generation-note", running ? (active ? "Your current program is preserved and paused on the Pi while this request is processed." : "The Pi shows progress while the agent handles your request.") : "Requests can create checked programs or use the capabilities you have enabled.");
@@ -326,12 +330,15 @@
       $("preview-image").hidden = true;
       $("preview-image").removeAttribute("src");
       $("preview-placeholder").hidden = false;
-      const volume = state.volume;
+      const original = state.volume;
+      const isBrightness = Number.isFinite(original?.brightness);
+      const setting = isBrightness ? "brightness" : "volume";
+      const volume = isBrightness ? {volume: original.brightness, muted: false} : original;
       const hasVolume = Number.isFinite(volume?.volume) && volume.volume >= 0 && volume.volume <= 100;
       const current = ui.online && state.paired === true && state.device?.connected === true;
-      setPlaceholder(hasVolume ? (volume.muted ? "Muted" : `${Math.round(volume.volume)}%`) : "Volume control",
-        hasVolume ? `${current ? "This Mac" : "Last reported"} · system volume${volume.muted ? ` ${Math.round(volume.volume)}%` : ""}` : "Awaiting paired Mac volume status.");
-      text("preview-origin", current && hasVolume ? (running ? "Host status · controls paused" : "Host status · actual Mac volume") : "Host status · awaiting connection");
+      setPlaceholder(hasVolume ? (volume.muted ? "Muted" : `${Math.round(volume.volume)}%`) : `${setting} control`,
+        hasVolume ? `${current ? "This Mac" : "Last reported"} · system ${setting}${volume.muted ? ` ${Math.round(volume.volume)}%` : ""}` : `Awaiting paired Mac ${setting} status.`);
+      text("preview-origin", current && hasVolume ? (running ? "Host status · controls paused" : `Host status · actual Mac ${setting}`) : "Host status · awaiting connection");
       $("preview-dot").className = current && hasVolume ? "status-dot live" : "status-dot";
       return;
     }
@@ -647,6 +654,7 @@
   $("voice-draft-edit").addEventListener("click", () => updateDraft("pause"));
   $("voice-draft-send").addEventListener("click", () => updateDraft("send"));
   $("voice-draft-discard").addEventListener("click", () => updateDraft("discard"));
+  $("camera-stop").addEventListener("click", () => action("camera", "/api/camera/stop", {}));
   $("computer-enable").addEventListener("click", () => computerAction("enable"));
   $("computer-revoke").addEventListener("click", () => computerAction("revoke"));
   $("computer-stop-live").addEventListener("click", () => computerAction("revoke"));

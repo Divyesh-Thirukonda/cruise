@@ -29,7 +29,7 @@
 
       <div id="service-notice" class="notice notice-warning" role="status" hidden></div>
       <div id="action-notice" class="notice" role="status" hidden></div>
-      <div id="computer-live-notice" class="notice computer-live-notice" role="status" hidden><span class="status-dot" aria-hidden="true"></span><strong>Agent controlling this Mac</strong><span id="computer-live-scope">Google Chrome window</span><button type="button" class="button button-small button-danger" id="computer-stop-live">Stop computer control</button></div>
+      <div id="computer-live-notice" class="notice computer-live-notice" role="status" hidden><span class="status-dot" aria-hidden="true"></span><strong>Agent controlling this Mac</strong><span id="computer-live-scope">Paired Mac desktop</span><button type="button" class="button button-small button-danger" id="computer-stop-live">Pause Mac access</button></div>
 
       <div class="studio-grid">
         <div class="workspace-column">
@@ -103,18 +103,19 @@
           <section class="host-panel" aria-labelledby="host-title">
             <div class="host-heading"><span class="computer-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span><div><h2 id="host-title">Your Mac</h2><p id="pairing-status">Pair to give your controls a new job.</p></div><span class="chip" id="paired-chip" hidden>PAIRED</span></div>
             <div class="volume-display" id="volume-display" hidden><div><span>System volume</span><strong id="volume-value">—</strong></div><div class="volume-track" role="meter" aria-label="Mac system volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="volume-meter"><span id="volume-fill"></span></div></div>
-            <div class="host-actions"><button class="button button-outline" id="pairing-open" type="button">Pair a device <span aria-hidden="true">+</span></button><button class="text-button danger-text" id="revoke" type="button" hidden>Revoke access</button><span class="small muted" id="host-scope">Volume controls only</span></div>
+            <div class="host-actions"><button class="button button-outline" id="pairing-open" type="button">Pair a device <span aria-hidden="true">+</span></button><button class="text-button danger-text" id="revoke" type="button" hidden>Revoke access</button><span class="small muted" id="host-scope">Mac controls, apps and camera</span></div>
           </section>
 
           <section class="computer-panel" id="computer-panel" aria-labelledby="computer-title">
             <div class="panel-heading"><h2 id="computer-title">Computer control</h2><span class="chip" id="computer-status">Unavailable</span></div>
-            <p class="computer-consent">Lets Meta see this Chrome window and use its mouse and keyboard. Screens may contain private information.</p>
-            <p class="computer-scope" id="computer-scope">Google Chrome window</p>
+            <p class="computer-consent">Pairing lets Modulate use your Mac’s apps, cursor, keyboard and system settings. Screens requested for computer tasks are sent to Meta; live camera frames stay on your Mac and Pi.</p>
+            <p class="computer-scope" id="computer-scope">Paired Mac desktop</p>
             <div class="computer-permissions" aria-label="Mac permissions"><span id="computer-screen-permission">Screen Recording: unknown</span><span id="computer-input-permission">Accessibility: unknown</span></div>
             <p class="computer-error" id="computer-error" hidden></p>
+            <p id="camera-status" class="computer-scope">Camera idle</p><button type="button" class="text-button" id="camera-stop" hidden>Stop camera</button>
             <p class="computer-expiry" id="computer-expiry" role="status"></p>
-            <label class="computer-duration" id="computer-duration-label" for="computer-duration">Access duration <select id="computer-duration"><option value="15">15 minutes</option><option value="60">1 hour</option><option value="120">2 hours</option></select></label>
-            <div class="computer-actions"><button type="button" class="button button-primary" id="computer-enable" disabled>Enable computer control</button><button type="button" class="button button-danger" id="computer-revoke" hidden>Stop computer control</button></div>
+            <label hidden class="computer-duration" id="computer-duration-label" for="computer-duration">Access duration <select id="computer-duration"><option value="15">15 minutes</option><option value="60">1 hour</option><option value="120">2 hours</option></select></label>
+            <div class="computer-actions"><button type="button" class="button button-primary" id="computer-enable" disabled>Resume Mac access</button><button type="button" class="button button-danger" id="computer-revoke" hidden>Pause Mac access</button></div>
             <div class="computer-approval" id="computer-approval" hidden><span class="mini-label">APPROVAL REQUIRED</span><p id="computer-approval-description"></p><div><button type="button" class="button button-outline" id="computer-decline">Decline</button><button type="button" class="button button-primary" id="computer-approve">Approve</button></div></div>
           </section>
         </aside>
@@ -140,7 +141,7 @@
     <output class="pairing-code" id="pairing-code" aria-label="One-time pairing code">······</output>
     <p class="pairing-expiry" id="pairing-expiry" role="status">Creating a one-time code…</p>
     <div class="pairing-host" id="pairing-host" hidden><span>HOST ADDRESS</span><code id="pairing-host-url"></code></div>
-    <div class="pairing-permissions"><span class="status-dot"></span><p>Grants system-volume control. You can revoke access here at any time.</p></div>
+    <div class="pairing-permissions"><span class="status-dot"></span><p>Grants Mac app, cursor, keyboard, system-setting and camera access using the Mac’s existing permissions. Revoke the pairing here at any time.</p></div>
     <button type="button" class="button button-primary full-width" id="pairing-refresh">Create a new code</button>
   </dialog>
 </body>

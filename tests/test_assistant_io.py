@@ -36,11 +36,24 @@ class FakeComputer:
         self.task_starts = 0
         self.on_focus = None
         self.enabled_durations = []
+        self.session_id = None
+        self.cancelled = False
+        self.permissions = {"screen_recording": True, "accessibility": True}
+
+    def sync_pairing(self, session_id):
+        if session_id != self.session_id:
+            if self.session_id is not None:
+                self.cancel()
+            self.session_id = session_id
+            self.enabled = session_id is not None
+            if self.enabled:
+                self.cancelled = False
+        return self.status()
 
     def status(self):
-        return {"supported": True, "enabled": self.enabled, "expires_at": None,
-                "scope": "Synthetic Chrome window", "active": False, "error": None,
-                "permissions": {"screen_recording": True, "accessibility": True}}
+        return {"supported": True, "enabled": self.enabled and all(self.permissions.values()), "expires_at": None,
+                "scope": "Synthetic primary desktop", "active": False, "error": None,
+                "permissions": dict(self.permissions)}
 
     def enable(self, minutes):
         self.enabled_durations.append(minutes)
@@ -49,13 +62,16 @@ class FakeComputer:
 
     def revoke(self):
         self.enabled = False
+        self.session_id = None
         self.cancel()
 
     def cancel(self):
         self.cancellations += 1
+        self.cancelled = True
 
     def begin_task(self):
         self.task_starts += 1
+        self.cancelled = False
 
     def focus(self):
         self.focuses += 1
@@ -102,6 +118,8 @@ class AssistantIOTests(unittest.TestCase):
 
     def connect_computer(self):
         self.heartbeat()
+        code = self.product.create_pairing()["code"]
+        self.product.pair(code, "Synthetic controller")
         self.product.computer_session("enable")
 
     def wait_finished(self):
@@ -127,26 +145,30 @@ class AssistantIOTests(unittest.TestCase):
         self.heartbeat()
         for operation in (self.product.computer_observe,
                           lambda: self.product.computer_act("old", {"type": "click", "x": 0, "y": 0}, False, "Read a message")):
-            with self.assertRaisesRegex(AgentError, "Enable computer control"):
+            with self.assertRaisesRegex(AgentError, "pair"):
                 operation()
         self.assertEqual(self.computer.observations, 0)
         self.assertEqual(self.computer.actions, [])
 
-    def test_session_duration_defaults_to_fifteen_and_forwards_explicit_minutes(self):
-        self.heartbeat()
-        self.product.computer_session("enable")
+    def test_paired_access_has_no_separate_duration_and_pause_requires_explicit_resume(self):
+        self.connect_computer()
+        session = self.computer.session_id
+        self.assertTrue(self.product.computer_status()["enabled"])
         self.product.computer_session("enable", minutes=120)
-        self.assertEqual(self.computer.enabled_durations, [15, 120])
+        self.assertEqual(self.computer.session_id, session)
+        self.assertEqual(self.computer.enabled_durations, [])
         self.product.computer_session("revoke")
         self.assertFalse(self.computer.enabled)
-        self.assertEqual(self.computer.enabled_durations, [15, 120])
-
-    def test_session_duration_validation_errors_from_controller_are_preserved(self):
         self.heartbeat()
-        with patch.object(self.computer, "enable", side_effect=ComputerError("Synthetic invalid duration")) as enable:
-            with self.assertRaisesRegex(AgentError, "invalid duration"):
-                self.product.computer_session("enable", minutes=None)
-        enable.assert_called_once_with(minutes=None)
+        self.assertFalse(self.product.computer_status()["enabled"])
+        self.product.computer_session("enable")
+        self.assertEqual(self.computer.session_id, session)
+        self.assertTrue(self.product.computer_status()["enabled"])
+
+    def test_enable_without_pairing_cannot_grant_desktop_access(self):
+        self.heartbeat()
+        result = self.product.computer_session("enable", minutes=None)
+        self.assertFalse(result["enabled"])
         self.assertFalse(self.computer.enabled)
 
     def test_revocation_and_disconnect_block_observation_and_actions(self):
@@ -186,6 +208,15 @@ class AssistantIOTests(unittest.TestCase):
         with self.assertRaises(AgentError):
             self.product.approve_computer_action(identifier, True)
         self.assertEqual(self.computer.actions, [])
+
+    def test_routine_paired_action_does_not_create_an_approval_wait(self):
+        self.connect_computer()
+        observed = self.product.computer_observe()
+        action = {"type": "key", "keys": ["command", "space"]}
+        result = self.product.computer_act(observed["observation_id"], action, False, "Open the app launcher")
+        self.assertTrue(result["action_result"]["performed"])
+        self.assertEqual(self.computer.actions, [(observed["observation_id"], action)])
+        self.assertIsNone(self.product.computer_approval)
 
     def test_revoke_while_waiting_for_approval_never_performs_action(self):
         self.connect_computer()

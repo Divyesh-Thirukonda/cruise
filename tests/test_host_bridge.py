@@ -1,10 +1,11 @@
-"""Bridge security/volume semantics; no test changes the computer's audio."""
+"""Bridge system-setting semantics with fake hardware; no native settings change."""
 
 from concurrent.futures import ThreadPoolExecutor
 import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -21,9 +22,11 @@ class FakeBackend:
         self.volume = 40
         self.muted = False
         self.calls = []
+        self.brightness = 55
+        self.brightness_supported = False
 
     def capabilities(self):
-        return {"supported": True, "platform": "test"}
+        return {"supported": True, "platform": "test", "brightness": self.brightness_supported}
 
     def get(self):
         self.calls.append("get")
@@ -36,6 +39,14 @@ class FakeBackend:
     def set_muted(self, value):
         self.calls.append(("set_muted", value))
         self.muted = value
+
+    def get_brightness(self):
+        self.calls.append("get_brightness")
+        return self.brightness
+
+    def set_brightness(self, value):
+        self.calls.append(("set_brightness", value))
+        self.brightness = value
 
 
 class BridgeTests(unittest.TestCase):
@@ -54,7 +65,7 @@ class BridgeTests(unittest.TestCase):
         code = self.store.create_pairing()["code"]
         return self.store.pair(code, name)
 
-    def test_one_time_code_creates_volume_only_session_without_persisting_credentials(self):
+    def test_one_time_code_creates_supported_session_without_persisting_credentials(self):
         with patch("modulate.host_bridge.secrets.randbelow", return_value=12003456):
             pairing = self.store.create_pairing()
         self.assertEqual(pairing, {"code": "12003456", "expires_at": self.now + 120})
@@ -65,7 +76,7 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(session["next_sequence"], 1)
         self.assertEqual(session["expires_at"], self.now + 8 * 60 * 60)
         self.assertEqual(session["capabilities"]["actions"],
-                         ["volume.get", "volume.delta", "volume.mute"])
+                         ["volume.get", "volume.delta", "volume.mute", "volume.set"])
         self.assertNotIn("token_hash", session)
         with self.assertRaises(PairingError):
             self.store.pair(pairing["code"], "Other Pi")
@@ -133,7 +144,8 @@ class BridgeTests(unittest.TestCase):
 
     def test_invalid_actions_and_values_do_not_consume_sequence(self):
         token = self.pair()
-        invalid = [("shell.run", "rm -rf"), ("volume.set", 50), ("volume.delta", 11),
+        invalid = [("shell.run", "synthetic forbidden action"), ("volume.set", -1), ("volume.set", 101),
+                   ("volume.set", True), ("volume.set", 50.0), ("volume.set", None), ("volume.delta", 11),
                    ("volume.delta", -11), ("volume.delta", True), ("volume.delta", 2.5),
                    ("volume.delta", "3"), ("volume.mute", 1), ("volume.mute", "false"),
                    ("volume.get", {}), ("volume.delta", None)]
@@ -143,6 +155,104 @@ class BridgeTests(unittest.TestCase):
                     self.store.execute(token, 1, action, value)
         self.assertEqual(self.backend.calls, [])
         self.assertEqual(self.store.session(token)["next_sequence"], 1)
+
+    def test_paired_volume_set_needs_no_second_code_or_approval_and_retains_replay_guard(self):
+        token = self.pair()
+        self.assertEqual(self.store.execute(token, 1, "volume.set", 75),
+                         {"volume": 75, "muted": False, "sequence": 1})
+        self.assertEqual(self.backend.calls, [("set_volume", 75), "get"])
+        self.backend.calls.clear()
+        with self.assertRaises(ReplayError):
+            self.reopen().execute(token, 1, "volume.set", 0)
+        self.assertEqual(self.backend.calls, [])
+        self.assertEqual(self.reopen().execute(token, 2, "volume.set", 0)["volume"], 0)
+        self.assertNotIn(token, self.store.path.read_text())
+
+    def test_brightness_advertises_only_when_supported_and_rechecks_before_action(self):
+        token = self.pair()
+        self.assertFalse(any(action.startswith("brightness.") for action in self.store.capabilities()["actions"]))
+        with self.assertRaises(BridgeError):
+            self.store.execute(token, 1, "brightness.set", 50)
+        self.backend.brightness_supported = True
+        self.assertTrue({"brightness.get", "brightness.set", "brightness.delta"} <=
+                        set(self.store.session(token)["capabilities"]["actions"]))
+        self.backend.brightness_supported = False
+        with self.assertRaises(BridgeError):
+            self.store.execute(token, 1, "brightness.get")
+        self.assertEqual(self.backend.calls, [])
+        self.assertEqual(self.store.session(token)["next_sequence"], 1)
+
+    def test_brightness_uses_actual_value_clamps_and_shares_volume_sequence(self):
+        self.backend.brightness_supported = True
+        token = self.pair()
+        self.assertEqual(self.store.execute(token, 1, "brightness.get"), {"brightness": 55, "sequence": 1})
+        self.assertEqual(self.store.execute(token, 2, "brightness.set", 75), {"brightness": 75, "sequence": 2})
+        self.backend.brightness = 98  # Synthetic external setting change.
+        self.assertEqual(self.store.execute(token, 3, "brightness.delta", 10)["brightness"], 100)
+        self.backend.brightness = 2
+        self.assertEqual(self.store.execute(token, 4, "brightness.delta", -10)["brightness"], 0)
+        self.backend.calls.clear()
+        for action in ("brightness.set", "volume.set"):
+            with self.assertRaises(ReplayError):
+                self.reopen().execute(token, 4, action, 60)
+        self.assertEqual(self.backend.calls, [])
+        self.assertEqual(self.reopen().session(token)["next_sequence"], 5)
+
+    def test_invalid_brightness_values_never_call_backend_or_consume_sequence(self):
+        self.backend.brightness_supported = True
+        token = self.pair()
+        bad = [("brightness.set", -1), ("brightness.set", 101), ("brightness.set", True),
+               ("brightness.set", 50.0), ("brightness.set", "50"), ("brightness.set", None),
+               ("brightness.delta", -11), ("brightness.delta", 11), ("brightness.delta", False),
+               ("brightness.delta", float("nan")), ("brightness.get", 0), ("brightness.mute", True)]
+        for action, value in bad:
+            with self.subTest(action=action, value=value), self.assertRaises(BridgeError):
+                self.store.execute(token, 1, action, value)
+        self.assertEqual(self.backend.calls, [])
+        self.assertEqual(self.store.session(token)["next_sequence"], 1)
+
+    def test_invalid_current_brightness_never_becomes_a_write(self):
+        self.backend.brightness_supported = True
+        token = self.pair()
+        for sequence, value in enumerate((True, -1, 101, 1.5, "50", None), 1):
+            self.backend.calls.clear()
+            self.backend.brightness = value
+            with self.subTest(value=value), self.assertRaises(BackendError):
+                self.store.execute(token, sequence, "brightness.delta", 1)
+            self.assertFalse(any(isinstance(call, tuple) and call[0] == "set_brightness"
+                                 for call in self.backend.calls))
+        self.assertEqual(self.reopen().session(token)["next_sequence"], 7)
+
+    def test_uncertain_brightness_failure_consumes_sequence_without_private_error_or_replay(self):
+        self.backend.brightness_supported = True
+        token = self.pair()
+
+        def apply_then_fail(value):
+            self.backend.brightness = value
+            raise TimeoutError("SYNTHETIC_PRIVATE_BRIGHTNESS_ERROR")
+
+        with patch.object(self.backend, "set_brightness", side_effect=apply_then_fail):
+            with self.assertRaises(BackendError) as caught:
+                self.store.execute(token, 1, "brightness.set", 70)
+        self.assertNotIn("SYNTHETIC_PRIVATE", str(caught.exception))
+        self.assertNotIn("SYNTHETIC_PRIVATE", self.store.path.read_text())
+        self.assertEqual(self.backend.brightness, 70)
+        self.backend.calls.clear()
+        with self.assertRaises(ReplayError):
+            self.reopen().execute(token, 1, "brightness.delta", 10)
+        self.assertEqual(self.backend.calls, [])
+        self.assertEqual(self.reopen().execute(token, 2, "brightness.get")["brightness"], 70)
+
+    def test_brightness_rejects_unauthorized_and_revoked_session_without_host_calls(self):
+        self.backend.brightness_supported = True
+        token = self.pair()
+        for invalid in (None, "", "x" * 43):
+            with self.assertRaises(AuthenticationError):
+                self.store.execute(invalid, 1, "brightness.set", 70)
+        self.store.revoke(token)
+        with self.assertRaises(AuthenticationError):
+            self.reopen().execute(token, 1, "brightness.delta", 10)
+        self.assertEqual(self.backend.calls, [])
 
     def test_revocation_is_visible_to_existing_store_instances(self):
         token = self.pair()
@@ -231,6 +341,56 @@ class BridgeTests(unittest.TestCase):
 
 
 class BackendTests(unittest.TestCase):
+    def test_brightness_helper_has_fixed_arguments_no_secret_environment_and_timeout(self):
+        backend = MacOSVolumeBackend()
+        response = subprocess.CompletedProcess([], 0, stdout='{"brightness":64}')
+        with patch.dict(os.environ, {"SYNTHETIC_TEST_SECRET": "must-not-reach-helper"}), \
+             patch("modulate.host_bridge.subprocess.run", return_value=response) as run:
+            self.assertEqual(backend.get_brightness(), 64)
+            self.assertEqual(backend.set_brightness(72), 64)
+        self.assertEqual(run.call_args_list[0].args[0],
+                         [sys.executable, "-m", "modulate.system_settings", "get"])
+        self.assertEqual(run.call_args_list[1].args[0],
+                         [sys.executable, "-m", "modulate.system_settings", "set", "72"])
+        for call in run.call_args_list:
+            self.assertEqual(call.kwargs["timeout"], 3)
+            self.assertNotIn("shell", call.kwargs)
+            self.assertNotIn("SYNTHETIC_TEST_SECRET", call.kwargs["env"])
+
+    def test_invalid_native_brightness_never_starts_helper(self):
+        backend = MacOSVolumeBackend()
+        with patch("modulate.host_bridge.subprocess.run") as run:
+            for value in (True, "42", -1, 101, None, 42.0, float("nan")):
+                with self.subTest(value=value), self.assertRaises(BackendError):
+                    backend.set_brightness(value)
+            run.assert_not_called()
+
+    def test_native_brightness_rejects_malformed_output_and_sanitizes_errors(self):
+        backend = MacOSVolumeBackend()
+        for stdout in ('{"brightness":true}', '{"brightness":-1}', '{"brightness":101}',
+                       '{"brightness":42.0}', '{"brightness":"42"}', '{}', 'null',
+                       'SYNTHETIC_PRIVATE_ERROR'):
+            response = subprocess.CompletedProcess([], 0, stdout=stdout)
+            with self.subTest(stdout=stdout), patch("modulate.host_bridge.subprocess.run", return_value=response):
+                with self.assertRaises(BackendError) as caught:
+                    backend.get_brightness()
+                self.assertNotIn("SYNTHETIC_PRIVATE", str(caught.exception))
+        with patch("modulate.host_bridge.subprocess.run",
+                   side_effect=subprocess.TimeoutExpired("synthetic-helper", 3, output="SYNTHETIC_PRIVATE")):
+            with self.assertRaises(BackendError) as caught:
+                backend.get_brightness()
+            self.assertNotIn("SYNTHETIC_PRIVATE", str(caught.exception))
+
+    def test_brightness_capability_probe_is_bounded_and_unavailable_is_truthful(self):
+        for output in (60, BackendError("Synthetic unavailable display")):
+            backend = MacOSVolumeBackend()
+            probe = patch.object(backend, "get_brightness", side_effect=output) if isinstance(output, Exception) \
+                else patch.object(backend, "get_brightness", return_value=output)
+            with probe as get:
+                self.assertEqual(backend.capabilities()["brightness"], not isinstance(output, Exception))
+                self.assertEqual(backend.capabilities()["brightness"], not isinstance(output, Exception))
+                self.assertEqual(get.call_count, 1)
+
     def test_mac_commands_are_fixed_scripts_with_separate_validated_arguments(self):
         backend = MacOSVolumeBackend()
         response = subprocess.CompletedProcess([], 0, stdout="40,false\n")

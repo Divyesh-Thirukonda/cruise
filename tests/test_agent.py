@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 
 from modulate.agent import AgentError, Ledger, Orchestrator, digest
 from modulate.agent_provider import AgentProvider
@@ -64,13 +65,15 @@ class FakeService:
     def __init__(self):
         self.revision = "revision-0"
         self.manifest = {"controls": ["encoder", "button_a"], "display": {"width": 240, "height": 135},
-                         "paired_hosts": [{"session_id": "test-session", "actions": ["volume.delta"]}]}
+                         "paired_hosts": [{"session_id": "test-session", "actions": ["volume.delta"]}],
+                         "paired_host": {"session_id": "a" * 32}}
         self.events, self.activations, self.candidates = [], [], []
         self.package = None
         self.checked = 0
         self.check_passes = True
         self.on_event = None
         self.questions = []
+        self.camera_actions, self.system_actions, self.camera_checks = [], [], []
 
     def event(self, event):
         self.events.append(copy.deepcopy(event))
@@ -86,6 +89,20 @@ class FakeService:
     def request_clarification(self, question):
         self.questions.append(question)
         return {"question": question}
+
+    def camera_control(self, action):
+        self.camera_actions.append(action)
+        return {"state": "starting" if action == "start" else "ready" if action == "status" else "stopped",
+                "target": "a" * 32}
+
+    def system_control(self, action, value=None):
+        self.system_actions.append((action, value))
+        return {"action": action, "value": value, "performed": True}
+
+    def validate_camera(self, package):
+        self.camera_checks.append(copy.deepcopy(package))
+        if package["camera"]["target"] != (self.manifest.get("paired_host") or {}).get("session_id"):
+            raise AgentError("Synthetic camera target is not paired")
 
     def validate_control(self, package):
         if set(package) != {"kind", "title", "target", "bindings"} or package["target"] != "test-session":
@@ -197,6 +214,8 @@ class AgentTests(unittest.TestCase):
             self.assertNotIn("activate_package", names)
             self.assertNotIn("delegate_task", names)
             self.assertNotIn("ask_user", names)
+            self.assertNotIn("camera_control", names)
+            self.assertNotIn("system_control", names)
             return reply(("read_runtime_api", {}))
 
         def final(messages, tools):
@@ -282,6 +301,131 @@ class AgentTests(unittest.TestCase):
             with self.assertRaises(AgentError):
                 agent.dispatch("delegate_task", arguments, "orchestrator")
         self.assertEqual(self.service.candidates, [])
+
+    def test_camera_control_returns_metadata_without_entering_screen_private_mode(self):
+        def after_start(messages, tools):
+            self.assertEqual(result_for(messages, "camera_control")["state"], "starting")
+            self.assertIn("write_package", {item["function"]["name"] for item in tools})
+            self.assertFalse(any(isinstance(message["content"], list) for message in messages))
+            return reply(("camera_control", {"action": "status"}))
+
+        agent, provider = self.make([reply(("camera_control", {"action": "start"})), after_start,
+                                    reply(content="Synthetic camera metadata is ready.")])
+        self.assertIn("ready", agent.run("Synthetic camera request"))
+        self.assertEqual(self.service.camera_actions, ["start", "status"])
+        self.assertFalse(agent.private_request)
+        self.assertEqual(len(provider.requests), 3)
+        self.assertEqual(self.service.questions, [])
+        self.assertEqual(self.service.activations, [])
+
+    def test_camera_and_system_actions_are_orchestrator_only_and_cancelled_before_dispatch(self):
+        agent, _ = self.prepare()
+        for name, arguments in (("camera_control", {"action": "start"}),
+                                ("system_control", {"action": "brightness.set", "value": 65})):
+            with self.subTest(tool=name):
+                for role in ("coder", "artist", "reviewer"):
+                    with self.assertRaisesRegex(AgentError, "Specialists cannot"):
+                        agent.dispatch(name, arguments, role)
+                agent.cancelled.set()
+                with self.assertRaisesRegex(AgentError, "Cancelled"):
+                    agent.dispatch(name, arguments, "orchestrator")
+                agent.cancelled.clear()
+        self.assertEqual((self.service.camera_actions, self.service.system_actions), ([], []))
+
+    def test_camera_actions_reject_unknown_or_extra_arguments(self):
+        agent, _ = self.prepare()
+        for arguments in ({}, {"action": "capture_and_upload"}, {"action": []},
+                          {"action": "start", "target": "unpaired"},
+                          {"action": "status", "image_url": "synthetic-private-image"}):
+            with self.subTest(arguments=arguments), self.assertRaises(AgentError):
+                agent.dispatch("camera_control", arguments, "orchestrator")
+        self.assertEqual(self.service.camera_actions, [])
+
+    def test_system_actions_validate_operation_specific_values_before_service(self):
+        agent, _ = self.prepare()
+        good = [("volume.get", None), ("brightness.get", None), ("volume.set", 0),
+                ("brightness.set", 100), ("volume.delta", -10), ("brightness.delta", 10),
+                ("volume.mute", True), ("volume.mute", False)]
+        for action, value in good:
+            arguments = {"action": action} if value is None else {"action": action, "value": value}
+            self.assertTrue(agent.dispatch("system_control", arguments, "orchestrator")["performed"])
+        self.assertEqual(self.service.system_actions, good)
+        self.assertFalse(agent.private_request)
+        self.service.system_actions.clear()
+        bad = [("volume.get", 1), ("brightness.get", None), ("volume.set", True),
+               ("brightness.set", -1), ("volume.set", 101), ("brightness.set", 50.0),
+               ("volume.delta", -11), ("brightness.delta", 11), ("volume.delta", False),
+               ("volume.mute", 1), ("volume.mute", "yes"), ("brightness.mute", True)]
+        for action, value in bad:
+            with self.subTest(action=action, value=value), self.assertRaises(AgentError):
+                agent.dispatch("system_control", {"action": action, "value": value}, "orchestrator")
+        for action in ("volume.set", "brightness.set", "volume.delta", "brightness.delta", "volume.mute"):
+            with self.subTest(missing_value=action), self.assertRaises(AgentError):
+                agent.dispatch("system_control", {"action": action}, "orchestrator")
+        with self.assertRaises(AgentError):
+            agent.dispatch("system_control", {"action": "volume.get", "target": "other-host"}, "orchestrator")
+        self.assertEqual(self.service.system_actions, [])
+
+    def test_private_task_can_adjust_system_or_stop_camera_but_cannot_write_or_delegate(self):
+        agent, _ = self.prepare()
+        agent.private_request = True
+        agent.dispatch("camera_control", {"action": "stop"}, "orchestrator")
+        agent.dispatch("system_control", {"action": "volume.delta", "value": -2}, "orchestrator")
+        for name, arguments in (("write_package", {"package": game_package()}),
+                                ("delegate_task", {"role": "artist", "task": "Copy synthetic screen text"})):
+            with self.assertRaisesRegex(AgentError, "cannot be written"):
+                agent.dispatch(name, arguments, "orchestrator")
+        self.assertTrue(agent.private_request)
+        self.assertEqual(self.service.camera_actions, ["stop"])
+        self.assertEqual(self.service.system_actions, [("volume.delta", -2)])
+        self.assertEqual(self.service.candidates, [])
+        self.assertEqual(list(agent.directory.glob("*.json")), [])
+
+    def test_camera_package_requires_actual_paired_target_and_trusted_validation(self):
+        agent, _ = self.prepare()
+        package = {**game_package(), "camera": {"target": "a" * 32}}
+        candidate = agent.dispatch("write_package", {"package": package}, "orchestrator")
+        self.assertEqual(candidate["candidate_id"], digest(package))
+        self.assertEqual(self.service.camera_checks, [package])
+        self.assertEqual(agent.candidate(candidate["candidate_id"])["package"]["camera"], package["camera"])
+        with self.assertRaisesRegex(AgentError, "fixed checks"):
+            agent.dispatch("activate_package", {"candidate_id": candidate["candidate_id"]}, "orchestrator")
+        self.assertEqual(self.service.activations, [])
+
+    def test_camera_wrong_or_missing_pairing_is_rejected_before_persisting_candidate(self):
+        agent, _ = self.prepare()
+        for paired in (None, {}, {"session_id": "b" * 32}):
+            with self.subTest(paired=paired):
+                agent.manifest["paired_host"] = paired
+                with self.assertRaisesRegex(AgentError, "currently paired"):
+                    agent.dispatch("write_package", {"package": {**game_package(), "camera": {"target": "a" * 32}}},
+                                   "orchestrator")
+        self.assertEqual(self.service.camera_checks, [])
+        self.assertEqual(self.service.candidates, [])
+        self.assertEqual(list(agent.directory.glob("*.json")), [])
+
+    def test_failed_camera_validation_does_not_create_candidate(self):
+        agent, _ = self.prepare()
+        with patch.object(self.service, "validate_camera", side_effect=AgentError("Synthetic camera permission missing")):
+            with self.assertRaisesRegex(AgentError, "camera permission"):
+                agent.dispatch("write_package", {"package": {**game_package(), "camera": {"target": "a" * 32}}},
+                               "orchestrator")
+        self.assertEqual(self.service.candidates, [])
+        self.assertEqual(list(agent.directory.glob("*.json")), [])
+
+    def test_camera_candidate_still_uses_independent_game_verifier_and_exact_hash(self):
+        agent, _ = self.prepare()
+        package = {**game_package(), "camera": {"target": "a" * 32}}
+        candidate = agent.dispatch("write_package", {"package": package}, "orchestrator")
+        # Synthetic verifier report tests orchestration only, not camera hardware.
+        with patch("modulate.agent.verify", return_value={"passed": False, "checks": []}) as verifier:
+            report = agent.dispatch("test_package", {"candidate_id": candidate["candidate_id"]}, "orchestrator")
+        verifier.assert_called_once_with(package)
+        self.assertEqual(report["candidate_id"], digest(package))
+        self.assertEqual(report["manifest_revision"], agent.manifest_revision)
+        with self.assertRaisesRegex(AgentError, "fixed checks"):
+            agent.dispatch("activate_package", {"candidate_id": candidate["candidate_id"]}, "orchestrator")
+        self.assertEqual(self.service.activations, [])
 
     def test_cancellation_during_text_or_tool_model_reply_stops_actions(self):
         for response in (reply(content="Finished"), reply(("inspect_capabilities", {}))):

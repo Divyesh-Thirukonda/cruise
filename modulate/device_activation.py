@@ -62,11 +62,12 @@ class _Running:
 
 
 class DeviceActivation:
-    def __init__(self, directory, present, controls, paired_target):
+    def __init__(self, directory, present, controls, paired_target, camera_frame=None):
         self.directory = Path(directory)
         self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.path = self.directory / "device-active.json"
         self.present, self.controls, self.paired_target = present, controls, paired_target
+        self.camera_frame = camera_frame or (lambda: None)
         self._lock = threading.RLock()
         self._active = self._previous = self._pending = None
         self._ack = self._failure = None
@@ -81,6 +82,8 @@ class DeviceActivation:
         available = set(self.controls())
         if package.get("kind") == "game":
             normalized = validate_package(package)
+            if normalized.get("camera") and normalized["camera"]["target"] != self.paired_target():
+                raise ActivationError("Camera source is not the current paired Mac")
             if not set(normalized["controls"]) <= available:
                 raise ActivationError("A required game control is unavailable")
             return normalized
@@ -100,9 +103,9 @@ class DeviceActivation:
             raise ActivationError("Exactly one encoder binding is required")
         binding = bindings[0]
         if (type(binding) is not dict or set(binding) != {"control", "action", "scale"}
-                or binding["control"] != "encoder" or binding["action"] != "volume.delta"
+                or binding["control"] != "encoder" or binding["action"] not in {"volume.delta", "brightness.delta"}
                 or type(binding["scale"]) is not int or not 1 <= abs(binding["scale"]) <= 10):
-            raise ActivationError("Only encoder to volume.delta with nonzero scale -10 to 10 is allowed")
+            raise ActivationError("Only encoder to volume or brightness delta with nonzero scale -10 to 10 is allowed")
         return _copy(package)
 
     def _prepare(self, package):
@@ -119,11 +122,11 @@ class DeviceActivation:
                 frame = {"state": {}, "commands": [
                     {"op": "clear", "color": "#101820"},
                     {"op": "text", "x": 8, "y": 10, "text": package["title"][:25], "size": 14, "color": "#64E3B5"},
-                    {"op": "text", "x": 8, "y": 52, "text": "Turn encoder for volume", "size": 12, "color": "#FFFFFF"},
+                    {"op": "text", "x": 8, "y": 52, "text": "Turn encoder to adjust", "size": 12, "color": "#FFFFFF"},
                     {"op": "text", "x": 8, "y": 88, "text": "Paired computer", "size": 12, "color": "#D6DFE7"},
                 ]}
             renderer = Renderer(package)
-            image = renderer.render(frame["commands"])
+            image = renderer.render(frame["commands"], self.camera_frame() if package.get("camera") else None)
             return _Running(digest(package), package, game, renderer, frame, image)
         except BaseException:
             if game is not None:
@@ -456,7 +459,7 @@ class DeviceActivation:
             try:
                 frame = self._active.game.step(input, dt)
                 stage, started = "render", time.monotonic()
-                image = self._active.renderer.render(frame["commands"])
+                image = self._active.renderer.render(frame["commands"], self.camera_frame() if self._active.package.get("camera") else None)
                 stage, started = "present", time.monotonic()
                 self.present(image)
                 self._active.frame, self._active.image = frame, image

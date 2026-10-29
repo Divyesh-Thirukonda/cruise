@@ -2,13 +2,13 @@
 
 Audio stays in bounded memory buffers and is never written to disk. This is a
 prototype transcript matcher, not a dedicated wake-word model. It also accepts
-Whisper's spelling "Hey Metta". Inference pauses capture, a visible listening
-gap. Cached faster-whisper tiny.en weights must already exist.
+Whisper's spelling "Hey Metta". Inference pauses capture. Ambient inference
+stays visually passive. Cached faster-whisper tiny.en weights must already exist.
 
 The selected USB microphone captures native 48 kHz mono int16 in 25-ms blocks.
 PyAV/FFmpeg resamples on the worker to 16 kHz for VAD and Whisper; the microphone
-is never replaced by a default device. Six-second push-to-talk flushes the
-resampler's filter delay to retain exactly 96,000 samples at 16 kHz.
+is never replaced by a default device. Requests end after three seconds of
+silence; audio reaching the 25-second cap is discarded, never auto-submitted.
 
 Driver APIs: https://python-sounddevice.readthedocs.io/en/0.5.3/api/raw-streams.html
 Recognition: https://github.com/SYSTRAN/faster-whisper
@@ -31,11 +31,16 @@ BLOCK_SECONDS = BLOCK_SAMPLES / SAMPLE_RATE
 CAPTURE_RATE = 48_000
 CAPTURE_BLOCK_SAMPLES = 1200
 CAPTURE_BLOCK_BYTES = CAPTURE_BLOCK_SAMPLES * 2
-MAX_AUDIO_BYTES = SAMPLE_RATE * 2 * 8
-PTT_BYTES = SAMPLE_RATE * 2 * 6
+MAX_AUDIO_BYTES = SAMPLE_RATE * 2 * 25
+END_SILENCE_BLOCKS = 120
+PTT_NO_SPEECH_BLOCKS = 320
 WAKE_PATTERN = re.compile(r"^[\W_]*hey[\s,!.:;\-–—]*met(?:a|ta)\b", re.IGNORECASE)
 VOCABULARY_PROMPT = "Modulate, Meta, kart, knob, coins."
 INPUT_LATENCY_SECONDS = 0.25
+CANCEL_PATTERN = re.compile(r"(?:cancel (?:the )?(?:rebuild|build)|stop building)[.!?]*", re.IGNORECASE)
+INCOMPLETE_REQUESTS = frozenset({"oh", "um", "uh", "hmm", "ah", "make a", "make an",
+                               "change it to", "change to", "turn it into", "can you", "could you",
+                               "i want", "i want to"})
 
 
 class VoiceError(Exception):
@@ -92,7 +97,7 @@ def pcm_rms(audio):
 
 
 class EnergyVAD:
-    """25-ms PCM blocks, 250-ms prebuffer, 500-ms silence, eight-second cap."""
+    """25-ms blocks, 250-ms prebuffer, three-second silence, discard at 25s."""
 
     def __init__(self, threshold=0.015):
         if type(threshold) not in (int, float) or not math.isfinite(threshold) or not 0 < threshold < 1:
@@ -130,7 +135,10 @@ class EnergyVAD:
             self.chunks.append(audio)
         self.voiced += int(speaking)
         self.silence = 0 if speaking else self.silence + 1
-        if self.silence < 20 and len(self.chunks) * BLOCK_BYTES < MAX_AUDIO_BYTES:
+        if len(self.chunks) * BLOCK_BYTES >= MAX_AUDIO_BYTES:
+            self.reset()
+            raise VoiceError("Speech reached the 25-second limit; nothing submitted. Try a shorter request")
+        if self.silence < END_SILENCE_BLOCKS:
             return None
         # Isolated clicks should not trigger Whisper or arm a request.
         result = Utterance(b"".join(self.chunks)[:MAX_AUDIO_BYTES], self.started_at) if self.voiced >= 3 else None
@@ -195,16 +203,17 @@ def select_input_device(sounddevice, requested=None):
 class VoiceListener:
     """start() is initially muted; set_enabled(True) enables wake capture.
 
-    request_ptt() queues one six-second recording even with wake disabled and
+    request_ptt() queues one silence-ended recording even with wake disabled and
     returns False when stopped, already recording PTT, or transcribing.
     on_request(text) must enqueue promptly; returning False reports busy.
     on_status receives only state/message, never transcript or audio.
     """
 
-    def __init__(self, on_request, on_status, device=None, *, rms_threshold=0.015):
+    def __init__(self, on_request, on_status, device=None, *, rms_threshold=0.015, on_cancel=None):
         if device is not None and (type(device) is not int or device < 0):
             raise ValueError("Microphone device must be a sounddevice integer index")
         self.on_request, self.on_status = on_request, on_status
+        self.on_cancel = on_cancel
         self.device = device
         self._vad = EnergyVAD(rms_threshold)
         self._gate = WakeGate()
@@ -218,6 +227,7 @@ class VoiceListener:
         self._model = None
         self._selected = None
         self._enabled = self._pending_ptt = self._ptt_active = self._transcribing = False
+        self._busy = False
         self._epoch = 0
         self._last_status = None
         self._feedback = None
@@ -231,7 +241,7 @@ class VoiceListener:
     def _wake_status(self):
         if self._feedback and time.monotonic() < self._feedback_until:
             return self._feedback
-        return "Listening locally for Hey Meta"
+        return "Working; say Hey Meta cancel build" if self._busy else "Listening locally for Hey Meta"
 
     def _emit(self, state, message):
         item = (state, message)
@@ -278,11 +288,21 @@ class VoiceListener:
     def request_ptt(self):
         with self._lock:
             if (self._thread is None or not self._thread.is_alive() or self._stop.is_set()
-                    or self._pending_ptt or self._ptt_active or self._transcribing):
+                    or self._pending_ptt or self._ptt_active or self._transcribing or self._busy):
                 return False
             self._pending_ptt = True
             self._changed.set()
             return True
+
+    def set_busy(self, busy):
+        if type(busy) is not bool:
+            raise ValueError("Voice busy mode must be a boolean")
+        with self._lock:
+            if self._busy != busy:
+                self._busy = busy
+                self._epoch += 1
+                self._pending_ptt = False
+                self._changed.set()
 
     def _callback(self, indata, frames, time_info, status):
         problem = None
@@ -347,6 +367,7 @@ class VoiceListener:
         with self._lock:
             if self._stop.is_set() or (not ptt and not self._enabled):
                 return None
+            epoch = self._epoch
         import sounddevice as sd
 
         if self._selected is None:
@@ -357,23 +378,21 @@ class VoiceListener:
             raise VoiceError("Selected microphone changed; choose its index again instead of switching silently")
         self._clear_audio()
         converter = PCMResampler()
-        chunks, voiced, native_blocks = [], 0, 0
+        native_blocks = 0
         last_audio = started = time.monotonic()
         with sd.RawInputStream(device=index, channels=1, samplerate=CAPTURE_RATE,
                                blocksize=CAPTURE_BLOCK_SAMPLES, dtype="int16",
                                latency=INPUT_LATENCY_SECONDS, callback=self._callback) as stream:
             while not self._stop.is_set():
                 with self._lock:
-                    if not ptt and (not self._enabled or self._pending_ptt):
+                    if epoch != self._epoch or (not ptt and (not self._enabled or self._pending_ptt)):
                         return None
                 if self._overflow.is_set():
                     raise VoiceError(self._audio_problem or "Microphone audio gap; partial recording discarded")
                 if not stream.active:
                     raise VoiceError("Selected microphone stream stopped; retrying the same device")
                 if ptt:
-                    self._emit("listening", "Push-to-talk: recording for six seconds locally")
-                elif self._vad.active:
-                    self._emit("listening", "Speech detected; checking the wake phrase locally")
+                    self._emit("listening", "Push-to-talk: pause three seconds when finished")
                 elif self._gate.armed(time.monotonic()):
                     self._emit("listening", "Wake phrase heard; say your request within six seconds")
                 else:
@@ -389,31 +408,20 @@ class VoiceListener:
                     raise VoiceError("Invalid microphone block; partial recording discarded")
                 native_blocks += 1
                 blocks = converter.feed(audio)
-                ptt_complete = ptt and native_blocks >= 240
-                if ptt_complete:
-                    blocks.extend(converter.flush())
                 for audio in blocks:
-                    if ptt:
-                        chunks.append(audio)
-                        voiced += int(pcm_rms(audio) >= self._vad.threshold)
-                    else:
-                        utterance = self._vad.feed(audio, timestamp)
-                        if utterance is not None:
-                            return utterance
-                if ptt_complete:
-                    if len(chunks) * BLOCK_BYTES != PTT_BYTES:
-                        raise VoiceError("Resampling did not produce the complete six-second recording")
-                    if voiced < 3:
-                        message = "No speech detected; try push-to-talk again"
-                        self._feedback_message(message)
-                        self._emit("idle", message)
-                        return None
-                    return Utterance(b"".join(chunks), started)
+                    utterance = self._vad.feed(audio, timestamp)
+                    if utterance is not None:
+                        return utterance
+                if ptt and not self._vad.active and native_blocks >= PTT_NO_SPEECH_BLOCKS:
+                    message = "No speech detected; try push-to-talk again"
+                    self._feedback_message(message)
+                    self._emit("idle", message)
+                    return None
         return None
 
     def _deliver(self, text, utterance, ptt, epoch):
         with self._lock:
-            if self._stop.is_set() or (not ptt and (not self._enabled or epoch != self._epoch)):
+            if self._stop.is_set() or epoch != self._epoch or (not ptt and not self._enabled):
                 return
         now = time.monotonic()
         if ptt:
@@ -428,13 +436,31 @@ class VoiceListener:
                 self._feedback_message(message)
                 self._emit("idle", message)
             elif not self._gate.armed(now):
-                message = ("Wake phrase not recognized; say Hey Meta or use both screen buttons"
-                           if text.strip() else "No clear speech recognized; try both screen buttons")
-                self._feedback_message(message)
-                self._emit("wake_listening", message)
+                self._emit("wake_listening", self._wake_status())
             return
         if len(request) > 2000:
             raise VoiceError("Local transcript exceeded the request limit")
+        with self._lock:
+            if self._stop.is_set() or epoch != self._epoch:
+                return
+            busy = self._busy
+        if CANCEL_PATTERN.fullmatch(request.strip()):
+            try:
+                accepted = self.on_cancel() if self.on_cancel is not None else False
+            except Exception:
+                raise VoiceError("Cancellation handler failed; cancellation was not confirmed") from None
+            message = "Cancellation requested" if accepted is not False else "Nothing was cancelled; check Studio"
+            self._feedback_message(message)
+            self._emit("wake_listening" if busy else "idle", message)
+            return
+        if busy:
+            self._emit("wake_listening", "Working; say Hey Meta cancel build")
+            return
+        if re.sub(r"[^a-z ]", "", request.lower()).strip() in INCOMPLETE_REQUESTS:
+            message = "Please say a complete request after Hey Meta, or use push-to-talk"
+            self._feedback_message(message)
+            self._emit("idle", message)
+            return
         try:
             accepted = self.on_request(request)
         except Exception:
@@ -480,14 +506,20 @@ class VoiceListener:
                     if utterance is None:
                         continue
                     with self._lock:
-                        if not ptt and (self._pending_ptt or not self._enabled or epoch != self._epoch):
+                        if epoch != self._epoch or (not ptt and (self._pending_ptt or not self._enabled)):
                             continue
                         self._transcribing = True
-                    self._emit("transcribing", "Transcribing locally; microphone is paused")
+                    if ptt or self._gate.armed(utterance.started_at):
+                        self._emit("transcribing", "Transcribing locally; microphone is paused")
+                    else:
+                        self._emit("wake_listening", "Checking locally for Hey Meta; microphone is paused")
                     text = self._transcribe(utterance.audio)
                     self._deliver(text, utterance, ptt, epoch)
                     del text, utterance
                 except Exception as error:
+                    with self._lock:
+                        if self._stop.is_set() or epoch != self._epoch:
+                            continue
                     message = str(error) if isinstance(error, VoiceError) else (
                         "Local speech or selected microphone unavailable; check cached tiny.en weights and the chosen input")
                     self._feedback_message(message)

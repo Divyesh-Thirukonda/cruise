@@ -13,7 +13,7 @@ from unittest.mock import Mock, patch
 
 from modulate.voice import (
     BLOCK_BYTES, BLOCK_SAMPLES, BLOCK_SECONDS, CAPTURE_BLOCK_SAMPLES, EnergyVAD, MAX_AUDIO_BYTES,
-    PCMResampler, PTT_BYTES, Utterance, VoiceError, VoiceListener, WakeGate,
+    END_SILENCE_BLOCKS, PCMResampler, Utterance, VoiceError, VoiceListener, WakeGate,
     select_input_device, wake_remainder,
 )
 
@@ -79,34 +79,42 @@ class VADTests(unittest.TestCase):
         self.assertEqual(vad.chunks, [])
         self.assertFalse(vad.active)
 
-    def test_prebuffer_and_half_second_silence_end_utterance(self):
+    def test_prebuffer_and_three_second_silence_end_utterance(self):
         vad = EnergyVAD()
         for _ in range(10):
             vad.feed(SILENCE, 1)
         for _ in range(4):
             self.assertIsNone(vad.feed(SPEECH, 2))
-        for _ in range(19):
+        for _ in range(119):
             self.assertIsNone(vad.feed(SILENCE, 3))
         utterance = vad.feed(SILENCE, 4)
         self.assertEqual(utterance.started_at, 2)
-        self.assertEqual(len(utterance.audio), (9 + 4 + 20) * BLOCK_BYTES)
+        self.assertEqual(len(utterance.audio), (9 + 4 + 120) * BLOCK_BYTES)
         self.assertTrue(utterance.audio.startswith(SILENCE * 9))
         self.assertFalse(vad.active)
         self.assertEqual(vad.chunks, [])
 
-    def test_continuous_sound_cannot_exceed_eight_seconds(self):
+    def test_continuous_sound_at_25_second_cap_is_discarded_without_partial_submission(self):
         vad = EnergyVAD()
-        utterance = None
-        for index in range(320):
-            utterance = vad.feed(SPEECH, index * BLOCK_SECONDS)
-        self.assertIsNotNone(utterance)
-        self.assertEqual(len(utterance.audio), MAX_AUDIO_BYTES)
+        for index in range(MAX_AUDIO_BYTES // BLOCK_BYTES - 1):
+            self.assertIsNone(vad.feed(SPEECH, index * BLOCK_SECONDS))
+        with self.assertRaisesRegex(VoiceError, "nothing submitted"):
+            vad.feed(SPEECH, 25)
         self.assertFalse(vad.active)
+        self.assertEqual(vad.chunks, [])
+
+    def test_two_second_pause_keeps_correction_in_same_utterance(self):
+        vad = EnergyVAD()
+        blocks = [SPEECH] * 4 + [SILENCE] * 80 + [SPEECH] * 4 + [SILENCE] * 120
+        for index, block in enumerate(blocks[:-1]):
+            self.assertIsNone(vad.feed(block, index * BLOCK_SECONDS))
+        utterance = vad.feed(blocks[-1], 10)
+        self.assertEqual(utterance.audio, b"".join(blocks))
 
     def test_isolated_click_and_incomplete_blocks_are_discarded(self):
         vad = EnergyVAD()
         vad.feed(SPEECH, 0)
-        for index in range(20):
+        for index in range(120):
             self.assertIsNone(vad.feed(SILENCE, index * BLOCK_SECONDS))
         self.assertFalse(vad.active)
         vad.feed(SPEECH, 1)
@@ -140,8 +148,9 @@ class FakeSoundDevice:
 
 
 class SyntheticQueue:
-    def __init__(self, block=NATIVE_SPEECH):
+    def __init__(self, block=NATIVE_SPEECH, continuous=False):
         self.block = block
+        self.continuous = continuous
         self.reads = 0
 
     def get_nowait(self):
@@ -149,7 +158,7 @@ class SyntheticQueue:
 
     def get(self, timeout):
         self.reads += 1
-        return time.monotonic(), self.block
+        return time.monotonic(), self.block if self.continuous or self.reads <= 40 else NATIVE_SILENCE
 
 
 class ListenerTests(unittest.TestCase):
@@ -197,14 +206,14 @@ class ListenerTests(unittest.TestCase):
         self.listener._callback(NATIVE_SPEECH, CAPTURE_BLOCK_SAMPLES, None, True)
         self.assertTrue(self.listener._overflow.is_set())
 
-    def test_ptt_uses_one_stream_and_exact_six_second_memory_buffer(self):
+    def test_ptt_uses_one_stream_and_ends_after_three_seconds_of_silence(self):
         sd = FakeSoundDevice()
         audio = SyntheticQueue()
         self.listener._audio = audio
         with patch.dict("sys.modules", {"sounddevice": sd}):
             utterance = self.listener._capture(ptt=True)
-        self.assertEqual(len(utterance.audio), PTT_BYTES)
-        self.assertEqual(audio.reads, 240)
+        self.assertEqual(len(utterance.audio), (40 + END_SILENCE_BLOCKS) * BLOCK_BYTES)
+        self.assertEqual(audio.reads, 160)
         self.assertEqual((sd.opens, sd.closes), (1, 1))
         self.assertEqual(sd.stream_settings["latency"], 0.25)
         self.assertEqual(sd.stream_settings["samplerate"], 48000)
@@ -241,14 +250,16 @@ class ListenerTests(unittest.TestCase):
         self.assertEqual(self.requests, [secret_request])
         self.assertNotIn("PRIVATE_REQUEST_MARKER", str(self.statuses))
 
-    def test_disable_during_inference_invalidates_wake_delivery_but_ptt_still_works(self):
+    def test_configuration_change_invalidates_inflight_delivery_and_fresh_ptt_still_works(self):
         self.listener.set_enabled(True)
         epoch = self.listener._epoch
         self.listener.set_enabled(False)
         utterance = Utterance(b"", time.monotonic())
         self.listener._deliver("Hey Meta, old request", utterance, False, epoch)
         self.assertEqual(self.requests, [])
-        self.listener._deliver("new PTT request", utterance, True, epoch)
+        self.listener._deliver("stale PTT request", utterance, True, epoch)
+        self.assertEqual(self.requests, [])
+        self.listener._deliver("new PTT request", utterance, True, self.listener._epoch)
         self.assertEqual(self.requests, ["new PTT request"])
 
     def test_busy_handler_reports_rejection_and_stop_suppresses_late_results(self):
@@ -309,18 +320,16 @@ class ListenerTests(unittest.TestCase):
             self.listener._callback(NATIVE_SPEECH, CAPTURE_BLOCK_SAMPLES, None, False)
         self.assertIn("queue is full", self.listener._audio_problem)
 
-    def test_unrecognized_wake_feedback_is_sticky_and_never_retains_transcript(self):
+    def test_unrelated_speech_stays_passive_and_never_retains_transcript(self):
         self.listener.set_enabled(True)
         with patch("modulate.voice.time.monotonic", return_value=100):
             self.listener._deliver("UNRELATED_PRIVATE_SPEECH", Utterance(b"", 99), False,
                                    self.listener._epoch)
         self.assertEqual(self.requests, [])
         self.assertNotIn("UNRELATED_PRIVATE_SPEECH", str(self.statuses))
-        self.assertNotIn("UNRELATED_PRIVATE_SPEECH", self.listener._feedback)
-        with patch("modulate.voice.time.monotonic", return_value=103.9):
-            self.assertIn("Wake phrase not recognized", self.listener._wake_status())
-        with patch("modulate.voice.time.monotonic", return_value=104):
-            self.assertEqual(self.listener._wake_status(), "Listening locally for Hey Meta")
+        self.assertIsNone(self.listener._feedback)
+        self.assertEqual(self.statuses[-1]["state"], "wake_listening")
+        self.assertEqual(self.listener._wake_status(), "Listening locally for Hey Meta")
 
     def test_transcription_vocabulary_does_not_inject_the_wake_phrase(self):
         class FakeArray:
@@ -380,6 +389,105 @@ class ListenerTests(unittest.TestCase):
         self.assertEqual((sd.opens, sd.closes), (1, 1))
         self.assertEqual(self.requests, [])
 
+    def test_ambient_transcription_never_emits_understanding_or_listening_overlay(self):
+        self.listener.set_enabled(True)
+        calls = 0
+
+        def capture(ptt):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                return Utterance(SPEECH, time.monotonic())
+            self.listener.stop()
+            return None
+
+        with patch.object(self.listener, "_load_model"), \
+                patch.object(self.listener, "_capture", side_effect=capture), \
+                patch.object(self.listener, "_transcribe", return_value="oh"):
+            self.listener._run()
+        self.assertEqual(self.requests, [])
+        self.assertFalse(any(item["state"] in {"transcribing", "listening"} for item in self.statuses))
+
+    def test_explicit_weak_fragments_request_clarification_without_generation(self):
+        self.listener.set_enabled(True)
+        utterance = Utterance(b"", time.monotonic())
+        for text in ("oh", "make a", "change it to"):
+            self.listener._deliver("Hey Meta, " + text, utterance, False, self.listener._epoch)
+            self.assertIn("complete request", self.statuses[-1]["message"])
+        self.assertEqual(self.requests, [])
+        self.listener._deliver("Hey Meta, change it to blue", utterance, False, self.listener._epoch)
+        self.assertEqual(self.requests, ["change it to blue"])
+
+    def test_short_clarification_answers_and_refinements_are_preserved(self):
+        self.listener.set_enabled(True)
+        utterance = Utterance(b"", time.monotonic())
+        for request in ("blue", "slower", "yes", "okay", "ok"):
+            self.listener._deliver("Hey Meta " + request, utterance, False, self.listener._epoch)
+        self.assertEqual(self.requests, ["blue", "slower", "yes", "okay", "ok"])
+
+    def test_busy_capture_accepts_only_explicit_cancellation_and_no_generation(self):
+        self.listener.on_cancel = Mock(return_value=True)
+        self.listener.set_enabled(True)
+        self.listener.set_busy(True)
+        utterance = Utterance(b"", time.monotonic())
+        for text in ("Hey Meta cancel rebuild", "Hey Meta, cancel build.", "Hey Meta stop building!"):
+            self.listener._deliver(text, utterance, False, self.listener._epoch)
+        self.assertEqual(self.listener.on_cancel.call_count, 3)
+        for text in ("cancel build", "I said Hey Meta cancel build", "Hey Meta make a game",
+                     "Hey Meta cancel build after making a game", "Hey Meta stop building and make a game"):
+            self.listener._deliver(text, utterance, False, self.listener._epoch)
+        self.assertEqual(self.listener.on_cancel.call_count, 3)
+        self.assertEqual(self.requests, [])
+        self.assertTrue(self.listener._enabled)
+        self.assertFalse(self.listener.request_ptt())
+
+    def test_idle_cancel_discards_draft_through_same_local_callback(self):
+        self.listener.set_enabled(True)
+        self.listener.on_cancel = Mock(return_value=True)
+        self.listener._deliver("Hey Meta cancel build", Utterance(b"", time.monotonic()), False, self.listener._epoch)
+        self.listener.on_cancel.assert_called_once_with()
+        self.assertEqual(self.requests, [])
+
+    def test_busy_transition_invalidates_inflight_request_and_repeated_mode_is_inert(self):
+        self.listener.set_enabled(True)
+        epoch = self.listener._epoch
+        self.listener.set_busy(True)
+        self.listener._changed.clear()
+        self.listener.set_busy(True)
+        self.assertFalse(self.listener._changed.is_set())
+        self.listener._deliver("Hey Meta make a game", Utterance(b"", time.monotonic()), False, epoch)
+        self.assertEqual(self.requests, [])
+        self.listener.set_busy(False)
+        self.listener._deliver("Hey Meta make a game", Utterance(b"", time.monotonic()), False, self.listener._epoch)
+        self.assertEqual(self.requests, ["make a game"])
+
+    def test_capture_error_after_mode_invalidation_is_not_shown_as_a_current_error(self):
+        self.listener.set_enabled(True)
+        calls = 0
+
+        def capture(ptt):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                self.listener.set_busy(True)
+                raise VoiceError("Stale partial recording error")
+            self.listener.stop()
+            return None
+
+        with patch.object(self.listener, "_load_model"), patch.object(self.listener, "_capture", side_effect=capture):
+            self.listener._run()
+        self.assertFalse(any(item["state"] == "error" for item in self.statuses))
+
+    def test_ptt_cap_discards_audio_and_closes_stream_without_calling_recognition(self):
+        sd = FakeSoundDevice()
+        self.listener._audio = SyntheticQueue(continuous=True)
+        with patch.dict("sys.modules", {"sounddevice": sd}):
+            with self.assertRaisesRegex(VoiceError, "nothing submitted"):
+                self.listener._capture(ptt=True)
+        self.assertEqual((sd.opens, sd.closes), (1, 1))
+        self.assertEqual(self.requests, [])
+        self.assertEqual(self.listener._vad.chunks, [])
+
 
 class MicrophoneSelectionTests(unittest.TestCase):
     def test_only_one_usb_input_can_be_selected_automatically(self):
@@ -435,7 +543,7 @@ class RealResamplerTests(unittest.TestCase):
             blocks.extend(converter.feed(NATIVE_SILENCE))
             self.assertLess(len(converter.pending), BLOCK_BYTES)
         blocks.extend(converter.flush())
-        self.assertEqual(sum(len(block) for block in blocks), PTT_BYTES)
+        self.assertEqual(sum(len(block) for block in blocks), 16000 * 2 * 6)
         self.assertEqual(converter.pending, b"")
         self.assertTrue(all(len(block) == BLOCK_BYTES for block in blocks))
 

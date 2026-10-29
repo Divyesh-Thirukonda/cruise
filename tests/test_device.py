@@ -51,6 +51,33 @@ class ControllerTests(unittest.TestCase):
     def offer(self):
         self.controller.host = {"pairing": {"code": "12345678", "expires_at": time.time() + 120}}
 
+    def test_voice_cancel_discards_unsent_request_without_network_action(self):
+        self.controller.request('Make a game')
+        self.assertTrue(self.controller.cancel_request())
+        self.assertTrue(self.controller.requests.empty())
+        self.assertIsNone(self.controller.build)
+        self.Companion.post.assert_not_called()
+
+    def test_busy_voice_cancel_sends_exact_heard_job_not_a_later_job(self):
+        self.controller.build={'job_id':'a'*32,'awaiting_response':False}
+        self.assertTrue(self.controller.cancel_request())
+        self.controller.build={'job_id':'b'*32,'awaiting_response':False}
+        self.Companion.post.side_effect=[{'cancelled':False},{'wake':True,'agent_running':True}]
+        self.controller._network_step()
+        self.assertEqual(self.Companion.post.call_args_list[0].args,('cancel',{'job_id':'a'*32}))
+        self.assertEqual(self.controller.build['job_id'],'b'*32)
+
+    def test_cancel_during_request_post_is_forwarded_after_acceptance(self):
+        self.controller.request('Make a game')
+        self.controller.requests.get_nowait()
+        self.assertTrue(self.controller.cancel_request())
+        self.assertTrue(self.controller.cancel_when_accepted)
+        self.controller.requests.put_nowait('Make a game')
+        self.Companion.post.side_effect=[{'wake':True}, {'accepted':True,'job_id':'a'*32,'job_sequence':1}]
+        self.controller._network_step()
+        self.assertEqual(self.controller.cancellations.get_nowait(),'a'*32)
+        self.assertFalse(self.controller.cancel_when_accepted)
+
     def test_first_heartbeat_uses_restored_revision_before_render_loop(self):
         revision = "a" * 64
         failure = {"revision": "b" * 64, "restored_revision": revision,
@@ -227,7 +254,8 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(controller.build["job_id"], "a" * 32)
         controller._apply_responses()
         self.assertEqual(controller.build["job_id"], "a" * 32)
-        self.VoiceListener.set_enabled.assert_called_with(False)
+        self.VoiceListener.set_enabled.assert_called_with(True)
+        self.VoiceListener.set_busy.assert_called_with(True)
 
     def test_false_heartbeat_during_request_submission_keeps_local_queue_latch(self):
         self.assertTrue(self.controller.request("synthetic request"))

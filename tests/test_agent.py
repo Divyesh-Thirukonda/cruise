@@ -70,6 +70,7 @@ class FakeService:
         self.checked = 0
         self.check_passes = True
         self.on_event = None
+        self.questions = []
 
     def event(self, event):
         self.events.append(copy.deepcopy(event))
@@ -81,6 +82,10 @@ class FakeService:
 
     def current_package(self):
         return copy.deepcopy(self.package)
+
+    def request_clarification(self, question):
+        self.questions.append(question)
+        return {"question": question}
 
     def validate_control(self, package):
         if set(package) != {"kind", "title", "target", "bindings"} or package["target"] != "test-session":
@@ -178,6 +183,7 @@ class AgentTests(unittest.TestCase):
             names = {item["function"]["name"] for item in tools}
             self.assertNotIn("activate_package", names)
             self.assertNotIn("delegate_task", names)
+            self.assertNotIn("ask_user", names)
             return reply(("read_runtime_api", {}))
 
         def final(messages, tools):
@@ -331,6 +337,64 @@ class AgentTests(unittest.TestCase):
             agent.run("Second synthetic request")
         self.assertEqual(provider.calls, 1)
         self.assertEqual(restarted.status()["calls"], 1)
+
+    def test_incomplete_request_can_ask_one_question_without_creating_or_activating(self):
+        question = "What would you like the controller to become?"
+        agent, provider = self.make([reply(("ask_user", {"question": question}))])
+        self.assertEqual(agent.run("Can you make it..."), question)
+        self.assertEqual(self.service.questions, [question])
+        self.assertEqual((self.service.candidates, self.service.activations), ([], []))
+        self.assertEqual(len(provider.requests), 1)
+        result = next(event["detail"] for event in self.service.events
+                      if event["type"] == "tool_finished" and event["tool"] == "ask_user")
+        self.assertEqual(result, {"clarification_required": True, "question": question})
+
+    def test_clarification_preempts_same_batch_writes_and_activation_in_either_order(self):
+        question = "Which app do you want to change?"
+        for before in (True, False):
+            with self.subTest(ask_first=before):
+                calls = [("write_package", {"package": control_package()}),
+                         ("activate_package", {"candidate_id": "not-verified"})]
+                call = ("ask_user", {"question": question})
+                calls = [call, *calls] if before else [*calls, call]
+                agent, provider = self.make([reply(*calls)])
+                self.assertEqual(agent.run("Change that one"), question)
+                self.assertEqual(len(provider.requests), 1)
+        self.assertEqual((self.service.candidates, self.service.activations), ([], []))
+
+    def test_question_accepts_printable_unicode_but_not_multiline_or_oversized_text(self):
+        agent, _ = self.prepare()
+        for question in ("", "   ", "First question\nSecond question", "x" * 181, "What\x00app?"):
+            with self.assertRaises(AgentError):
+                agent.dispatch("ask_user", {"question": question}, "orchestrator")
+        question = "Quel jeu voulez-vous créer ?"
+        self.assertEqual(agent.dispatch("ask_user", {"question": question}, "orchestrator")["question"], question)
+        with self.assertRaisesRegex(AgentError, "Waiting"):
+            agent.dispatch("write_package", {"package": control_package()}, "orchestrator")
+
+    def test_specialist_cannot_request_user_clarification(self):
+        agent, _ = self.prepare()
+        with self.assertRaisesRegex(AgentError, "Specialists cannot"):
+            agent.dispatch("ask_user", {"question": "What should I build?"}, "coder")
+        self.assertEqual(self.service.questions, [])
+
+    def test_failed_clarification_delivery_stops_without_running_other_tools(self):
+        agent, provider = self.make([reply(("ask_user", {"question": "Which app?"}),
+                                          ("write_package", {"package": control_package()}))])
+        def fail(question):
+            raise AgentError("Synthetic clarification delivery failure")
+        self.service.request_clarification = fail
+        with self.assertRaisesRegex(AgentError, "Could not request clarification"):
+            agent.run("Change it")
+        self.assertEqual(len(provider.requests), 1)
+        self.assertEqual(self.service.candidates, [])
+
+    def test_new_user_request_resets_clarification_waiting_state(self):
+        agent, provider = self.make([reply(("ask_user", {"question": "Which app?"})), reply(content="Thanks for clarifying.")])
+        agent.run("Change it")
+        self.assertEqual(agent.run("The currently active game"), "Thanks for clarifying.")
+        self.assertIsNone(agent.clarification)
+        self.assertEqual(len(provider.requests), 2)
 
 
 class LedgerTests(unittest.TestCase):

@@ -31,6 +31,7 @@ _TOOL_PROGRESS = {
     "preview_package": ("previewing", "Preparing a preview"),
     "activate_package": ("activating", "Starting it on the controller"),
     "delegate_task": ("planning", "Working with a specialist"),
+    "ask_user": ("planning", "One quick question"),
 }
 
 
@@ -67,6 +68,10 @@ class Product:
         self.progress = {"job_id": None, "job_sequence": 0, "request_id": None, "phase": "ready", "title": "Ready",
                          "tool": None, "role": None}
         self._load_job()
+        self.voice_draft = None
+        self.draft_deadline = None
+        self.clarification = None
+        self.current_request = None
         self.device = {"name": "Controller", "controls": [], "devices": [], "warnings": [], "button_sources": {}}
         self.last_seen = None
         self.input = {}
@@ -286,10 +291,21 @@ class Product:
             self.progress = {"job_id": job_id, "job_sequence": job_sequence, "request_id": None, "phase": "queued",
                              "title": "Request received", "tool": None, "role": "orchestrator"}
             self.summary = "Your request is queued."
+            followup = copy.deepcopy(self.clarification)
+            self.clarification = None
+            self.current_request = text.strip()
+            if source == "microphone":
+                self.voice_draft = {"job_id": job_id, "text": text.strip(),
+                                    "send_at": time.time() + 3, "editing": False}
+                self.draft_deadline = time.monotonic() + 3
+                self.progress["title"] = "Review in Studio"
+                self.summary = "Heard your request. Edit in Studio or say Hey Meta, cancel rebuild."
             try:
                 self._save_job()
             except Exception:
                 self.running = False
+                self.voice_draft = None
+                self.draft_deadline = None
                 self.progress.update(phase="error", title="Could not start")
                 self.summary = "The companion could not save the request status."
                 raise AgentError(self.summary) from None
@@ -299,10 +315,25 @@ class Product:
             outcome = "ready"
             summary = "The request stopped before returning a result."
             try:
-                with self.lock:
+                with self.changed:
+                    while self.voice_draft and self.voice_draft["job_id"] == job_id:
+                        if self.progress["phase"] == "cancelled":
+                            break
+                        remaining = None if self.draft_deadline is None else self.draft_deadline - time.monotonic()
+                        if remaining is not None and remaining <= 0:
+                            break
+                        self.changed.wait(0.25 if remaining is None else min(remaining, 0.25))
                     if self.progress["phase"] == "cancelled":
                         raise AgentError("Cancelled by user")
-                result = self.agent.run(text)
+                    request_text = self.voice_draft["text"] if self.voice_draft else text.strip()
+                    self.voice_draft = None
+                    self.draft_deadline = None
+                    self.current_request = request_text
+                    if followup:
+                        request_text = ("Previous request: " + followup["original"][:1600] +
+                                        "\nClarifying question: " + followup["question"] +
+                                        "\nUser's reply (may replace the request): " + request_text[:1800])
+                result = self.agent.run(request_text)
                 summary = result if isinstance(result, str) else "Request finished."
             except Exception as error:
                 summary = str(error)[:500]
@@ -313,9 +344,13 @@ class Product:
                         if self.progress["phase"] == "cancelled":
                             outcome = "cancelled"
                         self.running = False
+                        self.voice_draft = None
+                        self.draft_deadline = None
                         self.summary = summary[:500]
                         self.progress.update(phase=outcome, title={"ready": "Ready", "error": "Could not finish",
                                              "cancelled": "Request cancelled"}[outcome], tool=None, role="orchestrator")
+                        if self.clarification and outcome == "ready":
+                            self.progress["title"] = "One quick question"
                         try:
                             self._save_job()
                         except Exception:
@@ -328,20 +363,55 @@ class Product:
         except Exception:
             with self.lock:
                 self.running = False
+                self.voice_draft = None
+                self.draft_deadline = None
                 self.progress.update(phase="error", title="Could not start")
                 self.summary = "The companion could not start this request."
                 self._save_job()
             raise AgentError(self.summary) from None
         return {"accepted": True, "source": source, "job_id": job_id, "job_sequence": job_sequence}
 
-    def cancel(self):
-        self.agent.cancelled.set()
+    def request_clarification(self, question):
+        if not isinstance(question, str) or not 1 <= len(question.strip()) <= 180 or not question.strip().isprintable():
+            raise AgentError("Ask one short, printable question")
+        with self.lock:
+            if (not self.running or self.agent.cancelled.is_set()
+                    or getattr(self.job_context, "job_id", None) != self.progress["job_id"]):
+                raise AgentError("This request is no longer active")
+            self.clarification = {"question": question.strip(), "request_id": self.progress["request_id"],
+                                  "original": self.current_request or ""}
+            return {"clarification_required": True, "question": question.strip()}
+
+    def draft(self, job_id, action, text=None):
         with self.changed:
+            if (not self.running or not self.voice_draft or self.voice_draft["job_id"] != job_id
+                    or self.progress["phase"] == "cancelled"):
+                raise AgentError("That voice draft has already been sent or discarded")
+            if action == "discard":
+                return self.cancel(job_id)
+            if action not in {"pause", "send"}:
+                raise AgentError("Unknown draft action")
+            if text is not None:
+                if not isinstance(text, str) or not 1 <= len(text.strip()) <= 2000:
+                    raise AgentError("Draft must contain 1–2000 characters")
+                self.voice_draft["text"] = text.strip()
+            self.voice_draft["editing"] = action == "pause"
+            self.voice_draft["send_at"] = None if action == "pause" else time.time()
+            self.draft_deadline = None if action == "pause" else 0
+            self.changed.notify_all()
+            return {"accepted": True, "job_id": job_id, "action": action}
+
+    def cancel(self, job_id=None):
+        with self.changed:
+            if job_id is not None and (not self.running or job_id != self.progress["job_id"]):
+                return {"cancelled": False, "reason": "That request has already finished"}
+            self.agent.cancelled.set()
+            self.clarification = None
             if self.running:
                 self.progress.update(phase="cancelled", title="Stopping the request", tool=None)
             if self.pending and self.pending["phase"] not in {"confirmed", "abort"}:
                 self.pending.update(phase="abort", error="Cancelled by user")
-                self.changed.notify_all()
+            self.changed.notify_all()
         return {"cancelled": True}
 
     def _commit(self, record):
@@ -556,6 +626,8 @@ class Product:
                     pending["package"] = self.pending["package"]
             return {"activation": pending, "active_revision": self.revision, "wake": self.wake,
                     "agent_running": self.running, "agent_state": self.agent_state(),
+                    "clarification": ({"question": self.clarification["question"],
+                                       "request_id": self.clarification["request_id"]} if self.clarification else None),
                     "volume": self.volume, "paired": bool(self.capabilities()["paired_host"]),
                     "failure_ack": ({key: failure[key] for key in ("revision", "restored_revision")} if failure is not None else None),
                     "pairing": (copy.deepcopy(self.pairing) if self.pairing and time.time() < self.pairing["expires_at"]
@@ -675,6 +747,9 @@ class Product:
                     "capabilities": self.capabilities(), "input": self.input, "telemetry": self.telemetry},
                     "active": self.active, "candidate": self.candidate,
                     "agent": self.agent_state(),
+                    "voice_draft": copy.deepcopy(self.voice_draft),
+                    "clarification": ({"question": self.clarification["question"],
+                                       "request_id": self.clarification["request_id"]} if self.clarification else None),
                     "events": list(self.events), "volume": self.volume,
                     "paired": bool(self.capabilities()["paired_host"]), "wake": self.wake,
                     "preview_version": self.preview_version,

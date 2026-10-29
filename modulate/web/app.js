@@ -6,6 +6,7 @@
     state: null, token: null, online: false, submitting: false, mutating: new Set(),
     previewKey: null, previewLoaded: false, previewError: false, eventKey: null,
     inspectSource: "active", inspectView: "code", pairing: null, noticeTimer: null,
+    draftId: null, draftFocus: null,
   };
   const names = {joystick: "Joystick", encoder: "Encoder", button_a: "Button A",
     button_b: "Button B", encoder_pressed: "Encoder press", pitft_buttons: "PiTFT buttons"};
@@ -126,6 +127,61 @@
     $("wake-toggle").disabled = !ui.online || !state?.device?.connected || ui.mutating.has("wake");
     $("inspect-candidate").disabled = !state?.candidate;
     $("inspect-active").disabled = !state?.active;
+    renderVoiceDraft();
+  }
+
+  function renderVoiceDraft() {
+    const draft = ui.state?.voice_draft;
+    const panel = $("voice-draft-panel");
+    const editor = $("voice-draft-text");
+    if (!draft || typeof draft.job_id !== "string" || typeof draft.text !== "string") {
+      if (!panel.hidden && panel.contains(document.activeElement)) $("request").focus();
+      panel.hidden = true;
+      editor.value = "";
+      ui.draftId = null;
+      ui.draftFocus = null;
+      return;
+    }
+    const editing = draft.editing === true;
+    if (draft.job_id !== ui.draftId || !editing) editor.value = draft.text;
+    ui.draftId = draft.job_id;
+    panel.hidden = false;
+    const sendingAt = typeof draft.send_at === "number" && Number.isFinite(draft.send_at) ? draft.send_at * 1000 : null;
+    const seconds = sendingAt === null ? null : Math.max(0, Math.ceil((sendingAt - Date.now()) / 1000));
+    const expired = !editing && seconds === 0;
+    const pending = ui.mutating.has("draft");
+    const unavailable = !ui.online || expired || pending;
+    editor.readOnly = !editing || pending;
+    $("voice-draft-edit").hidden = editing;
+    $("voice-draft-edit").disabled = unavailable;
+    $("voice-draft-send").disabled = unavailable || !editor.value.trim();
+    $("voice-draft-discard").disabled = unavailable;
+    text("voice-draft-countdown", !ui.online ? "Studio offline" : pending ? "Updating…" : editing ? "Sending paused" : expired ? "Sending…" : seconds === null ? "Waiting to send" : `Sending in ${seconds}s`);
+    text("voice-draft-hint", !ui.online ? "Reconnect to send or discard this request. The server may still send it at its deadline." : editing ? "Take your time. Send now when your request is ready." : expired ? "Waiting for the studio to confirm this request." : "Choose Edit to pause sending and change the transcript.");
+    if (editing && !pending && ui.draftFocus === draft.job_id) {
+      ui.draftFocus = null;
+      editor.focus();
+      editor.setSelectionRange(editor.value.length, editor.value.length);
+    }
+  }
+
+  async function updateDraft(kind) {
+    const draft = ui.state?.voice_draft;
+    if (!draft || draft.job_id !== ui.draftId || !ui.online || ui.mutating.has("draft")) return;
+    const button = $(kind === "pause" ? "voice-draft-edit" : kind === "send" ? "voice-draft-send" : "voice-draft-discard");
+    if (button.disabled) return;
+    const payload = {job_id: draft.job_id, action: kind};
+    if (kind === "send") payload.text = $("voice-draft-text").value.trim();
+    if (kind === "pause") ui.draftFocus = draft.job_id;
+    const result = await action("draft", "/api/draft", payload);
+    if (!result) ui.draftFocus = null;
+  }
+
+  function renderClarification() {
+    const question = ui.state?.clarification?.question;
+    const visible = typeof question === "string" && question.trim().length > 0;
+    $("clarification-panel").hidden = !visible;
+    text("clarification-question", visible ? question : "");
   }
 
   function setPlaceholder(title, detail) {
@@ -258,7 +314,8 @@
     const cancelled = !agent.running && agent.status === "cancelled";
     $("agent-status").dataset.status = agent.running ? "running" : failed ? "error" : "idle";
     const badge = $("agent-status");
-    const statusText = agent.running ? "WORKING" : failed ? "STOPPED" : "READY";
+    const reviewing = agent.running && Boolean(ui.state?.voice_draft);
+    const statusText = reviewing ? "REVIEW" : agent.running ? "WORKING" : failed ? "STOPPED" : "READY";
     if (badge.lastChild?.nodeType === Node.TEXT_NODE) badge.lastChild.textContent = statusText;
     const phaseTitles = {queued: "Request accepted", planning: "Planning the change", coding: "Writing the program", checking: "Checking the package",
       previewing: "Preparing the preview", activating: "Activating on your device", ready: "Finishing the request",
@@ -273,11 +330,11 @@
     const role = typeof currentRole === "string" ? human(currentRole) : "";
     const tool = typeof currentTool === "string" ? human(currentTool) : "";
     const step = [role, tool ? `${!hasApiActivity && activity?.type === "tool_finished" ? "Last tool: " : ""}${tool}` : role && ["planning", "coding"].includes(agent.phase) ? "Model is deciding" : ""].filter(Boolean).join(" · ");
-    text("agent-summary-title", agent.running ? "Processing your request" : failed ? "The last request stopped." : cancelled ? "The request was cancelled." : ui.state?.active ? "Ready for your next idea." : "An idea starts the process.");
+    text("agent-summary-title", reviewing ? "Review your spoken request" : agent.running ? "Processing your request" : failed ? "The last request stopped." : cancelled ? "The request was cancelled." : ui.state?.active ? "Ready for your next idea." : "An idea starts the process.");
     text("agent-summary-detail", agent.running ? phaseTitle || "Waiting for the agent’s next step." : agent.summary ? String(agent.summary).slice(0, 400) : failed ? "Review the activity below, then adjust your request." : "Follow tool calls, specialist work, and checks as they happen.");
     text("agent-current-step", step);
     $("agent-current-step").hidden = !agent.running || !step;
-    text("agent-footnote", agent.running ? "Voice paused · wait for this request or cancel" : "Activity comes from the running agent.");
+    text("agent-footnote", agent.running ? (ui.state?.wake ? "To stop, say “Hey Meta, cancel rebuild” or choose Cancel." : "Choose Cancel to stop. Turn on wake listening to cancel by voice.") : "Activity comes from the running agent.");
     renderEvents();
   }
 
@@ -332,7 +389,7 @@
     $("hardware-warnings").replaceChildren(list);
     $("wake-toggle").setAttribute("aria-checked", String(ui.state?.wake === true));
     const voice = device.telemetry?.voice;
-    const voiceLabels = {error: "Microphone error", wake_listening: "Listening", listening: "Recording",
+    const voiceLabels = {error: "Microphone error", wake_listening: "Listening", wake_checking: "Listening for the wake phrase", listening: "Recording",
       transcribing: "Transcribing", idle: "Idle", muted: "Wake off"};
     const currentVoice = ui.online && device.connected === true && voice && typeof voice === "object";
     $("wake-detail").dataset.state = currentVoice && voice.state === "error" ? "error" : "normal";
@@ -421,7 +478,7 @@
   }
 
   function render() {
-    renderConnection(); renderPreview(); renderAgent(); renderHardware(); renderHost(); renderFooter(); renderButtons(); renderInspector();
+    renderConnection(); renderPreview(); renderAgent(); renderHardware(); renderHost(); renderFooter(); renderButtons(); renderClarification(); renderInspector();
   }
 
   let refreshing = null;
@@ -481,6 +538,10 @@
   }
 
   $("request").addEventListener("input", renderButtons);
+  $("voice-draft-text").addEventListener("input", renderVoiceDraft);
+  $("voice-draft-edit").addEventListener("click", () => updateDraft("pause"));
+  $("voice-draft-send").addEventListener("click", () => updateDraft("send"));
+  $("voice-draft-discard").addEventListener("click", () => updateDraft("discard"));
   $("request").addEventListener("keydown", (event) => {
     if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
       event.preventDefault();
@@ -563,6 +624,7 @@
   });
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
   setInterval(pairingCountdown, 1000);
+  setInterval(renderVoiceDraft, 250);
   renderButtons();
   poll();
 })();

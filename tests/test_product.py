@@ -502,10 +502,10 @@ class ProductTests(unittest.TestCase):
         self.assertEqual(self.product.events[-2]["at"], 1234.5)
         self.assertEqual(self.product.events[-1]["at"], "2026-10-28T12:34:56Z")
 
-    def deferred_request(self):
+    def deferred_request(self, source="website"):
         self.heartbeat()
         with patch("modulate.product.threading.Thread") as thread:
-            accepted = self.product.request("Synthetic progress test", source="microphone")
+            accepted = self.product.request("Synthetic progress test", source=source)
             work = thread.call_args.kwargs["target"]
         return accepted, work
 

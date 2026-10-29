@@ -10,6 +10,7 @@ from pathlib import Path
 import queue
 import signal
 import threading
+import textwrap
 import time
 import uuid
 
@@ -33,6 +34,8 @@ class Controller:
         self.responses = queue.Queue(maxsize=8)
         self.requests = queue.Queue(maxsize=1)
         self.actions = queue.Queue(maxsize=1)
+        self.cancellations = queue.Queue(maxsize=1)
+        self.cancel_when_accepted = False
         self.session = uuid.uuid4().hex
         self.sequence = 0
         self.screen = Screen(self.directory / "screen.png")
@@ -67,7 +70,7 @@ class Controller:
         # before the render loop runs, so the host does not stage a false recovery.
         self.state = self.runtime.snapshot()
         self.encoder_revision = self.state.get("revision")
-        self.voice = VoiceListener(self.request, self.voice_status, device=microphone)
+        self.voice = VoiceListener(self.request, self.voice_status, device=microphone, on_cancel=self.cancel_request)
         self.status_key = None
         self.dismissed_pairing = None
         self.pairing_in_flight = False
@@ -116,6 +119,8 @@ class Controller:
         with self.lock:
             self.voice_state = status
             self.voice_history.append({"at": time.time(), **status})
+            if status.get("state") == "idle" and status.get("message", "").startswith("Please say a complete"):
+                self._feedback("Say a little more", 'Say "Hey Meta"\nthen the full request')
 
     def request(self, text):
         with self.lock:
@@ -134,6 +139,27 @@ class Controller:
                           "role": None, "tool": None, "awaiting_response": True}
             self.feedback = None
             self.encoder_pending = 0
+            return True
+
+    def cancel_request(self):
+        with self.lock:
+            if self.build and self.build.get("awaiting_response"):
+                try:
+                    self.requests.get_nowait()
+                    self.build = None
+                    self._feedback("Request discarded", "Nothing was sent")
+                except queue.Empty:
+                    self.cancel_when_accepted = True
+                return True
+            state = self.host.get("agent_state") or {}
+            identifier = (self.build or {}).get("job_id") or (state.get("job_id") if state.get("running") else None)
+            if not self._job_id(identifier):
+                self._feedback("Nothing to cancel", "Your current app stays active")
+                return False
+            try:
+                self.cancellations.put_nowait(identifier)
+            except queue.Full:
+                pass
             return True
 
     def _busy(self):
@@ -192,6 +218,15 @@ class Controller:
 
     def _network_step(self):
         try:
+            try:
+                cancel_job = self.cancellations.get_nowait()
+            except queue.Empty:
+                cancel_job = None
+            if cancel_job:
+                result = self.companion.post("cancel", {"job_id": cancel_job})
+                if not result.get("cancelled"):
+                    with self.lock:
+                        self._feedback("Already finished", "No new build was cancelled")
             with self.lock:
                 self.sequence += 1
                 delta = self.encoder_pending if not self._busy() and self.encoder_revision == self.state.get("revision") else 0
@@ -246,9 +281,16 @@ class Controller:
                                       "phase": "queued", "title": "Request queued",
                                       "role": None, "tool": None, "awaiting_response": False}
                         self.host["agent_running"] = True
+                        if self.cancel_when_accepted:
+                            self.cancel_when_accepted = False
+                            try:
+                                self.cancellations.put_nowait(accepted["job_id"])
+                            except queue.Full:
+                                pass
                 except (TransportError, OSError, ValueError) as error:
                     with self.lock:
                         self.build = None
+                        self.cancel_when_accepted = False
                         self._feedback("Request not confirmed", "Check Studio before retrying\n" + str(error)[:65])
                     raise
                 finally:
@@ -350,7 +392,8 @@ class Controller:
             self.runtime.acknowledge_failure(response.get("failure_ack"))
             self.runtime.process(response.get("activation"))
             self._update_build(response)
-            self.voice.set_enabled(bool(response.get("wake")) and not self._busy())
+            self.voice.set_busy(bool(self._busy()))
+            self.voice.set_enabled(bool(response.get("wake")))
             if response.get("activation"):
                 self.status_key = None  # Commit/rollback may have presented a frame.
 
@@ -403,7 +446,7 @@ class Controller:
         role = str(job.get("role") or "Meta").replace("_", " ").capitalize()
         tool = str(job.get("tool") or "").replace("_", " ")
         detail = (role + (" / " + tool if tool else "")) if connected else "Build status unknown"
-        footer = "Request received. Working..." if connected else "Checking the Mac connection"
+        footer = '"Hey Meta, cancel rebuild"' if connected else "Checking the Mac connection"
         key = ("processing", job.get("job_id"), title, detail, step)
         if key == self.status_key:
             return
@@ -435,7 +478,8 @@ class Controller:
                 previous = started
                 self.reload_pairing()
                 self._apply_responses()
-                self.voice.set_enabled(bool(self.host.get("wake")) and not self._busy())
+                self.voice.set_busy(bool(self._busy()))
+                self.voice.set_enabled(bool(self.host.get("wake")))
                 input_revision = self.runtime.snapshot().get("revision")
                 sample = self._handle_buttons(self.controls.poll(), started)
                 voice = self.voice_state.get("state")
@@ -443,8 +487,10 @@ class Controller:
                 voice_overlay = voice == "transcribing" or (voice == "listening" and
                                 voice_message.startswith(("Push-to-talk", "Wake phrase heard")))
                 busy = self.build is not None
+                clarification = self.host.get("clarification")
+                question = clarification.get("question") if type(clarification) is dict else None
                 feedback = self._feedback_card()
-                overlay = busy or feedback is not None or self._offer() is not None or voice_overlay
+                overlay = busy or feedback is not None or self._offer() is not None or voice_overlay or bool(question)
                 if overlay:
                     sample["encoder_delta"] = 0
                 # A modal pairing/voice card temporarily pauses the game rather
@@ -466,6 +512,8 @@ class Controller:
                 elif voice_overlay:
                     self.status("Listening" if voice == "listening" else "Understanding",
                                 "Speak your request" if voice == "listening" else "Local speech recognition")
+                elif question:
+                    self.status("Quick question", "\n".join(textwrap.wrap(question, 31)[:3]) + '\nSay "Hey Meta" + answer')
                 elif self.host.get("agent_running") and not current.get("kind"):
                     self.status("Reinventing...", "Meta is building and testing\nFollow progress in Studio")
                 elif current.get("kind") == "control":

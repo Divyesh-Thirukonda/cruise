@@ -56,12 +56,20 @@
             <div class="preview-footer"><span class="preview-origin"><span class="status-dot" id="preview-dot"></span><span id="preview-origin">Host preview · awaiting a program</span></span><span class="mono" id="active-revision">REV —</span></div>
           </section>
 
+          <section class="voice-draft-panel" id="voice-draft-panel" aria-labelledby="voice-draft-title" hidden>
+            <div class="voice-draft-heading"><h2 id="voice-draft-title">Review your spoken request</h2><span class="chip" id="voice-draft-countdown" role="status" aria-live="polite">Ready to send</span></div>
+            <label class="mini-label" for="voice-draft-text">TRANSCRIPT</label>
+            <textarea id="voice-draft-text" rows="3" maxlength="2000" aria-describedby="voice-draft-hint" readonly></textarea>
+            <div class="voice-draft-bottom"><p id="voice-draft-hint">Choose Edit to pause sending and change the transcript.</p><div class="voice-draft-actions"><button type="button" class="text-button" id="voice-draft-discard">Discard</button><button type="button" class="button button-outline" id="voice-draft-edit">Edit</button><button type="button" class="button button-primary" id="voice-draft-send">Send now <span aria-hidden="true">↗</span></button></div></div>
+          </section>
+
           <section class="composer-panel" aria-labelledby="composer-title">
+            <div class="clarification-panel" id="clarification-panel" role="status" aria-live="polite" hidden><span class="mini-label">ONE QUICK CLARIFICATION</span><p id="clarification-question"></p><span class="small muted">Answer below, or speak a new request to your device.</span></div>
             <form id="request-form">
               <label for="request" class="composer-label" id="composer-title"><span class="sparkle" aria-hidden="true">✳</span> Give it a new job</label>
               <textarea id="request" name="request" rows="3" maxlength="4000" placeholder="Make an original kart racer. Use the joystick to steer and button A to boost…" aria-describedby="composer-hint" required></textarea>
               <div class="composer-bottom"><button type="button" class="voice-help" id="voice-help" aria-expanded="false" aria-controls="voice-instructions"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 3v14M6 6v8M2 8v4M14 6v8M18 8v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Device microphone</button><div class="composer-actions"><span id="composer-hint">⌘ / Ctrl + Enter</span><button class="button button-primary" id="request-submit" type="submit">Create <span aria-hidden="true">↗</span></button></div></div>
-              <p class="inline-help" id="voice-instructions" hidden>Hold both screen buttons for a moment, then speak into the device microphone for the six-second recording. This page accepts text and does not access your browser microphone.</p>
+              <p class="inline-help" id="voice-instructions" hidden>Say “Hey Meta” with wake listening on, or hold both screen buttons for a moment, then speak into the device microphone. Three seconds of silence ends recording. The transcript appears here for three seconds before sending; choose Edit to pause and change it. During a build, say “Hey Meta, cancel rebuild” to stop. This page does not access your browser microphone.</p>
             </form>
             <div class="suggestions" aria-label="Example requests"><span>TRY</span><button type="button" data-example="Create an original kart racer">A kart racer <span aria-hidden="true">↗</span></button><button type="button" data-example="Use the knob for my Mac volume">Control Mac volume <span aria-hidden="true">↗</span></button></div>
           </section>

@@ -25,9 +25,13 @@ class FakeProduct:
         self.calls.append(("request", text, source))
         return {"accepted": True, "source": source, "job_id": "a" * 32}
 
-    def cancel(self):
-        self.calls.append(("cancel",))
+    def cancel(self, job_id=None):
+        self.calls.append(("cancel", job_id) if job_id is not None else ("cancel",))
         return {"cancelled": True}
+
+    def draft(self, job_id, action, text):
+        self.calls.append(("draft", job_id, action, text))
+        return {"accepted": True}
 
     def heartbeat(self, data):
         self.calls.append(("heartbeat", data))
@@ -107,6 +111,19 @@ class StudioTests(unittest.TestCase):
         _, device_port = self.start(device=True, peer="127.0.0.1")
         self.assertEqual(self.request(device_port, "/device/heartbeat", method="POST", body="{}",
                                      headers={"Authorization": "Bearer ", "Content-Type": "application/json"})[0], 403)
+
+    def test_voice_cancel_is_authenticated_and_bound_to_a_job(self):
+        product, port = self.start(device=True, device_key="synthetic-device", peer="127.0.0.1")
+        good = {"Authorization":"Bearer synthetic-device", "Content-Type":"application/json"}
+        self.assertEqual(self.request(port,'/device/cancel',method='POST',body='{}',headers=good)[0],400)
+        self.assertEqual(self.request(port,'/device/cancel',method='POST',body=json.dumps({'job_id':'a'*32}),headers=good)[0],200)
+        self.assertEqual(product.calls, [('cancel','a'*32)])
+
+    def test_edit_voice_draft_uses_browser_auth_and_exact_action(self):
+        product, port = self.start(csrf="synthetic-csrf", cookie="synthetic-session")
+        payload=json.dumps({'job_id':'b'*32,'action':'send','text':'Make it blue'})
+        self.assertEqual(self.request(port,'/api/draft',method='POST',body=payload,headers=self.headers(port))[0],200)
+        self.assertEqual(product.calls,[('draft','b'*32,'send','Make it blue')])
 
     def test_sensitive_gets_reject_bad_host_and_cross_origin(self):
         _, port = self.start(csrf="synthetic-csrf", cookie="synthetic-session")

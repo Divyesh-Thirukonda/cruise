@@ -176,6 +176,11 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
                         result = product.heartbeat(data)
                     elif path == "/device/request":
                         result = product.request(data.get("text"), source="microphone")
+                    elif path == "/device/cancel":
+                        job_id = data.get("job_id")
+                        if not isinstance(job_id, str) or len(job_id) != 32:
+                            raise ValueError("Cancellation must identify the heard request")
+                        result = product.cancel(job_id)
                     elif path == "/device/pair":
                         result = product.pair(data.get("code"), str(data.get("name", "Modulate Pi"))[:80])
                     elif path == "/device/rollback":
@@ -186,6 +191,8 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
                     result = product.request(data.get("text"))
                 elif path == "/api/cancel":
                     result = product.cancel()
+                elif path == "/api/draft":
+                    result = product.draft(data.get("job_id"), data.get("action"), data.get("text"))
                 elif path == "/api/pairing":
                     result = {**product.create_pairing(), "host_url": host_url}
                 elif path == "/api/revoke":

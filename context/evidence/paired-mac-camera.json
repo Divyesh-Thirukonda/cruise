@@ -1,0 +1,102 @@
+{
+  "date": "2026-10-28",
+  "timezone": "America/New_York",
+  "kind": "live Meta trials and physical user confirmation",
+  "code_revision": "41f91e5",
+  "camera": {
+    "source": "paired Mac camera via native AVFoundation",
+    "request_input": "typed exact camera goal from user request",
+    "title": "Funky Mirror Cam",
+    "revision": "6feec47fd192a892b694b7dd21b71809f797a2c7fa0d0028b1516962645d452d",
+    "model_calls": 7,
+    "clarification_questions": 0,
+    "activation_acknowledgement_seconds": 1.501,
+    "user_confirmation": "Yes, live camera and effects work",
+    "restart_restored_without_model_call": true,
+    "configured_capture_limit_fps": 5,
+    "configured_frame_size": [
+      240,
+      135
+    ]
+  },
+  "desktop": {
+    "input": "typed verification request",
+    "application": "native Mac Calculator",
+    "result": "2+2 = 4",
+    "independent_verification": "Calculator accessibility state showed expression 2+2 and result4",
+    "model_calls_final_trial": 17,
+    "clarification_questions": 0,
+    "camera_package_unchanged": true,
+    "initial_failures": [
+      "Twelve-turn cap stopped first trial; multi-character Unicode input did not reliably enter the expression.",
+      "A later malformed action consumed its observation before dispatch; repeated invalid/stale requests exhausted the retry bound."
+    ],
+    "repairs": [
+      "Physical ASCII keys and individual Unicode characters; explicit Enter and Tab.",
+      "Validate malformed actions before consuming fresh observations; preserve single-use after actual dispatch.",
+      "Orchestrator can use the full existing shared18-call budget.",
+      "Explicit outer action schema guidance and credential-free diagnostic categories."
+    ]
+  },
+  "brightness": {
+    "native_read_set_restore_percent": [
+      46,
+      47,
+      46
+    ],
+    "restored": true,
+    "backend": "DisplayServices",
+    "limit": "Private macOS API; availability depends on display"
+  },
+  "camera_failure_and_repair": {
+    "initial_received_frames": 4,
+    "failure": "Controller/runtime lock-order inversion stalled heartbeat/render threads",
+    "fix_revision": "12e26b7",
+    "repair": "Read runtime camera freshness before taking controller lock",
+    "regression": "Concurrent telemetry/present test forces opposing threads without hanging",
+    "disconnect_stopped_capture": true
+  },
+  "checks": {
+    "host": {
+      "ran": 579,
+      "skipped": 11,
+      "result": "passed"
+    },
+    "pi_initial": {
+      "ran": 184,
+      "skipped": 0,
+      "result": "passed"
+    },
+    "pi_final": {
+      "ran": 185,
+      "skipped": 0,
+      "result": "passed",
+      "seconds": 6.547
+    }
+  },
+  "meta_budget": {
+    "limit_dollars": 50,
+    "charged_or_reserved_dollars": 6.125349,
+    "calls": 256,
+    "halted": false
+  },
+  "privacy": "Camera stream is local and memory-only; screenshots for requested computer tasks can include anything visible, including a visible camera preview. No screenshot, camera image, secret or email content is stored in this evidence.",
+  "limitations": [
+    "Typed camera generation plus user-confirmed physical display; not a new hands-free recognition benchmark.",
+    "One native app test is not proof every Mac workflow works.",
+    "Primary display only; native OS permissions and existing pairing expiry still apply.",
+    "Capture/transport caps are not measured sustained frame-rate guarantees."
+  ],
+  "final_deployment": {
+    "revision": "41f91e5",
+    "archive_sha256": "9c9c71a1b0aa9ff6a863746cd5fe4ad64fd1b949bfc079be146e963d6da8bd16",
+    "service": "active",
+    "connected": true,
+    "camera_telemetry": {
+      "frames_received": 233,
+      "frame_fresh": true
+    },
+    "computer_enabled": true,
+    "preserved_camera_revision": "6feec47fd192a892b694b7dd21b71809f797a2c7fa0d0028b1516962645d452d"
+  }
+}

@@ -1,6 +1,6 @@
 # Modulate build plan
 
-Proposed schedule, revised October 28, 2026 in America/New_York. The [product](product-runtime.md) demonstrates typed/spoken Meta-to-game creation, physical controls, paired native Mac volume, refinements and rollback. Computer-task evidence includes a typed local-form trial and, after an earlier failure, a spoken latest-email readout with an independently checked subject and user-heard reply. The two-hour Chrome grant was enabled and the $50 total ceiling is live; Star Dash remains retained. Repeated recovery/revocation, noise/performance, user-impact validation and demo evidence remain. The [number prototype](number-prototype.md) retains separate evidence.
+Proposed schedule, revised October 28, 2026 in America/New_York. The [product](product-runtime.md) demonstrates typed/spoken Meta-to-game creation, physical controls, native Mac volume, refinements and rollback. Browser evidence includes a typed form and spoken latest-email readout; later ElevenLabs/direct-answer and live camera/effects trials were user-confirmed. Paired primary-display access replaces separate Chrome grants, and native brightness get/set/restore passed. The $50 ceiling remains. Broader recovery/revocation, noise/performance, user impact and demo evidence remain; the [number prototype](number-prototype.md) retains separate evidence.
 
 ## Build order
 
@@ -10,7 +10,7 @@ Proposed schedule, revised October 28, 2026 in America/New_York. The [product](p
 4. **Complete the generation loop.** A Meta-powered agent reads capabilities, produces original game code and bindings, invokes checks, inspects failures, and makes bounded repairs. Stage the exact checked package, activate with acknowledgement, and play it on the PiTFT.
 5. **Connect one computer action.** Select one host OS and implement a trusted system-volume bridge. Pair through a functional companion website, expose only granted capabilities, and verify revocation and disconnect. Then let the agent map the knob to this action.
 6. **Refine and recover.** Show a fresh spoken game or binding change, rejected unsupported requests, failed verification, failed activation, and recovery. Add wake detection only after capture/transcription and the main loop are dependable.
-7. **Extend computer-task evidence.** Preserve the typed local-form success, spoken latest-email readout and earlier failed attempt. The two-hour grant is enabled, the $50 ceiling is live, and 69 focused duration tests passed. Keep the 15-minute default and expiry/stop/revoke controls. Next test interruption, revocation, microphone pause and physical PiTFT B stopping output. Do not claim three independently verified email subjects or general reliability from the single successful readout; do not publish private email contents.
+7. **Validate the expanded paired-Mac scope.** Preserve earlier typed/spoken browser evidence, user-confirmed Funky Mirror Cam effects and the initial camera deadlock/repair. Verify a requested desktop task, stop/revoke, microphone pause and physical B interruption. The extension ran 570 host tests with 11 skips and all 184 focused Pi checks; the deadlock repair passed 81 focused checks. Keep native probes separate from end-to-end agent outcomes and avoid broad reliability claims.
 
 The [architecture](architecture.md) records implemented contracts and remaining checks. The build order above is now a repeatable verification sequence; successful live trials do not establish reliability. A model success message cannot replace independent checks.
 
@@ -34,7 +34,7 @@ These are planning targets, not guarantees. Reassess scope at each unproven depe
 - Use the physically confirmed joystick/buttons for the game and encoder for volume. Do not buy hardware to satisfy the sketch without instruction.
 - Reduce game complexity to a readable small 2D racer before dropping play on the actual device screen. A host preview does not prove the on-device claim.
 - Use push-to-talk before wake detection. A host microphone is acceptable as a visibly identified prototype input; typed text is a debug path and does not fulfill the voice target.
-- Keep one primary provider, one game runtime and macOS as the host target. The user's added computer-task scope starts with one Chrome window plus local spoken replies. Defer unrestricted desktop/app control, phone-game integration, training, generated drivers and firmware flashing.
+- Keep one primary provider, one game runtime and macOS as the host target. The user's expanded scope includes paired primary-display desktop/app work, supported system settings, local camera effects and spoken replies. Defer phone-game integration, training, generated drivers and firmware flashing; generated apps still cannot rewrite trusted services.
 - If the system-volume bridge is blocked, report that gap. A browser-audio demonstration must be called browser volume and does not fulfill system-volume control.
 - Use a simulator or cached package for development or disclosed recovery only. Do not replace failed live inference with an unlabeled preset.
 

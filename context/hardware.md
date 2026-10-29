@@ -22,7 +22,7 @@ One of each item below, including one cable kit:
 | [SparkFun Qwiic Cable Kit](https://www.sparkfun.com/sparkfun-qwiic-cable-kit.html) | Peripheral connections; confirm supplied cable lengths and count |
 | Bluetooth wireless speaker with microphone, model unspecified | Candidate voice input and audio output; microphone/profile compatibility untested |
 | USB PnP microphone, confirmed attached October28 | Tested capture at16kHz mono through ALSA `plughw:CARD=Device,DEV=0`; successful local transcription in the number prototype |
-| USB speaker/playback output, detected October 28 as Jieli | User heard standalone speech, Studio's Test speaker and a live typed Meta local-form task's final reply at 40% volume |
+| USB speaker/playback output, detected October 28 as Jieli | Earlier eSpeak speech heard at 40%; user confirmed ElevenLabs Flash v2.5/Roger sounds natural and volume is good at 75% |
 
 Subsequent device evidence: joystick `0x20` has center readings (516, 504), user-confirmed steering and captured X endpoints −1 and 1. Both logical buttons appeared in a 240-sample game window. Later native-volume traces captured encoder `0x36` deltas and OS volume effects; the user confirmed direction. Green `0x6E` and red `0x6F` independently reported firmware 259 after power cycling and both large buttons worked. Green OR PiTFT A supplies `button_a`; red OR PiTFT B supplies `button_b`. Pairing/PTT remain physical PiTFT controls. These are subsequent device observations, separate from the original inventory.
 
@@ -49,8 +49,9 @@ The October 28 product revision adds voice requests, generated games on the devi
 - **Microphone:** the user subsequently attached a USB PnP microphone. Its capture and local Whisper transcription worked in the October28 number prototype. Bluetooth microphone support remains untested; the working USB path does not depend on it.
 - **Voice activation:** direct 16 kHz capture and initial overflows failed. Native 48 kHz capture, resampling, 0.25 s buffering and retry fixes preceded successful PTT/hands-free control refinements and a spoken Self Assembly game. Noise/false-trigger reliability remains unmeasured; this is not an official Meta assistant integration. The first kart used text.
 - **Computer connection:** enrolled TLS and the macOS bridge now carry real encoder-to-system-volume actions, confirmed through native reads and user feedback. Generated control refinements and UI rollback also worked. Revocation/disconnect fault behavior still needs broader live testing.
-- **Spoken output:** USB Jieli playback was detected and eSpeak NG/paplay installed. After the initial silent attempt, output was set to 40% and a manual sink-name typo corrected; the user heard standalone speech, Studio's speaker test, the typed form reply and the final spoken email readout. The Pi passed 92 earlier speaker/device tests and 46 final checks; Star Dash stayed retained. The worker pauses the microphone, supports physical B interruption and checks unavailable output every five seconds for same-sink recovery. Physical interruption/room echo checks remain; Bluetooth is untested.
-- **Browser computer tasks:** the Chrome-window screenshot/cursor adapter is separate from volume pairing. Both Mac permissions report granted. A typed local-form trial and later spoken latest-email readout completed; visible Gmail independently verified the subject and the user heard it. Earlier failure remains recorded. The authorized two-hour grant was enabled with expiry/Stop shown, and the $50 ceiling is live. It uses no camera or Gmail API; three subjects and broad reliability were not established.
+- **Spoken output:** USB Jieli/paplay is demonstrated. Earlier eSpeak trials used 40%; the installed ElevenLabs path was physically heard at 75%, with user-confirmed natural voice/good volume. A direct answer without another wake phrase was understood in the space-joke trial. The worker pauses the microphone and supports physical B interruption. Physical interruption/room echo checks remain; Bluetooth is untested.
+- **Computer tasks:** typed local-form and spoken latest-email trials used the earlier Chrome-window scope; the subject was independently checked and the reply heard. The installed extension uses the connected eight-hour paired-Mac session for primary-display app/cursor actions and supported system settings, without another Chrome grant. Native permissions and stop/revoke remain. It uses no Gmail API; broad reliability is unmeasured.
+- **Mac camera/brightness:** the user confirmed “Yes, live camera and effects work” for generated Funky Mirror Cam after a transport deadlock repair. The Mac camera supplies local 240×135 JPEGs; this does not establish availability of the on-hold C270. Native brightness read 46.3%; a rounded 46 → 47 → 46 trial restored the starting level after Homebrew brightness failed. Private DisplayServices support may vary.
 
 “Modular” means the design can use supported plug-in peripherals and update its capability manifest. Hot swapping is not established; continue to power down before changing this assembly.
 
@@ -75,7 +76,8 @@ Isolated game runtime → bounded drawing API → Pi device service → PiTFT
 Pi device service ↔ authenticated local connection ↔ paired PC bridge
 Host website → pairing, transcript, code/check results, and preview
 USB microphone → local Pi speech recognition
-Pi local speech synthesis → selected USB speaker output (Studio test and live reply heard)
+Host ElevenLabs synthesis → enrolled TLS PCM → selected Pi USB speaker (heard at 75%)
+Paired Mac camera → local JPEG transport → trusted Pi renderer (user-confirmed live effects)
 ```
 
 This is a proposed daisy-chain topology, not a tested wiring diagram. Switch off power before attaching boards or changing cables. Confirm orientation, board revision, connector access, and that the display clears the Pi's cooling hardware. Leave the Servo pHAT out rather than assuming both header boards can stack with the supplied connectors.

@@ -18,6 +18,8 @@ from .game_runtime import validate_commands, validate_input, validate_package
 from .host_bridge import BridgeStore, BridgeError
 from .rendering import Renderer, png
 from .assistant_io import AssistantIO
+from .intent_memory import IntentMemory
+from .speaker_volume import SpeakerVolume, SpeakerVolumeError
 
 
 _SESSION = re.compile(r"[0-9a-f]{32}\Z")
@@ -27,6 +29,9 @@ _FOLLOWUP_SECONDS = 120
 _MAX_QUESTIONS = 4
 _PHASES = {"queued", "planning", "coding", "checking", "previewing", "activating", "ready", "error", "cancelled"}
 _TOOL_PROGRESS = {
+    "load_skill": ("planning", "Choosing the right skill"),
+    "read_recent_context": ("planning", "Remembering the last request"),
+    "speaker_control": ("planning", "Adjusting the Modulate speaker"),
     "inspect_capabilities": ("planning", "Reading the connected controls"),
     "read_runtime_api": ("planning", "Checking what the controller supports"),
     "read_current_package": ("coding", "Reading the current app"),
@@ -65,6 +70,10 @@ class Product(AssistantIO):
         self.lock = threading.RLock()
         self.changed = threading.Condition(self.lock)
         self.events = deque(maxlen=150)
+        self.intent_memory = IntentMemory(self.directory / "recent-context.json")
+        self.memory_generation = 0
+        self.memory_error = None
+        self.speaker_volume = SpeakerVolume()
         self.event_id = 0
         self.provider = provider
         self.ledger = Ledger(self.directory / "budget.json", budget)
@@ -127,6 +136,40 @@ class Product(AssistantIO):
 
     def connected(self):
         return self.last_seen is not None and time.monotonic() - self.last_seen < 4
+
+    def intent_context(self, include_private=False):
+        with self.lock:
+            package = (self.active or {}).get("package", {})
+            return {"recent": self.intent_memory.snapshot(include_private),
+                    "current": {"app": {key: copy.deepcopy(package[key]) for key in
+                                ("title", "kind", "controls", "bindings", "camera") if key in package},
+                                "revision": self.revision,
+                                "computer_audio": {key: value for key, value in self.audio_status().items()
+                                                   if key in {"running", "state"}},
+                                "pi_speaker": {key: value for key, value in self.speaker_volume.status().items()
+                                               if key in {"volume", "muted", "available"}},
+                                "last_observed_mac_setting": copy.deepcopy(self.volume),
+                                "paired": bool(self._paired_session())}}
+
+    def clear_context(self):
+        with self.lock:
+            if self.running:
+                raise AgentError("Finish or cancel the current request before forgetting context")
+            self.intent_memory.clear()
+            self.memory_generation += 1
+            self.memory_error = None
+            self.clarification = self.conversation = self.current_request = None
+            self._stop_speech()
+            return {"cleared": True}
+
+    def speaker_control(self, action, value=None):
+        with self.lock:
+            if not self.connected() or self.agent.cancelled.is_set():
+                raise AgentError("Pi speaker request is disconnected or cancelled")
+        try:
+            return self.speaker_volume.control(action, value)
+        except SpeakerVolumeError as error:
+            raise AgentError(str(error)) from None
 
     def event(self, entry):
         with self.lock:
@@ -253,7 +296,9 @@ class Product(AssistantIO):
                     "camera": {"supported": self.camera_status()["supported"],
                                "source": "paired_mac", "local_stream_only": True,
                                "width": 240, "height": 135},
-                    "speaker": {"available": self.telemetry.get("speaker", {}).get("available", False)}}
+                    "speaker": {"available": self.telemetry.get("speaker", {}).get("available", False),
+                                "volume_control": self.speaker_volume.status()["available"],
+                                "actions": ["get", "set", "delta", "mute"], "target": "Modulate Pi speaker"}}
 
     def candidate_changed(self, identifier, package):
         with self.lock:
@@ -397,6 +442,9 @@ class Product(AssistantIO):
             self._stop_speech()
             self.computer_approved_action = None
             self.computer.begin_task()
+            self.agent.turn_actions = []
+            self.agent.loaded_skills = []
+            self.agent.private_request = bool(followup and followup.get("private"))
             self.computer_focus_pending = True
             job_id = uuid.uuid4().hex
             self.progress = {"job_id": job_id, "job_sequence": job_sequence, "request_id": None, "phase": "queued",
@@ -408,6 +456,7 @@ class Product(AssistantIO):
             if followup and followup["kind"] == "recovery":
                 self.conversation["recoveries"] += 1
             self.current_request = text.strip()
+            memory_generation = self.memory_generation
             if source == "microphone":
                 self.voice_draft = {"job_id": job_id, "text": text.strip(),
                                     "send_at": time.time() + 3, "editing": False}
@@ -485,6 +534,15 @@ class Product(AssistantIO):
                                         else summary[:500])
                         self.progress.update(phase=outcome, title={"ready": "Ready", "error": "Could not finish",
                                              "cancelled": "Request cancelled"}[outcome], tool=None, role="orchestrator")
+                        if memory_generation == self.memory_generation:
+                            try:
+                                self.intent_memory.append(self.current_request or text.strip(), summary,
+                                    "awaiting_answer" if self.clarification else {"ready": "completed", "error": "failed", "cancelled": "cancelled"}[outcome],
+                                    actions=self.agent.turn_actions, skills=self.agent.loaded_skills,
+                                    private=self.agent.private_request)
+                                self.memory_error = None
+                            except (OSError, ValueError, TypeError):
+                                self.memory_error = "Recent context could not be saved"
                         if self.clarification:
                             self.progress["title"] = "One quick question"
                         else:
@@ -551,6 +609,7 @@ class Product(AssistantIO):
             if job_id is not None and (not self.running or job_id != self.progress["job_id"]):
                 return {"cancelled": False, "reason": "That request has already finished"}
             self.agent.cancelled.set()
+            self.speaker_volume.disconnect()
             self.stop_computer_audio()
             self.computer.cancel()
             self._stop_speech()
@@ -727,6 +786,7 @@ class Product(AssistantIO):
                            "warnings": list(warnings), "button_sources": dict(button_sources)}
             self.last_seen = time.monotonic()
             self.input, self.device_revision, self.telemetry = sample, revision, copy.deepcopy(telemetry)
+            self.speaker_volume.observe(telemetry.get("speaker_volume"), session_id)
             if switching:
                 self.volume_token = None
                 self.volume = None
@@ -790,6 +850,7 @@ class Product(AssistantIO):
                 if self.pending["phase"] == "stage":
                     pending["package"] = self.pending["package"]
             return {**self._assistant_heartbeat(packet),
+                    "speaker_volume": self.speaker_volume.offer(session_id),
                     "camera_frame": self._camera_packet(), "computer_audio": self.audio_offer(),
                     "activation": pending, "active_revision": self.revision, "wake": self.wake,
                     "agent_running": self.running, "agent_state": self.agent_state(),
@@ -872,6 +933,8 @@ class Product(AssistantIO):
                 self.bridge.revoke(token)
                 raise
             self.volume_token, self.volume = token, volume
+            self.intent_memory.clear()
+            self.memory_generation += 1
             self.volume_read_at = time.monotonic()
             self.pairing = None
             return {"token": token, "session_id": session["session_id"], "capabilities": session["capabilities"]}
@@ -883,6 +946,9 @@ class Product(AssistantIO):
 
     def revoke(self):
         with self.lock:
+            self.intent_memory.clear()
+            self.memory_generation += 1
+            self.speaker_volume.disconnect()
             self.bridge.revoke_all()
             self.volume_token = None
             self.volume = None
@@ -921,6 +987,9 @@ class Product(AssistantIO):
                     "agent": self.agent_state(),
                     "computer": self.computer_status(), "response": self._response_state(),
                     "camera": self.camera_status(), "computer_audio": self.audio_status(),
+                    "speaker_volume": self.speaker_volume.status(),
+                    "memory": {"turns": len(self.intent_memory.snapshot()), "limit": self.intent_memory.LIMIT,
+                               "error": self.memory_error, "hours": self.intent_memory.TTL // 3600},
                     "speech": self.speech_status(),
                     "voice_draft": copy.deepcopy(self.voice_draft),
                     "clarification": self._clarification_state(),

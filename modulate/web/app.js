@@ -221,6 +221,10 @@
     $("computer-revoke").disabled = !ui.online || pending;
     $("computer-stop-live").disabled = !ui.online || pending;
     if (enabled) text("computer-expiry", "Access follows the paired device. Pause or revoke it at any time.");
+    const memory = ui.state?.memory;
+    text("memory-status", memory?.error || (memory?.turns ? `Remembers ${memory.turns} recent requests · up to ${memory.hours} hours` : "Recent context is empty"));
+    $("memory-clear").hidden = !memory?.turns;
+    $("memory-clear").disabled = ui.state?.agent?.running === true;
     const audio = ui.state?.computer_audio;
     const receiver = ui.state?.device?.telemetry?.computer_audio;
     text("audio-status", audio?.error || receiver?.error || (audio?.running ? `Computer audio → Pi speaker · ${receiver?.state || "connecting"}` : "Computer audio idle · starts when requested"));
@@ -671,6 +675,7 @@
   $("voice-draft-edit").addEventListener("click", () => updateDraft("pause"));
   $("voice-draft-send").addEventListener("click", () => updateDraft("send"));
   $("voice-draft-discard").addEventListener("click", () => updateDraft("discard"));
+  $("memory-clear").addEventListener("click", () => action("memory", "/api/context/clear", {}));
   $("audio-stop").addEventListener("click", () => action("audio", "/api/audio/stop", {}));
   $("camera-stop").addEventListener("click", () => action("camera", "/api/camera/stop", {}));
   $("computer-enable").addEventListener("click", () => computerAction("enable"));

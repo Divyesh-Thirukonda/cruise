@@ -82,7 +82,12 @@ class MacAccess(ComputerAudioAccess):
             if action not in paired["capabilities"]["actions"]:
                 raise AgentError("That system setting is unavailable; inspect the current capabilities")
             try:
-                return self.bridge.execute(self.volume_token, paired["next_sequence"], action, value)
+                before = None
+                if not action.endswith(".get"):
+                    before = self.bridge.execute(self.volume_token, paired["next_sequence"], action.split(".")[0] + ".get")
+                    paired = self.bridge.session(self.volume_token)
+                result = self.bridge.execute(self.volume_token, paired["next_sequence"], action, value)
+                return {**result, **({"before": before, "after": dict(result)} if before is not None else {})}
             except BridgeError as error:
                 raise AgentError(str(error)) from None
 

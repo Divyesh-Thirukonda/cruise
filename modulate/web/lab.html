@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Modulate interaction lab</title>
+<style>
+  body{background:#101d18;color:#e7f5ec;font:20px system-ui;margin:0;padding:64px;max-width:900px}
+  h1{font-size:42px;letter-spacing:-1px}p{color:#abc4b5;line-height:1.6}
+  label{display:block;margin-top:38px}input,button{font:inherit;padding:16px;border-radius:10px;margin:12px 0}
+  input{display:block;min-width:400px;background:#182d23;color:#fff;border:1px solid #6b947b}
+  button{display:block;background:#b4f0c6;border:0;color:#16281c;cursor:pointer}
+  output{display:block;color:#b4f0c6;margin-top:32px;white-space:pre-wrap}
+</style>
+<h1>Modulate interaction lab</h1>
+<p>A local, disposable form for testing computer control and follow-up requests. Nothing is submitted or sent.</p>
+<label for="answer">Test phrase</label>
+<input id="answer" autocomplete="off" placeholder="Type here">
+<button id="verify">Verify phrase</button>
+<output id="result" aria-live="polite">Waiting for a phrase</output>
+<script>
+document.getElementById('verify').addEventListener('click',()=>{
+  document.getElementById('result').textContent='Verified: '+document.getElementById('answer').value;
+});
+</script>
+</html>

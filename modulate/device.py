@@ -25,6 +25,7 @@ from .device_transport import Companion, TransportError, save_private
 from .hardware import Screen
 from .rendering import font
 from .speaker import Speaker
+from .speaker_volume import SpeakerVolumeDevice
 from .audio_receiver import AudioReceiver
 from .voice import VoiceListener
 
@@ -93,6 +94,7 @@ class Controller:
                                    on_cancel=self.cancel_request, on_unclear=self.unclear)
         self.speaker = Speaker(self.speaker_status, audio_fetch=self.companion.speech_audio)
         self.speaker_state = self.speaker.snapshot()
+        self.speaker_volume = SpeakerVolumeDevice(self.speaker.snapshot, self.session)
         self.computer_audio = AudioReceiver(self._fetch_computer_audio,
             sink=self.speaker_state.get("output") if self.speaker_state.get("pcm_backend") == "paplay" else None)
         self.audio_blocked = None
@@ -410,6 +412,7 @@ class Controller:
                                                    "frame_fresh": camera_fresh},
                                         "voice_history": list(self.voice_history),
                                         "speaker": dict(self.speaker_state),
+                                        "speaker_volume": self.speaker_volume.snapshot() if hasattr(self, "speaker_volume") else {},
                                         "computer_audio": self.computer_audio.snapshot() if hasattr(self, "computer_audio") else {},
                                         "processing": {"busy": bool(self._busy()),
                                                        **{key: (self.build or {}).get(key) for key in
@@ -492,6 +495,8 @@ class Controller:
                     with self.lock:
                         self.pairing_in_flight = False
         except (TransportError, OSError, ValueError) as error:
+            if hasattr(self, "speaker_volume"):
+                self.speaker_volume.disconnect()
             with self.lock:
                 # Also discard turns accumulated while an uncertain request was
                 # in flight. They must not be applied as a delayed burst later.
@@ -587,6 +592,11 @@ class Controller:
             self._update_camera(response.get("camera_frame"))
             self._update_build(response)
             self._update_speech(response)
+            if hasattr(self, "speaker_volume"):
+                if response.get("paired") is True:
+                    self.speaker_volume.offer(response.get("speaker_volume"))
+                else:
+                    self.speaker_volume.disconnect()
             self._sync_voice()
             if response.get("activation"):
                 self.status_key = None  # Commit/rollback may have presented a frame.
@@ -708,6 +718,7 @@ class Controller:
 
     def run(self):
         self.speaker.start()
+        self.speaker_volume.start()
         self.computer_audio.start()
         self.voice.start()
         worker = threading.Thread(target=self.network, name="modulate-link", daemon=True)
@@ -793,6 +804,7 @@ class Controller:
                 self.stop.wait(max(0, 0.05 - (time.monotonic() - started)))
         finally:
             self.stop.set()
+            self.speaker_volume.stop()
             self.computer_audio.stop()
             self.speaker.stop()
             self.voice.stop()

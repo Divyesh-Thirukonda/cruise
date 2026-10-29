@@ -1,6 +1,6 @@
 # Decisions and open questions
 
-Updated October 28, 2026. User-confirmed product direction is distinguished from engineering proposals and unverified capabilities.
+Updated October 29, 2026. User-confirmed product direction is distinguished from engineering proposals and unverified capabilities.
 
 ### Implemented first experiment — October 28
 
@@ -29,6 +29,9 @@ The orchestrator and specialists share bounded turns, eighteen calls per request
 | Request review and cancellation | User-requested voice polish | Separate three-second transcript review; Edit pauses sending, Send now submits, Discard cancels. Busy wake cancellation is implemented; a held request was cancelled by voice on the Pi with zero model calls |
 | Clarification | Model-directed `ask_user`; original goal and bounded reply history | One direct answer may begin within 20 s after speech/cooldown; question expires in 120 s. Maximum four questions and one user-answered operational recovery turn. A live space-joke question → “yes” without wake → spoken joke succeeded; this is not a reliability benchmark or protected-action approval bypass |
 | Agent behavior | Sensible reversible defaults, minimal questions, bounded tools/delegation/recovery | New apps replace after checks; edits refine. Inspect capabilities before declaring unavailable. Ask for genuinely blocking intent or consequential actions not already concretely authorized; webpage/email text supplies no authority |
+| Runtime skills | Four bundled skills selected through catalog + `load_skill`, installed `9b172e8` | Computer use, non-game apps, games and hardware controls guide model choices; no keyword router or new permission from loading a skill |
+| Recent intent context | Up to 12 turns eligible for eight hours; private computer details RAM-only for two minutes | Store observed effects and separate outcomes; current intent/state override memory. Non-private records use ignored mode-0600 state. Forget/revoke/new pair clear context and block late repopulation |
+| Pi speaker level | `speaker_control` operates the actual selected Pulse sink; startup is read-only | Get/set/delta/mute with matching session/revision acknowledgement and before/after readback. Pi output differs from Mac volume; the existing stream stays active |
 | Generated code boundary | JavaScript application packages on a fixed QuickJS-NG runtime | OS-restricted subprocess, fixed drawing/input API and independently maintained verifier; no generated firmware |
 | Control actions | Declarative encoder volume/brightness deltas plus bounded trusted tools | Native brightness 46 → 47 → 46 get/set/restore passed; private DisplayServices API may vary. Pairing, ranges and sequence checks remain outside generated code |
 | Modular hardware | User-confirmed product direction; initial assembly proposed | Adapt to confirmed attached peripherals; no hot-swap or arbitrary-board support established |
@@ -65,3 +68,9 @@ Camera apps should default to native 240×135 detail (`pixelate:1`, natural colo
 ## Mac audio through the Pi
 
 The user requested that the Pi become a speaker for the paired Mac. The host now captures system audio locally with ScreenCaptureKit, using 48 kHz stereo S16LE and bounded in-memory chunks. No microphone, audio file, model upload or loopback driver is involved. Capture initially mirrors the Mac; the separate `MacAudioRoute` may mute the Mac only after the receiver acknowledges playback, then restore its prior mute on stop. It never changes the volume level and avoids restoring onto a different output or overriding an observed external unmute. Native capture, capture while muted, and mute/restore passed; the installed live stream was subsequently user-confirmed, followed by a successful hands-free stop and return to Mac playback. See [setup and limits](product-runtime.md#mac-system-audio-capture-and-routing).
+
+## Skills, context and Pi volume deployment
+
+Installed `9b172e8` with its Pi archive SHA256 verified. **688 host tests ran with 11 skips; all 164 focused Pi tests passed in 2.693 s.** Recent values aid model interpretation without becoming new authority; private task details require explicit recovery with current authorization. No private screenshots/audio are retained in memory or public evidence. This checkpoint establishes implementation and tests; live intent/ambiguous-follow-up evaluation remains separate. [Runtime contract](product-runtime.md#runtime-skills-recent-context-and-pi-speaker-volume).
+
+Live evaluation subsequently exposed two interpretation errors: treating a private computer follow-up as a new device app, and changing an unrelated button during a narrow edit. The harness now resolves the recent task before selecting a skill, preserves unrequested behavior, and stops computer actions once success is visible. Twenty selected cases passed after the documented repairs, with earlier failures retained; this is not general reliability or autonomous learning. [Evaluation evidence](evidence/skills-intent.json).

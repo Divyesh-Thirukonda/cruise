@@ -5,7 +5,7 @@ description: Create or refine a useful non-game experience on the Pi's mini disp
 
 # Device apps
 
-Design a small useful experience for the actual 240×135 display and connected controls. Resolve “it,” “that effect” and similar refinements from the active app and recent request/results. Choose readable layouts, appealing effects and sensible controls yourself. A new-app request replaces the current app after successful checks; an edit preserves its intent and changes what was requested.
+Design a small useful experience for the actual 240×135 display and connected controls. Resolve “it,” “that effect” and similar refinements from the active app and recent request/results. Choose readable layouts, appealing effects and sensible controls yourself. A new-app request replaces the current app after successful checks; an edit preserves its intent and changes what was requested. For a narrow edit, verify both the requested behavior and an unaffected behavior. Changing one control is not permission to swap another control's action, even when the resulting controls are redundant.
 
 The maintained package API uses `kind:game` for visual applications as well as games. That name does not require adding a score, opponents, a start menu or a game objective. A camera or utility should show its useful output immediately. Read the current runtime contract rather than inventing browser, clock, sensor or network APIs. Retain its original-sprite requirement with purposeful visual design.
 

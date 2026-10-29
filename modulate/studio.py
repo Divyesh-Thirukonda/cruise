@@ -142,6 +142,8 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
             if path == "/api/candidate-preview.png":
                 return self.send(200, product.candidate_preview_bytes, "image/png") if product.candidate_preview_bytes else self.send(404, {"error": "No candidate preview yet"})
             names = {"/": ("index.html", "text/html; charset=utf-8"), "/lab": ("lab.html", "text/html; charset=utf-8"), "/app.js": ("app.js", "text/javascript; charset=utf-8"),
+                     "/lab.js": ("lab.js", "text/javascript; charset=utf-8"),
+                     "/lab.css": ("lab.css", "text/css; charset=utf-8"),
                      "/style.css": ("style.css", "text/css; charset=utf-8")}
             if path not in names:
                 return self.send(404, {"error": "Not found"})

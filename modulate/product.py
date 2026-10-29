@@ -985,6 +985,7 @@ class Product(AssistantIO):
                     "capabilities": self.capabilities(), "input": self.input, "telemetry": self.telemetry},
                     "active": self.active, "candidate": self.candidate,
                     "agent": self.agent_state(),
+                    "selected_skills": list(self.agent.loaded_skills),
                     "computer": self.computer_status(), "response": self._response_state(),
                     "camera": self.camera_status(), "computer_audio": self.audio_status(),
                     "speaker_volume": self.speaker_volume.status(),

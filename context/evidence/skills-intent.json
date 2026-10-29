@@ -1,0 +1,2713 @@
+{
+  "schema": "modulate-skills-intent-evaluation-v1",
+  "date": "2026-10-29",
+  "provider": "meta",
+  "model": "muse-spark-1.3",
+  "input": "typed Studio requests; live physical Pi acknowledgements and native Mac settings/cursor actions",
+  "skills": [
+    "computer-use",
+    "device-apps",
+    "games",
+    "hardware-controls"
+  ],
+  "selected_scenario_count": 20,
+  "scenarios": {
+    "speaker": [
+      {
+        "case": "seed_speaker_40",
+        "job_id": "518cb293c9fe46e09bca945f7af88b44",
+        "input_mode": "typed_studio_live",
+        "status": "passed_automated_checks",
+        "seconds": 3.039,
+        "checks": [
+          {
+            "name": "job_completed",
+            "passed": true
+          },
+          {
+            "name": "device_connected",
+            "passed": true
+          },
+          {
+            "name": "expected_clarification_state",
+            "passed": true
+          },
+          {
+            "name": "exact_pi_speaker_level",
+            "passed": true
+          },
+          {
+            "name": "no_mac_volume_mutation",
+            "passed": true
+          },
+          {
+            "name": "cached_mac_state_unchanged",
+            "passed": true
+          },
+          {
+            "name": "app_revision_unchanged",
+            "passed": true
+          },
+          {
+            "name": "stream_preserved",
+            "passed": true
+          }
+        ],
+        "before": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 75,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {},
+          "revision": "00157bb8ac8540913bd8734b62ab860533d9c3c4b751fa8454ccefa654573831",
+          "kind": "game",
+          "controls": [
+            "button_a",
+            "button_b",
+            "encoder",
+            "encoder_pressed",
+            "joystick"
+          ],
+          "bindings": [],
+          "stream_running": false
+        },
+        "after": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 40,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {},
+          "revision": "00157bb8ac8540913bd8734b62ab860533d9c3c4b751fa8454ccefa654573831",
+          "kind": "game",
+          "controls": [
+            "button_a",
+            "button_b",
+            "encoder",
+            "encoder_pressed",
+            "joystick"
+          ],
+          "bindings": [],
+          "stream_running": false
+        },
+        "activity": {
+          "tools": {
+            "load_skill": 1,
+            "speaker_control": 1
+          },
+          "tool_failures": {},
+          "tool_failure_count": 0,
+          "operations": {
+            "speaker_control:set": 1
+          },
+          "skills": [
+            "hardware-controls"
+          ],
+          "ask_user_count": 0,
+          "mutating_tool_count": 1,
+          "mac_observed": null,
+          "acknowledged_revisions": []
+        },
+        "budget_delta": {
+          "calls": 3,
+          "charged_or_reserved_dollars": 0.019182
+        },
+        "provider": "meta",
+        "validation": "observed_settings_or_activation"
+      },
+      {
+        "case": "speaker_explicit_step",
+        "job_id": "8c3acf1ec67d43f6bc168881fe2ee436",
+        "input_mode": "typed_studio_live",
+        "status": "passed_automated_checks",
+        "seconds": 2.783,
+        "checks": [
+          {
+            "name": "job_completed",
+            "passed": true
+          },
+          {
+            "name": "device_connected",
+            "passed": true
+          },
+          {
+            "name": "expected_clarification_state",
+            "passed": true
+          },
+          {
+            "name": "exact_pi_speaker_level",
+            "passed": true
+          },
+          {
+            "name": "no_mac_volume_mutation",
+            "passed": true
+          },
+          {
+            "name": "cached_mac_state_unchanged",
+            "passed": true
+          },
+          {
+            "name": "app_revision_unchanged",
+            "passed": true
+          },
+          {
+            "name": "stream_preserved",
+            "passed": true
+          }
+        ],
+        "before": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 40,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {},
+          "revision": "00157bb8ac8540913bd8734b62ab860533d9c3c4b751fa8454ccefa654573831",
+          "kind": "game",
+          "controls": [
+            "button_a",
+            "button_b",
+            "encoder",
+            "encoder_pressed",
+            "joystick"
+          ],
+          "bindings": [],
+          "stream_running": false
+        },
+        "after": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 50,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {},
+          "revision": "00157bb8ac8540913bd8734b62ab860533d9c3c4b751fa8454ccefa654573831",
+          "kind": "game",
+          "controls": [
+            "button_a",
+            "button_b",
+            "encoder",
+            "encoder_pressed",
+            "joystick"
+          ],
+          "bindings": [],
+          "stream_running": false
+        },
+        "activity": {
+          "tools": {
+            "load_skill": 1,
+            "speaker_control": 1
+          },
+          "tool_failures": {},
+          "tool_failure_count": 0,
+          "operations": {
+            "speaker_control:delta": 1
+          },
+          "skills": [
+            "hardware-controls"
+          ],
+          "ask_user_count": 0,
+          "mutating_tool_count": 1,
+          "mac_observed": null,
+          "acknowledged_revisions": []
+        },
+        "budget_delta": {
+          "calls": 3,
+          "charged_or_reserved_dollars": 0.020358
+        },
+        "provider": "meta",
+        "validation": "observed_settings_or_activation"
+      },
+      {
+        "case": "speaker_reuse_step",
+        "job_id": "c37f39eddaab40088912e0c5c78af4d8",
+        "input_mode": "typed_studio_live",
+        "status": "passed_automated_checks",
+        "seconds": 6.783,
+        "checks": [
+          {
+            "name": "job_completed",
+            "passed": true
+          },
+          {
+            "name": "device_connected",
+            "passed": true
+          },
+          {
+            "name": "expected_clarification_state",
+            "passed": true
+          },
+          {
+            "name": "exact_pi_speaker_level",
+            "passed": true
+          },
+          {
+            "name": "no_mac_volume_mutation",
+            "passed": true
+          },
+          {
+            "name": "cached_mac_state_unchanged",
+            "passed": true
+          },
+          {
+            "name": "app_revision_unchanged",
+            "passed": true
+          },
+          {
+            "name": "stream_preserved",
+            "passed": true
+          }
+        ],
+        "before": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 50,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {},
+          "revision": "00157bb8ac8540913bd8734b62ab860533d9c3c4b751fa8454ccefa654573831",
+          "kind": "game",
+          "controls": [
+            "button_a",
+            "button_b",
+            "encoder",
+            "encoder_pressed",
+            "joystick"
+          ],
+          "bindings": [],
+          "stream_running": false
+        },
+        "after": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 60,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {},
+          "revision": "00157bb8ac8540913bd8734b62ab860533d9c3c4b751fa8454ccefa654573831",
+          "kind": "game",
+          "controls": [
+            "button_a",
+            "button_b",
+            "encoder",
+            "encoder_pressed",
+            "joystick"
+          ],
+          "bindings": [],
+          "stream_running": false
+        },
+        "activity": {
+          "tools": {
+            "load_skill": 1,
+            "speaker_control": 2
+          },
+          "tool_failures": {
+            "speaker_control": 1
+          },
+          "tool_failure_count": 1,
+          "operations": {
+            "speaker_control:delta": 1
+          },
+          "skills": [
+            "hardware-controls"
+          ],
+          "ask_user_count": 0,
+          "mutating_tool_count": 1,
+          "mac_observed": null,
+          "acknowledged_revisions": []
+        },
+        "budget_delta": {
+          "calls": 4,
+          "charged_or_reserved_dollars": 0.03066
+        },
+        "provider": "meta",
+        "validation": "observed_settings_or_activation"
+      },
+      {
+        "case": "speaker_undo_last",
+        "job_id": "a759a547fba7423abc558eb8691e0801",
+        "input_mode": "typed_studio_live",
+        "status": "passed_automated_checks",
+        "seconds": 4.021,
+        "checks": [
+          {
+            "name": "job_completed",
+            "passed": true
+          },
+          {
+            "name": "device_connected",
+            "passed": true
+          },
+          {
+            "name": "expected_clarification_state",
+            "passed": true
+          },
+          {
+            "name": "exact_pi_speaker_level",
+            "passed": true
+          },
+          {
+            "name": "no_mac_volume_mutation",
+            "passed": true
+          },
+          {
+            "name": "cached_mac_state_unchanged",
+            "passed": true
+          },
+          {
+            "name": "app_revision_unchanged",
+            "passed": true
+          },
+          {
+            "name": "stream_preserved",
+            "passed": true
+          }
+        ],
+        "before": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 60,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {},
+          "revision": "00157bb8ac8540913bd8734b62ab860533d9c3c4b751fa8454ccefa654573831",
+          "kind": "game",
+          "controls": [
+            "button_a",
+            "button_b",
+            "encoder",
+            "encoder_pressed",
+            "joystick"
+          ],
+          "bindings": [],
+          "stream_running": false
+        },
+        "after": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 50,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {},
+          "revision": "00157bb8ac8540913bd8734b62ab860533d9c3c4b751fa8454ccefa654573831",
+          "kind": "game",
+          "controls": [
+            "button_a",
+            "button_b",
+            "encoder",
+            "encoder_pressed",
+            "joystick"
+          ],
+          "bindings": [],
+          "stream_running": false
+        },
+        "activity": {
+          "tools": {
+            "load_skill": 1,
+            "speaker_control": 1
+          },
+          "tool_failures": {},
+          "tool_failure_count": 0,
+          "operations": {
+            "speaker_control:set": 1
+          },
+          "skills": [
+            "hardware-controls"
+          ],
+          "ask_user_count": 0,
+          "mutating_tool_count": 1,
+          "mac_observed": null,
+          "acknowledged_revisions": []
+        },
+        "budget_delta": {
+          "calls": 3,
+          "charged_or_reserved_dollars": 0.021506
+        },
+        "provider": "meta",
+        "validation": "observed_settings_or_activation"
+      },
+      {
+        "case": "speaker_original_level",
+        "job_id": "df8892fcd378474fbd93e11a2f6794f1",
+        "input_mode": "typed_studio_live",
+        "status": "passed_automated_checks",
+        "seconds": 3.997,
+        "checks": [
+          {
+            "name": "job_completed",
+            "passed": true
+          },
+          {
+            "name": "device_connected",
+            "passed": true
+          },
+          {
+            "name": "expected_clarification_state",
+            "passed": true
+          },
+          {
+            "name": "exact_pi_speaker_level",
+            "passed": true
+          },
+          {
+            "name": "no_mac_volume_mutation",
+            "passed": true
+          },
+          {
+            "name": "cached_mac_state_unchanged",
+            "passed": true
+          },
+          {
+            "name": "app_revision_unchanged",
+            "passed": true
+          },
+          {
+            "name": "stream_preserved",
+            "passed": true
+          }
+        ],
+        "before": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 50,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {},
+          "revision": "00157bb8ac8540913bd8734b62ab860533d9c3c4b751fa8454ccefa654573831",
+          "kind": "game",
+          "controls": [
+            "button_a",
+            "button_b",
+            "encoder",
+            "encoder_pressed",
+            "joystick"
+          ],
+          "bindings": [],
+          "stream_running": false
+        },
+        "after": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 40,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {},
+          "revision": "00157bb8ac8540913bd8734b62ab860533d9c3c4b751fa8454ccefa654573831",
+          "kind": "game",
+          "controls": [
+            "button_a",
+            "button_b",
+            "encoder",
+            "encoder_pressed",
+            "joystick"
+          ],
+          "bindings": [],
+          "stream_running": false
+        },
+        "activity": {
+          "tools": {
+            "load_skill": 1,
+            "speaker_control": 1
+          },
+          "tool_failures": {},
+          "tool_failure_count": 0,
+          "operations": {
+            "speaker_control:set": 1
+          },
+          "skills": [
+            "hardware-controls"
+          ],
+          "ask_user_count": 0,
+          "mutating_tool_count": 1,
+          "mac_observed": null,
+          "acknowledged_revisions": []
+        },
+        "budget_delta": {
+          "calls": 3,
+          "charged_or_reserved_dollars": 0.022797
+        },
+        "provider": "meta",
+        "validation": "observed_settings_or_activation"
+      }
+    ],
+    "mac": [
+      {
+        "case": "seed_mac_30",
+        "job_id": "b9a7491817f5450e8fdfc82fc34e8cfa",
+        "input_mode": "typed_studio_live",
+        "status": "passed_automated_checks",
+        "seconds": 3.181,
+        "checks": [
+          {
+            "name": "job_completed",
+            "passed": true
+          },
+          {
+            "name": "device_connected",
+            "passed": true
+          },
+          {
+            "name": "expected_clarification_state",
+            "passed": true
+          },
+          {
+            "name": "exact_native_mac_readback",
+            "passed": true
+          },
+          {
+            "name": "pi_speaker_unchanged",
+            "passed": true
+          },
+          {
+            "name": "app_revision_unchanged",
+            "passed": true
+          },
+          {
+            "name": "stream_preserved",
+            "passed": true
+          }
+        ],
+        "before": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 40,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {},
+          "revision": "00157bb8ac8540913bd8734b62ab860533d9c3c4b751fa8454ccefa654573831",
+          "kind": "game",
+          "controls": [
+            "button_a",
+            "button_b",
+            "encoder",
+            "encoder_pressed",
+            "joystick"
+          ],
+          "bindings": [],
+          "stream_running": false
+        },
+        "after": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 40,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {
+            "volume": 30,
+            "muted": false
+          },
+          "revision": "00157bb8ac8540913bd8734b62ab860533d9c3c4b751fa8454ccefa654573831",
+          "kind": "game",
+          "controls": [
+            "button_a",
+            "button_b",
+            "encoder",
+            "encoder_pressed",
+            "joystick"
+          ],
+          "bindings": [],
+          "stream_running": false
+        },
+        "activity": {
+          "tools": {
+            "load_skill": 1,
+            "system_control": 1
+          },
+          "tool_failures": {},
+          "tool_failure_count": 0,
+          "operations": {
+            "system_control:volume.set": 1
+          },
+          "skills": [
+            "hardware-controls"
+          ],
+          "ask_user_count": 0,
+          "mutating_tool_count": 1,
+          "mac_observed": {
+            "volume": 30,
+            "muted": false
+          },
+          "acknowledged_revisions": []
+        },
+        "budget_delta": {
+          "calls": 3,
+          "charged_or_reserved_dollars": 0.022113
+        },
+        "provider": "meta",
+        "validation": "observed_settings_or_activation"
+      },
+      {
+        "case": "mac_vague_increase",
+        "job_id": "3cacfeb09a124a4a9fe866ee383aab5a",
+        "input_mode": "typed_studio_live",
+        "status": "passed_automated_checks",
+        "seconds": 4.659,
+        "checks": [
+          {
+            "name": "job_completed",
+            "passed": true
+          },
+          {
+            "name": "device_connected",
+            "passed": true
+          },
+          {
+            "name": "expected_clarification_state",
+            "passed": true
+          },
+          {
+            "name": "exact_native_mac_readback",
+            "passed": true
+          },
+          {
+            "name": "pi_speaker_unchanged",
+            "passed": true
+          },
+          {
+            "name": "app_revision_unchanged",
+            "passed": true
+          },
+          {
+            "name": "stream_preserved",
+            "passed": true
+          }
+        ],
+        "before": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 40,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {
+            "volume": 30,
+            "muted": false
+          },
+          "revision": "00157bb8ac8540913bd8734b62ab860533d9c3c4b751fa8454ccefa654573831",
+          "kind": "game",
+          "controls": [
+            "button_a",
+            "button_b",
+            "encoder",
+            "encoder_pressed",
+            "joystick"
+          ],
+          "bindings": [],
+          "stream_running": false
+        },
+        "after": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 40,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {
+            "volume": 40,
+            "muted": false
+          },
+          "revision": "00157bb8ac8540913bd8734b62ab860533d9c3c4b751fa8454ccefa654573831",
+          "kind": "game",
+          "controls": [
+            "button_a",
+            "button_b",
+            "encoder",
+            "encoder_pressed",
+            "joystick"
+          ],
+          "bindings": [],
+          "stream_running": false
+        },
+        "activity": {
+          "tools": {
+            "load_skill": 1,
+            "system_control": 1
+          },
+          "tool_failures": {},
+          "tool_failure_count": 0,
+          "operations": {
+            "system_control:volume.delta": 1
+          },
+          "skills": [
+            "hardware-controls"
+          ],
+          "ask_user_count": 0,
+          "mutating_tool_count": 1,
+          "mac_observed": {
+            "volume": 40,
+            "muted": false
+          },
+          "acknowledged_revisions": []
+        },
+        "budget_delta": {
+          "calls": 3,
+          "charged_or_reserved_dollars": 0.024473
+        },
+        "provider": "meta",
+        "validation": "observed_settings_or_activation"
+      },
+      {
+        "case": "mac_undo",
+        "job_id": "501c8054729d4732902a18ec0e922c68",
+        "input_mode": "typed_studio_live",
+        "status": "passed_automated_checks",
+        "seconds": 3.48,
+        "checks": [
+          {
+            "name": "job_completed",
+            "passed": true
+          },
+          {
+            "name": "device_connected",
+            "passed": true
+          },
+          {
+            "name": "expected_clarification_state",
+            "passed": true
+          },
+          {
+            "name": "exact_native_mac_readback",
+            "passed": true
+          },
+          {
+            "name": "pi_speaker_unchanged",
+            "passed": true
+          },
+          {
+            "name": "app_revision_unchanged",
+            "passed": true
+          },
+          {
+            "name": "stream_preserved",
+            "passed": true
+          }
+        ],
+        "before": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 40,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {
+            "volume": 40,
+            "muted": false
+          },
+          "revision": "00157bb8ac8540913bd8734b62ab860533d9c3c4b751fa8454ccefa654573831",
+          "kind": "game",
+          "controls": [
+            "button_a",
+            "button_b",
+            "encoder",
+            "encoder_pressed",
+            "joystick"
+          ],
+          "bindings": [],
+          "stream_running": false
+        },
+        "after": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 40,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {
+            "volume": 30,
+            "muted": false
+          },
+          "revision": "00157bb8ac8540913bd8734b62ab860533d9c3c4b751fa8454ccefa654573831",
+          "kind": "game",
+          "controls": [
+            "button_a",
+            "button_b",
+            "encoder",
+            "encoder_pressed",
+            "joystick"
+          ],
+          "bindings": [],
+          "stream_running": false
+        },
+        "activity": {
+          "tools": {
+            "load_skill": 1,
+            "system_control": 1
+          },
+          "tool_failures": {},
+          "tool_failure_count": 0,
+          "operations": {
+            "system_control:volume.set": 1
+          },
+          "skills": [
+            "hardware-controls"
+          ],
+          "ask_user_count": 0,
+          "mutating_tool_count": 1,
+          "mac_observed": {
+            "volume": 30,
+            "muted": false
+          },
+          "acknowledged_revisions": []
+        },
+        "budget_delta": {
+          "calls": 3,
+          "charged_or_reserved_dollars": 0.023838
+        },
+        "provider": "meta",
+        "validation": "observed_settings_or_activation"
+      }
+    ],
+    "remap": [
+      {
+        "case": "brightness_plus_two",
+        "job_id": "9e47f995bb5d478aad6fd0adb986876e",
+        "input_mode": "typed_studio_live",
+        "status": "passed_automated_checks",
+        "seconds": 6.65,
+        "checks": [
+          {
+            "name": "job_completed",
+            "passed": true
+          },
+          {
+            "name": "device_connected",
+            "passed": true
+          },
+          {
+            "name": "expected_clarification_state",
+            "passed": true
+          },
+          {
+            "name": "exact_encoder_binding",
+            "passed": true
+          },
+          {
+            "name": "binding_targets_paired_mac",
+            "passed": true
+          },
+          {
+            "name": "new_acknowledged_revision",
+            "passed": true
+          }
+        ],
+        "before": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 100,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {
+            "volume": 30,
+            "muted": false
+          },
+          "revision": "00157bb8ac8540913bd8734b62ab860533d9c3c4b751fa8454ccefa654573831",
+          "kind": "game",
+          "controls": [
+            "button_a",
+            "button_b",
+            "encoder",
+            "encoder_pressed",
+            "joystick"
+          ],
+          "bindings": [],
+          "stream_running": false
+        },
+        "after": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 100,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {
+            "brightness": 44
+          },
+          "revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462",
+          "kind": "control",
+          "controls": [],
+          "bindings": [
+            {
+              "control": "encoder",
+              "action": "brightness.delta",
+              "scale": 2
+            }
+          ],
+          "stream_running": false
+        },
+        "activity": {
+          "tools": {
+            "load_skill": 1,
+            "inspect_capabilities": 1,
+            "read_runtime_api": 1,
+            "read_current_package": 1,
+            "system_control": 1,
+            "write_package": 1,
+            "test_package": 1,
+            "activate_package": 1
+          },
+          "tool_failures": {},
+          "tool_failure_count": 0,
+          "operations": {
+            "system_control:brightness.get": 1
+          },
+          "skills": [
+            "hardware-controls"
+          ],
+          "ask_user_count": 0,
+          "mutating_tool_count": 2,
+          "mac_observed": null,
+          "acknowledged_revisions": [
+            "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+          ]
+        },
+        "budget_delta": {
+          "calls": 7,
+          "charged_or_reserved_dollars": 0.084438
+        },
+        "provider": "meta",
+        "validation": "observed_settings_or_activation"
+      },
+      {
+        "case": "reverse_mapping",
+        "job_id": "2911138ea43441f9801115169c081aba",
+        "input_mode": "typed_studio_live",
+        "status": "passed_automated_checks",
+        "seconds": 6.813,
+        "checks": [
+          {
+            "name": "job_completed",
+            "passed": true
+          },
+          {
+            "name": "device_connected",
+            "passed": true
+          },
+          {
+            "name": "expected_clarification_state",
+            "passed": true
+          },
+          {
+            "name": "exact_encoder_binding",
+            "passed": true
+          },
+          {
+            "name": "binding_targets_paired_mac",
+            "passed": true
+          },
+          {
+            "name": "new_acknowledged_revision",
+            "passed": true
+          }
+        ],
+        "before": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 100,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {
+            "brightness": 44
+          },
+          "revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462",
+          "kind": "control",
+          "controls": [],
+          "bindings": [
+            {
+              "control": "encoder",
+              "action": "brightness.delta",
+              "scale": 2
+            }
+          ],
+          "stream_running": false
+        },
+        "after": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 100,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {
+            "brightness": 44
+          },
+          "revision": "84fb68aed297d2c90d82ebb1f31e1a6f473a37c0395b3d5970b5c38d50a37692",
+          "kind": "control",
+          "controls": [],
+          "bindings": [
+            {
+              "control": "encoder",
+              "action": "brightness.delta",
+              "scale": -2
+            }
+          ],
+          "stream_running": false
+        },
+        "activity": {
+          "tools": {
+            "load_skill": 1,
+            "read_current_package": 1,
+            "inspect_capabilities": 1,
+            "read_runtime_api": 1,
+            "write_package": 1,
+            "test_package": 1,
+            "activate_package": 1
+          },
+          "tool_failures": {},
+          "tool_failure_count": 0,
+          "operations": {},
+          "skills": [
+            "hardware-controls"
+          ],
+          "ask_user_count": 0,
+          "mutating_tool_count": 2,
+          "mac_observed": null,
+          "acknowledged_revisions": [
+            "84fb68aed297d2c90d82ebb1f31e1a6f473a37c0395b3d5970b5c38d50a37692"
+          ]
+        },
+        "budget_delta": {
+          "calls": 6,
+          "charged_or_reserved_dollars": 0.062243
+        },
+        "provider": "meta",
+        "validation": "observed_settings_or_activation"
+      },
+      {
+        "case": "halve_mapping",
+        "job_id": "b4a1323223b44e2aa204c0ebdb0be6ab",
+        "input_mode": "typed_studio_live",
+        "status": "passed_automated_checks",
+        "seconds": 6.766,
+        "checks": [
+          {
+            "name": "job_completed",
+            "passed": true
+          },
+          {
+            "name": "device_connected",
+            "passed": true
+          },
+          {
+            "name": "expected_clarification_state",
+            "passed": true
+          },
+          {
+            "name": "exact_encoder_binding",
+            "passed": true
+          },
+          {
+            "name": "binding_targets_paired_mac",
+            "passed": true
+          },
+          {
+            "name": "new_acknowledged_revision",
+            "passed": true
+          }
+        ],
+        "before": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 100,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {
+            "brightness": 44
+          },
+          "revision": "84fb68aed297d2c90d82ebb1f31e1a6f473a37c0395b3d5970b5c38d50a37692",
+          "kind": "control",
+          "controls": [],
+          "bindings": [
+            {
+              "control": "encoder",
+              "action": "brightness.delta",
+              "scale": -2
+            }
+          ],
+          "stream_running": false
+        },
+        "after": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 100,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {
+            "brightness": 44
+          },
+          "revision": "0f1a260d6e8675423e28abe04f88b5722d78abfd88e323cd2385f47963104e2f",
+          "kind": "control",
+          "controls": [],
+          "bindings": [
+            {
+              "control": "encoder",
+              "action": "brightness.delta",
+              "scale": -1
+            }
+          ],
+          "stream_running": false
+        },
+        "activity": {
+          "tools": {
+            "load_skill": 1,
+            "read_current_package": 1,
+            "read_runtime_api": 1,
+            "write_package": 1,
+            "test_package": 1,
+            "activate_package": 1
+          },
+          "tool_failures": {},
+          "tool_failure_count": 0,
+          "operations": {},
+          "skills": [
+            "hardware-controls"
+          ],
+          "ask_user_count": 0,
+          "mutating_tool_count": 2,
+          "mac_observed": null,
+          "acknowledged_revisions": [
+            "0f1a260d6e8675423e28abe04f88b5722d78abfd88e323cd2385f47963104e2f"
+          ]
+        },
+        "budget_delta": {
+          "calls": 6,
+          "charged_or_reserved_dollars": 0.060802
+        },
+        "provider": "meta",
+        "validation": "observed_settings_or_activation"
+      },
+      {
+        "case": "shift_mapping_target",
+        "job_id": "57f2f6061e164b5f96948118ab62d5a5",
+        "input_mode": "typed_studio_live",
+        "status": "passed_automated_checks",
+        "seconds": 5.534,
+        "checks": [
+          {
+            "name": "job_completed",
+            "passed": true
+          },
+          {
+            "name": "device_connected",
+            "passed": true
+          },
+          {
+            "name": "expected_clarification_state",
+            "passed": true
+          },
+          {
+            "name": "exact_encoder_binding",
+            "passed": true
+          },
+          {
+            "name": "binding_targets_paired_mac",
+            "passed": true
+          },
+          {
+            "name": "new_acknowledged_revision",
+            "passed": true
+          }
+        ],
+        "before": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 100,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {
+            "brightness": 44
+          },
+          "revision": "0f1a260d6e8675423e28abe04f88b5722d78abfd88e323cd2385f47963104e2f",
+          "kind": "control",
+          "controls": [],
+          "bindings": [
+            {
+              "control": "encoder",
+              "action": "brightness.delta",
+              "scale": -1
+            }
+          ],
+          "stream_running": false
+        },
+        "after": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 100,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {
+            "volume": 30,
+            "muted": false
+          },
+          "revision": "757012ff4150204783144f05192528400233d987a91a4576f2412627bd8642f7",
+          "kind": "control",
+          "controls": [],
+          "bindings": [
+            {
+              "control": "encoder",
+              "action": "volume.delta",
+              "scale": -1
+            }
+          ],
+          "stream_running": false
+        },
+        "activity": {
+          "tools": {
+            "load_skill": 1,
+            "read_current_package": 1,
+            "read_runtime_api": 1,
+            "write_package": 1,
+            "test_package": 1,
+            "activate_package": 1
+          },
+          "tool_failures": {},
+          "tool_failure_count": 0,
+          "operations": {},
+          "skills": [
+            "hardware-controls"
+          ],
+          "ask_user_count": 0,
+          "mutating_tool_count": 2,
+          "mac_observed": null,
+          "acknowledged_revisions": [
+            "757012ff4150204783144f05192528400233d987a91a4576f2412627bd8642f7"
+          ]
+        },
+        "budget_delta": {
+          "calls": 6,
+          "charged_or_reserved_dollars": 0.06221
+        },
+        "provider": "meta",
+        "validation": "observed_settings_or_activation"
+      }
+    ],
+    "game": [
+      {
+        "case": "create_dodger",
+        "job_id": "ab66db17761044e8992d156c64f73bae",
+        "input_mode": "typed_studio_live",
+        "status": "passed_automated_checks",
+        "seconds": 18.174,
+        "checks": [
+          {
+            "name": "job_completed",
+            "passed": true
+          },
+          {
+            "name": "device_connected",
+            "passed": true
+          },
+          {
+            "name": "appropriate_skill_loaded",
+            "passed": true
+          },
+          {
+            "name": "expected_clarification_state",
+            "passed": true
+          },
+          {
+            "name": "new_acknowledged_revision",
+            "passed": true
+          },
+          {
+            "name": "application_runtime",
+            "passed": true
+          }
+        ],
+        "before": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 70,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {
+            "volume": 30,
+            "muted": false
+          },
+          "revision": "757012ff4150204783144f05192528400233d987a91a4576f2412627bd8642f7",
+          "kind": "control",
+          "controls": [],
+          "bindings": [
+            {
+              "control": "encoder",
+              "action": "volume.delta",
+              "scale": -1
+            }
+          ],
+          "stream_running": false
+        },
+        "after": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 70,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {
+            "volume": 30,
+            "muted": false
+          },
+          "revision": "ea1597033f035d20250fd823a34e7b303963636c11c4ec72727de32787add236",
+          "kind": "game",
+          "controls": [
+            "button_a",
+            "button_b",
+            "encoder_pressed",
+            "joystick"
+          ],
+          "bindings": [],
+          "stream_running": false
+        },
+        "activity": {
+          "tools": {
+            "load_skill": 1,
+            "inspect_capabilities": 1,
+            "read_runtime_api": 1,
+            "write_package": 1,
+            "test_package": 1,
+            "activate_package": 1
+          },
+          "tool_failures": {},
+          "tool_failure_count": 0,
+          "operations": {},
+          "skills": [
+            "games"
+          ],
+          "ask_user_count": 0,
+          "mutating_tool_count": 2,
+          "mac_observed": null,
+          "acknowledged_revisions": [
+            "ea1597033f035d20250fd823a34e7b303963636c11c4ec72727de32787add236"
+          ]
+        },
+        "budget_delta": {
+          "calls": 6,
+          "charged_or_reserved_dollars": 0.083146
+        },
+        "provider": "meta",
+        "validation": "activation plus exact-package isolated-runtime behavior; no new physical-play trial"
+      },
+      {
+        "case": "slower_same_controls",
+        "job_id": "848c267b57f64cab84eee75d10d49f1f",
+        "input_mode": "typed_studio_live",
+        "status": "passed_automated_checks",
+        "seconds": 13.493,
+        "checks": [
+          {
+            "name": "job_completed",
+            "passed": true
+          },
+          {
+            "name": "device_connected",
+            "passed": true
+          },
+          {
+            "name": "appropriate_skill_loaded",
+            "passed": true
+          },
+          {
+            "name": "expected_clarification_state",
+            "passed": true
+          },
+          {
+            "name": "new_acknowledged_revision",
+            "passed": true
+          },
+          {
+            "name": "application_runtime",
+            "passed": true
+          },
+          {
+            "name": "same_controls",
+            "passed": true
+          }
+        ],
+        "before": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 70,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {
+            "volume": 30,
+            "muted": false
+          },
+          "revision": "ea1597033f035d20250fd823a34e7b303963636c11c4ec72727de32787add236",
+          "kind": "game",
+          "controls": [
+            "button_a",
+            "button_b",
+            "encoder_pressed",
+            "joystick"
+          ],
+          "bindings": [],
+          "stream_running": false
+        },
+        "after": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 70,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {
+            "volume": 30,
+            "muted": false
+          },
+          "revision": "bc8be8f1a050f6f5959f7262507bcea3afb34229b71a5be5c70453f6a1ef4e47",
+          "kind": "game",
+          "controls": [
+            "button_a",
+            "button_b",
+            "encoder_pressed",
+            "joystick"
+          ],
+          "bindings": [],
+          "stream_running": false
+        },
+        "activity": {
+          "tools": {
+            "load_skill": 1,
+            "read_current_package": 1,
+            "write_package": 1,
+            "test_package": 1,
+            "activate_package": 1
+          },
+          "tool_failures": {},
+          "tool_failure_count": 0,
+          "operations": {},
+          "skills": [
+            "games"
+          ],
+          "ask_user_count": 0,
+          "mutating_tool_count": 2,
+          "mac_observed": null,
+          "acknowledged_revisions": [
+            "bc8be8f1a050f6f5959f7262507bcea3afb34229b71a5be5c70453f6a1ef4e47"
+          ]
+        },
+        "budget_delta": {
+          "calls": 6,
+          "charged_or_reserved_dollars": 0.083363
+        },
+        "provider": "meta",
+        "validation": "activation plus exact-package isolated-runtime behavior; no new physical-play trial"
+      }
+    ],
+    "app": [
+      {
+        "case": "create_counter",
+        "job_id": "2063712226d54d748fd55d02bcea83f8",
+        "input_mode": "typed_studio_live",
+        "status": "passed_automated_checks",
+        "seconds": 18.556,
+        "checks": [
+          {
+            "name": "job_completed",
+            "passed": true
+          },
+          {
+            "name": "device_connected",
+            "passed": true
+          },
+          {
+            "name": "appropriate_skill_loaded",
+            "passed": true
+          },
+          {
+            "name": "expected_clarification_state",
+            "passed": true
+          },
+          {
+            "name": "new_acknowledged_revision",
+            "passed": true
+          },
+          {
+            "name": "application_runtime",
+            "passed": true
+          }
+        ],
+        "before": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 70,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {},
+          "revision": "94536a85795713410fcff7add3a4bb675ccfcb990d4215743f4b902916e709a9",
+          "kind": "game",
+          "controls": [
+            "button_a",
+            "button_b"
+          ],
+          "bindings": [],
+          "stream_running": false
+        },
+        "after": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 70,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {},
+          "revision": "797f69b8c1aec6f63ce4c903bc6d9f532d94df188a2e9460b6913b5529da2a0d",
+          "kind": "game",
+          "controls": [
+            "button_a",
+            "button_b"
+          ],
+          "bindings": [],
+          "stream_running": false
+        },
+        "activity": {
+          "tools": {
+            "load_skill": 1,
+            "inspect_capabilities": 1,
+            "read_runtime_api": 1,
+            "write_package": 2,
+            "test_package": 1,
+            "preview_package": 1,
+            "activate_package": 1
+          },
+          "tool_failures": {
+            "write_package": 1
+          },
+          "tool_failure_count": 1,
+          "operations": {},
+          "skills": [
+            "device-apps"
+          ],
+          "ask_user_count": 0,
+          "mutating_tool_count": 3,
+          "mac_observed": null,
+          "acknowledged_revisions": [
+            "797f69b8c1aec6f63ce4c903bc6d9f532d94df188a2e9460b6913b5529da2a0d"
+          ]
+        },
+        "budget_delta": {
+          "calls": 7,
+          "charged_or_reserved_dollars": 0.115338
+        },
+        "provider": "meta",
+        "validation": "activation plus exact-package isolated-runtime behavior; no new physical-play trial"
+      },
+      {
+        "case": "counter_green_subtracts",
+        "job_id": "e3ceeaed35a74d13a68753a253fb0224",
+        "input_mode": "typed_studio_live",
+        "status": "passed_automated_checks",
+        "seconds": 12.515,
+        "checks": [
+          {
+            "name": "job_completed",
+            "passed": true
+          },
+          {
+            "name": "device_connected",
+            "passed": true
+          },
+          {
+            "name": "appropriate_skill_loaded",
+            "passed": true
+          },
+          {
+            "name": "expected_clarification_state",
+            "passed": true
+          },
+          {
+            "name": "new_acknowledged_revision",
+            "passed": true
+          },
+          {
+            "name": "application_runtime",
+            "passed": true
+          },
+          {
+            "name": "same_controls",
+            "passed": true
+          }
+        ],
+        "before": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 70,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {},
+          "revision": "797f69b8c1aec6f63ce4c903bc6d9f532d94df188a2e9460b6913b5529da2a0d",
+          "kind": "game",
+          "controls": [
+            "button_a",
+            "button_b"
+          ],
+          "bindings": [],
+          "stream_running": false
+        },
+        "after": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 70,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {},
+          "revision": "356f02b4769f704dd7277ef646e3cdf0c23c9e3b219547b7e943c0e592c83622",
+          "kind": "game",
+          "controls": [
+            "button_a",
+            "button_b"
+          ],
+          "bindings": [],
+          "stream_running": false
+        },
+        "activity": {
+          "tools": {
+            "load_skill": 1,
+            "read_current_package": 1,
+            "write_package": 1,
+            "test_package": 1,
+            "activate_package": 1
+          },
+          "tool_failures": {},
+          "tool_failure_count": 0,
+          "operations": {},
+          "skills": [
+            "device-apps"
+          ],
+          "ask_user_count": 0,
+          "mutating_tool_count": 2,
+          "mac_observed": null,
+          "acknowledged_revisions": [
+            "356f02b4769f704dd7277ef646e3cdf0c23c9e3b219547b7e943c0e592c83622"
+          ]
+        },
+        "budget_delta": {
+          "calls": 6,
+          "charged_or_reserved_dollars": 0.078719
+        },
+        "provider": "meta",
+        "validation": "activation plus exact-package isolated-runtime behavior; no new physical-play trial"
+      }
+    ],
+    "missing-context": [
+      {
+        "case": "missing_referent",
+        "job_id": "53094615f2a34f9789b1ab371e93281e",
+        "input_mode": "typed_studio_live",
+        "status": "passed_automated_checks",
+        "seconds": 2.806,
+        "checks": [
+          {
+            "name": "job_completed",
+            "passed": true
+          },
+          {
+            "name": "device_connected",
+            "passed": true
+          },
+          {
+            "name": "expected_clarification_state",
+            "passed": true
+          },
+          {
+            "name": "no_mutating_tools",
+            "passed": true
+          },
+          {
+            "name": "asked_for_missing_referent",
+            "passed": true
+          },
+          {
+            "name": "app_unchanged",
+            "passed": true
+          },
+          {
+            "name": "settings_unchanged",
+            "passed": true
+          }
+        ],
+        "before": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 70,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {
+            "volume": 30,
+            "muted": false
+          },
+          "revision": "94536a85795713410fcff7add3a4bb675ccfcb990d4215743f4b902916e709a9",
+          "kind": "game",
+          "controls": [
+            "button_a",
+            "button_b"
+          ],
+          "bindings": [],
+          "stream_running": false
+        },
+        "after": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 70,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {
+            "volume": 30,
+            "muted": false
+          },
+          "revision": "94536a85795713410fcff7add3a4bb675ccfcb990d4215743f4b902916e709a9",
+          "kind": "game",
+          "controls": [
+            "button_a",
+            "button_b"
+          ],
+          "bindings": [],
+          "stream_running": false
+        },
+        "activity": {
+          "tools": {
+            "read_recent_context": 1,
+            "ask_user": 1
+          },
+          "tool_failures": {},
+          "tool_failure_count": 0,
+          "operations": {},
+          "skills": [],
+          "ask_user_count": 1,
+          "mutating_tool_count": 0,
+          "mac_observed": null,
+          "acknowledged_revisions": []
+        },
+        "budget_delta": {
+          "calls": 2,
+          "charged_or_reserved_dollars": 0.013094
+        },
+        "provider": "meta",
+        "validation": "observed_settings_or_activation"
+      }
+    ],
+    "computer": [
+      {
+        "case": "computer_seed",
+        "job_id": "ba42c301d29d405c9537748d0da823c2",
+        "input_mode": "typed_studio_live",
+        "status": "passed_automated_checks",
+        "seconds": 15.361,
+        "checks": [
+          {
+            "name": "job_completed",
+            "passed": true
+          },
+          {
+            "name": "device_connected",
+            "passed": true
+          },
+          {
+            "name": "appropriate_skill_loaded",
+            "passed": true
+          },
+          {
+            "name": "expected_clarification_state",
+            "passed": true
+          }
+        ],
+        "before": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 70,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {
+            "volume": 30,
+            "muted": false
+          },
+          "revision": "757012ff4150204783144f05192528400233d987a91a4576f2412627bd8642f7",
+          "kind": "control",
+          "controls": [],
+          "bindings": [
+            {
+              "control": "encoder",
+              "action": "volume.delta",
+              "scale": -1
+            }
+          ],
+          "stream_running": false
+        },
+        "after": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 70,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {
+            "volume": 30,
+            "muted": false
+          },
+          "revision": "757012ff4150204783144f05192528400233d987a91a4576f2412627bd8642f7",
+          "kind": "control",
+          "controls": [],
+          "bindings": [
+            {
+              "control": "encoder",
+              "action": "volume.delta",
+              "scale": -1
+            }
+          ],
+          "stream_running": false
+        },
+        "activity": {
+          "tools": {
+            "load_skill": 1,
+            "computer_observe": 1,
+            "computer_act": 4
+          },
+          "tool_failures": {},
+          "tool_failure_count": 0,
+          "operations": {},
+          "skills": [
+            "computer-use"
+          ],
+          "ask_user_count": 0,
+          "mutating_tool_count": 4,
+          "mac_observed": null,
+          "acknowledged_revisions": []
+        },
+        "budget_delta": {
+          "calls": 7,
+          "charged_or_reserved_dollars": 0.071197
+        },
+        "provider": "meta",
+        "validation": "visible_lab_output_independently_read; latest task recovered for vague edit/repeat"
+      },
+      {
+        "case": "computer_short_edit",
+        "job_id": "475a75316bd6476eae9189b781a4eaf6",
+        "input_mode": "typed_studio_live",
+        "status": "passed_automated_checks",
+        "seconds": 17.932,
+        "checks": [
+          {
+            "name": "job_completed",
+            "passed": true
+          },
+          {
+            "name": "device_connected",
+            "passed": true
+          },
+          {
+            "name": "appropriate_skill_loaded",
+            "passed": true
+          },
+          {
+            "name": "expected_clarification_state",
+            "passed": true
+          }
+        ],
+        "before": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 70,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {
+            "volume": 30,
+            "muted": false
+          },
+          "revision": "757012ff4150204783144f05192528400233d987a91a4576f2412627bd8642f7",
+          "kind": "control",
+          "controls": [],
+          "bindings": [
+            {
+              "control": "encoder",
+              "action": "volume.delta",
+              "scale": -1
+            }
+          ],
+          "stream_running": false
+        },
+        "after": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 70,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {
+            "volume": 30,
+            "muted": false
+          },
+          "revision": "757012ff4150204783144f05192528400233d987a91a4576f2412627bd8642f7",
+          "kind": "control",
+          "controls": [],
+          "bindings": [
+            {
+              "control": "encoder",
+              "action": "volume.delta",
+              "scale": -1
+            }
+          ],
+          "stream_running": false
+        },
+        "activity": {
+          "tools": {
+            "read_recent_context": 1,
+            "load_skill": 1,
+            "computer_observe": 1,
+            "computer_act": 4
+          },
+          "tool_failures": {},
+          "tool_failure_count": 0,
+          "operations": {},
+          "skills": [
+            "computer-use"
+          ],
+          "ask_user_count": 0,
+          "mutating_tool_count": 4,
+          "mac_observed": null,
+          "acknowledged_revisions": []
+        },
+        "budget_delta": {
+          "calls": 8,
+          "charged_or_reserved_dollars": 0.09716
+        },
+        "provider": "meta",
+        "validation": "visible_lab_output_independently_read; latest task recovered for vague edit/repeat"
+      },
+      {
+        "case": "computer_repeat",
+        "job_id": "81526a716c2c41d09b5cf7b4b5a121dd",
+        "input_mode": "typed_studio_live",
+        "status": "passed_automated_checks",
+        "seconds": 5.416,
+        "checks": [
+          {
+            "name": "job_completed",
+            "passed": true
+          },
+          {
+            "name": "device_connected",
+            "passed": true
+          },
+          {
+            "name": "appropriate_skill_loaded",
+            "passed": true
+          },
+          {
+            "name": "expected_clarification_state",
+            "passed": true
+          }
+        ],
+        "before": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 70,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {
+            "volume": 30,
+            "muted": false
+          },
+          "revision": "757012ff4150204783144f05192528400233d987a91a4576f2412627bd8642f7",
+          "kind": "control",
+          "controls": [],
+          "bindings": [
+            {
+              "control": "encoder",
+              "action": "volume.delta",
+              "scale": -1
+            }
+          ],
+          "stream_running": false
+        },
+        "after": {
+          "device_connected": true,
+          "paired": true,
+          "speaker": {
+            "volume": 70,
+            "muted": false,
+            "available": true
+          },
+          "mac_cached": {
+            "volume": 30,
+            "muted": false
+          },
+          "revision": "757012ff4150204783144f05192528400233d987a91a4576f2412627bd8642f7",
+          "kind": "control",
+          "controls": [],
+          "bindings": [
+            {
+              "control": "encoder",
+              "action": "volume.delta",
+              "scale": -1
+            }
+          ],
+          "stream_running": false
+        },
+        "activity": {
+          "tools": {
+            "read_recent_context": 1,
+            "load_skill": 1,
+            "computer_observe": 1
+          },
+          "tool_failures": {},
+          "tool_failure_count": 0,
+          "operations": {},
+          "skills": [
+            "computer-use"
+          ],
+          "ask_user_count": 0,
+          "mutating_tool_count": 0,
+          "mac_observed": null,
+          "acknowledged_revisions": []
+        },
+        "budget_delta": {
+          "calls": 4,
+          "charged_or_reserved_dollars": 0.043213
+        },
+        "provider": "meta",
+        "validation": "visible_lab_output_independently_read; latest task recovered for vague edit/repeat"
+      }
+    ]
+  },
+  "behavior_checks": {
+    "game": {
+      "schema": "modulate-game-semantics-v1",
+      "at": "2026-10-29T04:42:45.056147+00:00",
+      "input_mode": "fixed_input_isolated_runtime",
+      "source_run": "intent-game-eval.json",
+      "dt_seconds": 0.03333333333333333,
+      "packages": [
+        {
+          "revision": "ea1597033f035d20250fd823a34e7b303963636c11c4ec72727de32787add236",
+          "package_hash_verified": true,
+          "controls": [
+            "joystick",
+            "button_a",
+            "button_b",
+            "encoder_pressed"
+          ],
+          "title_waits_for_deliberate_input": true,
+          "all_declared_start_buttons_work": true,
+          "joystick_samples": [
+            {
+              "axis": "joystick_x",
+              "input": 1,
+              "seconds": 0.2,
+              "displacement": [
+                26,
+                0
+              ],
+              "draw_position": [
+                140,
+                100
+              ]
+            },
+            {
+              "axis": "joystick_x",
+              "input": -1,
+              "seconds": 0.2,
+              "displacement": [
+                -26,
+                0
+              ],
+              "draw_position": [
+                114,
+                100
+              ]
+            },
+            {
+              "axis": "joystick_y",
+              "input": -1,
+              "seconds": 0.2,
+              "displacement": [
+                0,
+                -26.0
+              ],
+              "draw_position": [
+                114,
+                74
+              ]
+            },
+            {
+              "axis": "joystick_y",
+              "input": 1,
+              "seconds": 0.2,
+              "displacement": [
+                0,
+                26.0
+              ],
+              "draw_position": [
+                114,
+                100
+              ]
+            }
+          ],
+          "hazard_trials": 16,
+          "hazard_measurement_seconds_per_trial": 0.3,
+          "first_hazard_seconds": [
+            0.533333
+          ],
+          "hazard_vertical_speed_pixels_per_second": {
+            "min": 57.399,
+            "max": 109.129,
+            "mean": 80.7,
+            "median": 78.062
+          },
+          "draw_hazard_speed_mean_pixels_per_second": 80.833
+        },
+        {
+          "revision": "bc8be8f1a050f6f5959f7262507bcea3afb34229b71a5be5c70453f6a1ef4e47",
+          "package_hash_verified": true,
+          "controls": [
+            "joystick",
+            "button_a",
+            "button_b",
+            "encoder_pressed"
+          ],
+          "title_waits_for_deliberate_input": true,
+          "all_declared_start_buttons_work": true,
+          "joystick_samples": [
+            {
+              "axis": "joystick_x",
+              "input": 1,
+              "seconds": 0.2,
+              "displacement": [
+                26,
+                0
+              ],
+              "draw_position": [
+                140,
+                100
+              ]
+            },
+            {
+              "axis": "joystick_x",
+              "input": -1,
+              "seconds": 0.2,
+              "displacement": [
+                -26,
+                0
+              ],
+              "draw_position": [
+                114,
+                100
+              ]
+            },
+            {
+              "axis": "joystick_y",
+              "input": -1,
+              "seconds": 0.2,
+              "displacement": [
+                0,
+                -26.0
+              ],
+              "draw_position": [
+                114,
+                74
+              ]
+            },
+            {
+              "axis": "joystick_y",
+              "input": 1,
+              "seconds": 0.2,
+              "displacement": [
+                0,
+                26.0
+              ],
+              "draw_position": [
+                114,
+                100
+              ]
+            }
+          ],
+          "hazard_trials": 16,
+          "hazard_measurement_seconds_per_trial": 0.3,
+          "first_hazard_seconds": [
+            1.033333
+          ],
+          "hazard_vertical_speed_pixels_per_second": {
+            "min": 33.543,
+            "max": 59.153,
+            "mean": 48.164,
+            "median": 50.798
+          },
+          "draw_hazard_speed_mean_pixels_per_second": 48.542
+        }
+      ],
+      "checks": {
+        "same_controls": true,
+        "same_joystick_response": true,
+        "same_start_controls": true,
+        "later_first_hazard": true,
+        "lower_sampled_hazard_speed": true,
+        "lower_sampled_draw_motion": true
+      },
+      "result": "pass",
+      "limits": [
+        "Executed exact acknowledged packages unchanged in the isolated Game runtime; no live model calls or physical device inputs.",
+        "Random spawning was not seeded or modified; motion summaries compare 16 independent first-hazard trials per revision.",
+        "Slower means later hazards and lower sampled obstacle speed. Joystick response remains 130 pixels/second; this is not a claim every animation became slower.",
+        "Draw-command motion is software rendering evidence, not optical confirmation or physical play."
+      ]
+    },
+    "app_before_repair": {
+      "schema": "modulate-app-semantics-v1",
+      "at": "2026-10-29T04:42:45.319168+00:00",
+      "input_mode": "fixed_input_isolated_runtime",
+      "source_run": "intent-app-eval.json",
+      "dt_seconds": 0.03333333333333333,
+      "packages": [
+        {
+          "revision": "a9f92c7a3c6acbd21bcee7b1d111faab16bbf590740cb37577c6882b4279dbc2",
+          "package_hash_verified": true,
+          "controls": [
+            "button_a",
+            "button_b"
+          ],
+          "buttons": {
+            "button_a": {
+              "state_counts": [
+                0,
+                1,
+                1,
+                1,
+                2,
+                2
+              ],
+              "drawn_count_text": [
+                "1",
+                "1",
+                "1",
+                "2",
+                "2"
+              ],
+              "delta_per_press": 1,
+              "hold_does_not_repeat": true
+            },
+            "button_b": {
+              "state_counts": [
+                0,
+                -1,
+                -1,
+                -1,
+                -2,
+                -2
+              ],
+              "drawn_count_text": [
+                "-1",
+                "-1",
+                "-1",
+                "-2",
+                "-2"
+              ],
+              "delta_per_press": -1,
+              "hold_does_not_repeat": true
+            }
+          }
+        },
+        {
+          "revision": "94536a85795713410fcff7add3a4bb675ccfcb990d4215743f4b902916e709a9",
+          "package_hash_verified": true,
+          "controls": [
+            "button_a",
+            "button_b"
+          ],
+          "buttons": {
+            "button_a": {
+              "state_counts": [
+                0,
+                -1,
+                -1,
+                -1,
+                -2,
+                -2
+              ],
+              "drawn_count_text": [
+                "-1",
+                "-1",
+                "-1",
+                "-2",
+                "-2"
+              ],
+              "delta_per_press": -1,
+              "hold_does_not_repeat": true
+            },
+            "button_b": {
+              "state_counts": [
+                0,
+                1,
+                1,
+                1,
+                2,
+                2
+              ],
+              "drawn_count_text": [
+                "1",
+                "1",
+                "1",
+                "2",
+                "2"
+              ],
+              "delta_per_press": 1,
+              "hold_does_not_repeat": true
+            }
+          }
+        }
+      ],
+      "checks": {
+        "same_controls": true,
+        "green_now_subtracts_one": true,
+        "red_mapping_preserved": false,
+        "one_change_per_press_preserved": true
+      },
+      "result": "fail",
+      "finding": "Green changed from +1 to -1 as requested, but red changed from -1 to +1 without being requested.",
+      "limits": [
+        "Exact acknowledged packages were executed unchanged in the isolated Game runtime. No live model or physical button input occurred.",
+        "button_a corresponds to the confirmed green mapping and button_b to red in the current trusted hardware contract.",
+        "State counts agree with the numeric text in draw commands. No optical or physical-play claim."
+      ]
+    },
+    "app_after_repair": {
+      "schema": "modulate-app-semantics-v1",
+      "at": "2026-10-29T04:43:52.461593+00:00",
+      "source_run": "intent-app-repaired-eval.json",
+      "input_mode": "fixed_input_isolated_runtime",
+      "dt_seconds": 0.03333333333333333,
+      "packages": [
+        {
+          "case": "create_counter",
+          "revision": "797f69b8c1aec6f63ce4c903bc6d9f532d94df188a2e9460b6913b5529da2a0d",
+          "package_hash_verified": true,
+          "controls": [
+            "button_a",
+            "button_b"
+          ],
+          "buttons": {
+            "button_a": {
+              "input_sequence": [
+                "press",
+                "hold",
+                "hold",
+                "release",
+                "press",
+                "release",
+                "press",
+                "release"
+              ],
+              "state_counts": [
+                0,
+                1,
+                1,
+                1,
+                1,
+                2,
+                2,
+                3,
+                3
+              ],
+              "drawn_count_text": [
+                "1",
+                "1",
+                "1",
+                "1",
+                "2",
+                "2",
+                "3",
+                "3"
+              ],
+              "delta_per_press": 1,
+              "hold_does_not_repeat": true,
+              "release_has_no_effect": true
+            },
+            "button_b": {
+              "input_sequence": [
+                "press",
+                "hold",
+                "hold",
+                "release",
+                "press",
+                "release",
+                "press",
+                "release"
+              ],
+              "state_counts": [
+                0,
+                -1,
+                -1,
+                -1,
+                -1,
+                -2,
+                -2,
+                -3,
+                -3
+              ],
+              "drawn_count_text": [
+                "-1",
+                "-1",
+                "-1",
+                "-1",
+                "-2",
+                "-2",
+                "-3",
+                "-3"
+              ],
+              "delta_per_press": -1,
+              "hold_does_not_repeat": true,
+              "release_has_no_effect": true
+            }
+          }
+        },
+        {
+          "case": "counter_green_subtracts",
+          "revision": "356f02b4769f704dd7277ef646e3cdf0c23c9e3b219547b7e943c0e592c83622",
+          "package_hash_verified": true,
+          "controls": [
+            "button_a",
+            "button_b"
+          ],
+          "buttons": {
+            "button_a": {
+              "input_sequence": [
+                "press",
+                "hold",
+                "hold",
+                "release",
+                "press",
+                "release",
+                "press",
+                "release"
+              ],
+              "state_counts": [
+                0,
+                -1,
+                -1,
+                -1,
+                -1,
+                -2,
+                -2,
+                -3,
+                -3
+              ],
+              "drawn_count_text": [
+                "-1",
+                "-1",
+                "-1",
+                "-1",
+                "-2",
+                "-2",
+                "-3",
+                "-3"
+              ],
+              "delta_per_press": -1,
+              "hold_does_not_repeat": true,
+              "release_has_no_effect": true
+            },
+            "button_b": {
+              "input_sequence": [
+                "press",
+                "hold",
+                "hold",
+                "release",
+                "press",
+                "release",
+                "press",
+                "release"
+              ],
+              "state_counts": [
+                0,
+                -1,
+                -1,
+                -1,
+                -1,
+                -2,
+                -2,
+                -3,
+                -3
+              ],
+              "drawn_count_text": [
+                "-1",
+                "-1",
+                "-1",
+                "-1",
+                "-2",
+                "-2",
+                "-3",
+                "-3"
+              ],
+              "delta_per_press": -1,
+              "hold_does_not_repeat": true,
+              "release_has_no_effect": true
+            }
+          }
+        }
+      ],
+      "checks": {
+        "same_controls": true,
+        "original_green_adds_one": true,
+        "original_red_subtracts_one": true,
+        "green_now_subtracts_one": true,
+        "red_mapping_preserved": true,
+        "one_change_per_press_preserved": true,
+        "drawn_count_matches_state": true
+      },
+      "result": "pass",
+      "finding": "Green changed from +1 to -1; red remained -1. Holding a button did not repeat, and releases did not change the count.",
+      "prior_failure_evidence": "intent-app-semantics.json",
+      "limits": [
+        "Exact acknowledged packages ran unchanged in the isolated Game runtime. No model calls, UI actions or physical button inputs occurred.",
+        "button_a maps to the confirmed green input and button_b to red under the current trusted hardware contract.",
+        "State counts matched numeric draw-command text at every simulated frame. This is not optical or physical-play verification.",
+        "A successful repaired pair does not establish general semantic-edit reliability; the original red-button regression remains recorded."
+      ]
+    }
+  },
+  "earlier_attempts": [
+    {
+      "case": "first_lab_seed",
+      "result": "failed",
+      "model_calls": 18,
+      "finding": "Fixture inline script was blocked by Studio CSP; moved script/style to same-origin files without weakening CSP."
+    },
+    {
+      "case": "lab_seed_after_fixture_fix",
+      "result": "passed",
+      "finding": "Visible form read Verified: mint comet; three native computer actions."
+    },
+    {
+      "case": "vague_computer_edit_before_repair",
+      "result": "failed",
+      "finding": "Change that to coral comet was misclassified as a device-app request and raised an unnecessary question; private preceding computer task was still within retention."
+    },
+    {
+      "case": "reseed_already_verified_form",
+      "result": "failed",
+      "model_calls": 18,
+      "finding": "Actions exhausted the bound although the requested text was visibly verified. Corrected unconditional next-action screenshot instruction; focus interference also prevents attributing a single cause."
+    },
+    {
+      "case": "vague_computer_edit_during_tab_switch",
+      "result": "cancelled_by_operator",
+      "finding": "Recovered private context and selected computer-use, but Chrome switched to Calendar; stopped rather than continue moving the cursor during interference."
+    },
+    {
+      "case": "initial_counter_seed",
+      "result": "passed",
+      "finding": "Both original button meanings independently exercised."
+    },
+    {
+      "case": "initial_counter_refinement",
+      "result": "failed_semantic_preservation",
+      "finding": "Green changed correctly, but red was also inverted; narrow-edit preservation guidance repaired, then both controls retested."
+    }
+  ],
+  "unsent_attempts": [
+    {
+      "case": "computer_seed_during_voice_request",
+      "result": "not_sent",
+      "reason": "Evaluator detected another request running and stopped."
+    }
+  ],
+  "restoration": {
+    "revision": "00157bb8ac8540913bd8734b62ab860533d9c3c4b751fa8454ccefa654573831",
+    "camera_fresh": true,
+    "pi_volume": 70,
+    "pi_muted": false,
+    "mac_original_volume_and_mute_verified": true,
+    "user_memory_records_preserved": 1,
+    "model_calls": 0,
+    "note": "Saved original camera package was independently checked and acknowledged; newer user-requested speaker70 preserved. Temporary test context removed."
+  },
+  "tests": {
+    "host": 706,
+    "host_skipped": 11,
+    "focused_after_final_prompt_change": 70,
+    "pi_focused": 164,
+    "pi_skipped": 0,
+    "pi_core_commit": "9b172e8"
+  },
+  "budget": {
+    "ceiling_dollars": 50,
+    "starting_calls": 278,
+    "ending_calls": 449,
+    "starting_charged_or_reserved_dollars": 7.641056,
+    "ending_charged_or_reserved_dollars": 9.585445,
+    "note": "Window includes concurrent user voice requests; not solely evaluation cost. Existing ledger and unknown holds retained."
+  },
+  "limits": [
+    "Selected passing cases were gathered across repairs; they are not an uninterrupted first-attempt success rate. Earlier failures and operator cancellation remain included.",
+    "Typed tests exercise request interpretation; no new acoustic/wake-word reliability claim.",
+    "Software readbacks, Pi acknowledgements and isolated worker inputs do not prove audibility or physical gameplay.",
+    "Private computer details expire after two minutes and restart; other recent requests are bounded to12 turns/eight hours.",
+    "No private screenshots, raw audio, secrets or user email/calendar content retained in this public evidence."
+  ]
+}

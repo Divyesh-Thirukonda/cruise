@@ -87,6 +87,8 @@ class MacAccess(ComputerAudioAccess):
                     before = self.bridge.execute(self.volume_token, paired["next_sequence"], action.split(".")[0] + ".get")
                     paired = self.bridge.session(self.volume_token)
                 result = self.bridge.execute(self.volume_token, paired["next_sequence"], action, value)
+                self.volume = dict(result)
+                self.volume_read_at = time.monotonic()
                 return {**result, **({"before": before, "after": dict(result)} if before is not None else {})}
             except BridgeError as error:
                 raise AgentError(str(error)) from None

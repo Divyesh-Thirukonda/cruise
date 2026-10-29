@@ -4,6 +4,7 @@ These exercise authorization and routing, not a real TLS device connection.
 """
 from http.client import HTTPConnection
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from html.parser import HTMLParser
 import json
 import threading
 import unittest
@@ -203,6 +204,42 @@ class StudioTests(unittest.TestCase):
         self.assertIn("SameSite=Strict", headers["Set-Cookie"])
         self.assertEqual(headers["Cache-Control"], "no-store")
         self.assertIn("frame-ancestors 'none'", headers["Content-Security-Policy"])
+
+    def test_interaction_lab_resources_are_external_and_permitted_by_unchanged_csp(self):
+        _, port = self.start(csrf="synthetic-csrf", cookie="synthetic-session")
+        status, headers, body = self.request(port, "/lab")
+        self.assertEqual(status, 200)
+        csp = headers["Content-Security-Policy"]
+        self.assertIn("script-src 'self'", csp)
+        self.assertIn("style-src 'self'", csp)
+        self.assertNotIn("unsafe-inline", csp)
+        tags = []
+
+        class Tags(HTMLParser):
+            def handle_starttag(self, tag, attrs):
+                tags.append((tag, dict(attrs)))
+
+        Tags().feed(body.decode())
+        scripts = [attrs for tag, attrs in tags if tag == "script"]
+        self.assertEqual(scripts, [{"src": "/lab.js", "defer": None}])
+        self.assertIn(("link", {"rel": "stylesheet", "href": "/lab.css"}), tags)
+        self.assertFalse(any(tag == "style" or "style" in attrs or any(key.startswith("on") for key in attrs)
+                             for tag, attrs in tags))
+        for path, mime in (("/lab.js", "text/javascript"), ("/lab.css", "text/css")):
+            status, headers, content = self.request(port, path)
+            self.assertEqual(status, 200)
+            self.assertTrue(headers["Content-Type"].startswith(mime))
+            self.assertEqual(headers["Content-Security-Policy"], csp)
+            self.assertTrue(content)
+
+    def test_interaction_lab_assets_keep_host_origin_and_device_listener_guards(self):
+        _, port = self.start()
+        _, device_port = self.start(device=True, device_key="synthetic-device", peer="127.0.0.1")
+        for path in ("/lab", "/lab.js", "/lab.css"):
+            with self.subTest(path=path):
+                self.assertEqual(self.request(port, path, headers={"Host": "attacker.example"})[0], 403)
+                self.assertEqual(self.request(port, path, headers={"Origin": "https://attacker.example"})[0], 403)
+                self.assertEqual(self.request(device_port, path, headers={"Authorization": "Bearer synthetic-device"})[0], 403)
 
     def test_device_requires_bearer_and_exact_peer_and_cannot_use_browser_routes(self):
         product, port = self.start(device=True, device_key="synthetic-device", peer="127.0.0.1")

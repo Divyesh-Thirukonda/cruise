@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-29",
+  "installed_commit": "fac25be",
+  "archive_sha256": "bf1803fc28385aaee08419e836bff07cd54628d90cc2bc244fbd67157cfc0533",
+  "host_tests": {
+    "run": 828,
+    "skipped": 11,
+    "result": "passed"
+  },
+  "pi_focused_tests": {
+    "run": 221,
+    "skipped": 0,
+    "seconds": 3.584,
+    "result": "passed"
+  },
+  "live": {
+    "input": "typed local Studio request",
+    "request": "Show connection setup guide; preserve existing pairing, permissions and camera app",
+    "selected_skills": [
+      "connection-setup"
+    ],
+    "meta_calls": 3,
+    "model_cost_or_reservation_delta_dollars": 0.027569,
+    "guide_display": "fresh matching Pi telemetry confirmed setup offer",
+    "physical_confirmation": "User saw Connect your computer and confirmed small B returns to camera app",
+    "after_dismissal_display": "game",
+    "active_revision_preserved": "00157bb8ac8540913bd8734b62ab860533d9c3c4b751fa8454ccefa654573831",
+    "paired": true,
+    "camera_running": true,
+    "permissions_preserved": true,
+    "speaker_delivery": "Pi telemetry delivered; no separate human audio confirmation",
+    "budget_after": {
+      "limit_dollars": 50.0,
+      "charged_or_reserved_dollars": 9.916275,
+      "calls": 482,
+      "halted": false
+    }
+  },
+  "simulated_checks": [
+    "missing/invalid enrollment retains local guide and retries strict HTTPS/pin/private-file validation",
+    "offline startup grace and automatic recovery",
+    "dismissal across repeated heartbeats; recognized wake and fresh controller startup show reminder",
+    "setup A and PTT do not authorize native Mac pairing",
+    "browser codes absent from model results, normal dashboard state and Pi telemetry",
+    "expired/revoked/consumed/replaced codes disappear",
+    "saved runtime paused while setup is shown; no replacement or reset"
+  ],
+  "not_claimed": [
+    "physical unplug/replug trial",
+    "new computer bootstrap or signed companion installer",
+    "standalone Meta inference while offline",
+    "autonomous OS permission grants"
+  ]
+}

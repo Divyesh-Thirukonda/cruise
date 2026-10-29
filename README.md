@@ -50,6 +50,8 @@ Hardware setup now has its own **hardware-debugger** skill. Ask “Hey Meta, che
 
 [Modulate Connect](https://divy.live/connect) adds a phone-friendly remote dashboard, a one-time browser connection code and enforced device access switches. It retains the native Mac companion and the current Pi runtime. Meta and ElevenLabs can use a server-only Vercel gateway without resetting the existing spending ledgers. Camera preview sharing is a separate opt-in. See [connection setup and current deployment limits](context/connect.md); this is one configured hub, not browser-only control of arbitrary phones or computers.
 
+The device has a local **setup mode** for missing enrollment, an unreachable companion or an unpaired Mac. Small screen **A** advances the guide; **B** dismisses it without deleting the saved app. Dismissal lasts for the current boot; restart, a recognized wake phrase while disconnected, or holding small A for one second can reopen it. When the companion is reachable, “Hey Meta, help me connect” uses the **connection-setup** skill to inspect access, display a browser code or prepare native pairing. Physical pairing confirmation and macOS permission grants still belong to the user. [Setup behavior and limits](context/connect.md#on-device-setup).
+
 ## Demonstration flow
 
 1. **Ask and generate.** Show a real spoken game request and the agent/check/activation path. Pixel Kart Sprint was created through text; the later Self Assembly game came through the voice endpoint. Label the particular run accurately.

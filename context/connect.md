@@ -13,6 +13,19 @@ The browser connection expires after eight hours and can be disconnected indepen
 
 Page reloads and companion restarts retain an unexpired browser session. During a companion outage the dashboard disables actions and retries automatically. Disconnect immediately clears the browser's private view; older polling responses cannot restore it. Reconnecting requires a fresh code because the original code was consumed.
 
+## On-device setup
+
+The maintained Pi runtime displays setup locally if enrollment is missing/invalid, the companion cannot be reached after an eight-second startup grace, or the reachable Mac is not paired. This card needs no model/API connection. A healthy paired boot goes straight to the retained app. A missing browser dashboard alone does not interrupt working Mac/voice controls.
+
+- Small PiTFT **A** advances local instructions, prepares a one-use browser code when the public gateway is available, or starts native Mac pairing when a browser is already connected. The card tells you which action will happen.
+- Small PiTFT **B** dismisses setup and preserves the saved app. Dismissal stays in memory for the current process/boot. On a later restart it can remind you again; while disconnected, hold small A for one second to reopen it. A locally recognized wake phrase also reopens a dismissed reminder where wake listening is enabled.
+- **Both** screen buttons retain push-to-talk. Setup actions need a fresh release and press. Preparing native pairing does not approve it: the separate matching-code card still needs another fresh small-A press.
+- Once enrolled and able to reach the companion, say **“Hey Meta, help me connect”** or **“show setup.”** Meta chooses the `connection-setup` skill and trusted `connection_setup` tools to inspect state and prepare the next step. Computer use is not required for these tools. The agent cannot operate the Mac before native pairing or grant its own macOS permissions.
+
+Browser codes appear only in authenticated device setup offers, never the model's results, normal dashboard state or spoken reply. They expire after five minutes and disappear when consumed, replaced or revoked. A fresh matching Pi display telemetry report can confirm that an offered guide is visible; queued work is not reported as physical display success.
+
+This does **not** replace the initial Raspberry Pi OS/Wi-Fi configuration, installation of the companion/runtime, pinned Pi enrollment, or the user's macOS permission dialogs. The setup page and local card explain those remaining human steps. The current public site connects to this configured hub; a signed installer and self-service enrollment for arbitrary computers remain unimplemented.
+
 ## What the switches mean
 
 - **Computer control:** native screenshots, cursor, keyboard and app actions on the companion Mac. macOS Screen Recording and Accessibility permission must also be enabled for the companion's Python/native process.

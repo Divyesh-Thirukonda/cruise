@@ -61,3 +61,7 @@ The paired-Mac/camera extension was installed as `1b8cda7`: 570 host tests ran w
 The user requested shorter output after finished tasks. Successful-action confirmations now target one sentence, usually 5–15 words, with at most one essential control hint. Omit feature tours, tool recaps and unsolicited follow-ups. Requested readouts/explanations, necessary clarifications/failures and specialist handoffs retain the detail they need; no mechanical truncation is applied.
 
 Camera apps should default to native 240×135 detail (`pixelate:1`, natural colors). A request for a fun twist should prefer generated overlays; reduced-detail pixelation stays optional unless explicitly requested. The physical PiTFT resolution is not increased by this change.
+
+## Mac audio through the Pi
+
+The user requested that the Pi become a speaker for the paired Mac. The host now captures system audio locally with ScreenCaptureKit, using 48 kHz stereo S16LE and bounded in-memory chunks. No microphone, audio file, model upload or loopback driver is involved. Capture initially mirrors the Mac; the separate `MacAudioRoute` may mute the Mac only after the receiver acknowledges playback, then restore its prior mute on stop. It never changes the volume level and avoids restoring onto a different output or overriding an observed external unmute. Native capture, capture while muted, and mute/restore passed; physical Pi playback remains a separate trial. See [setup and limits](product-runtime.md#mac-system-audio-capture-and-routing).

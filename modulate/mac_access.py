@@ -9,9 +9,10 @@ import uuid
 
 from .agent import AgentError
 from .host_bridge import BridgeError
+from .computer_audio_access import ComputerAudioAccess
 
 
-class MacAccess:
+class MacAccess(ComputerAudioAccess):
     def _init_mac_access(self):
         self.computer_paused = False
         self.camera = None

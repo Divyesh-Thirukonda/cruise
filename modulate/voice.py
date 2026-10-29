@@ -5,6 +5,8 @@ prototype transcript matcher, not a dedicated wake-word model. It also accepts
 Whisper's spelling "Hey Metta". A wake-only probe follows 500 ms of silence
 while capture continues; final recognition may pause capture. Ambient inference
 stays visually passive. Cached faster-whisper tiny.en weights must already exist.
+During computer-audio playback, bounded rolling wake probes do not require a
+silence gap. This remains transcript matching, not acoustic echo cancellation.
 
 The selected USB microphone captures native 48 kHz mono int16 in 25-ms blocks.
 PyAV/FFmpeg resamples on the worker to 16 kHz for bundled Silero VAD and Whisper; the microphone
@@ -38,6 +40,9 @@ MAX_AUDIO_BYTES = SAMPLE_RATE * 2 * 25
 END_SILENCE_BLOCKS = 120
 PTT_NO_SPEECH_BLOCKS = 320
 WAKE_PATTERN = re.compile(r"^[\W_]*hey[\s,!.:;\-–—]*met(?:a|ta)\b", re.IGNORECASE)
+PLAYBACK_WAKE_PATTERN = re.compile(r"(?<!\w)hey[\s,!.:;\-–—]*met(?:a|ta)\b", re.IGNORECASE)
+PLAYBACK_PROBE_BLOCKS = 120  # At most three seconds of recent 16 kHz audio.
+PLAYBACK_PROBE_INTERVAL_BLOCKS = 80  # No more than one start per two seconds.
 VOCABULARY_PROMPT = "Modulate, Meta, kart, knob, coins."
 INPUT_LATENCY_SECONDS = 0.25
 CANCEL_PATTERN = re.compile(r"(?:cancel(?: (?:the )?(?:rebuild|build))?|stop(?: building)?)[.!?]*", re.IGNORECASE)
@@ -60,6 +65,14 @@ def wake_remainder(text):
     while (match := WAKE_PATTERN.match(remainder)) is not None:
         remainder = remainder[match.end():].lstrip(" \t\r\n,!.:;-–—").strip()
     return remainder
+
+
+def _playback_wake_text(text):
+    """Only playback probes may skip preceding media text to find an invocation."""
+    if type(text) is not str or len(text) > 2000:
+        return None
+    match = PLAYBACK_WAKE_PATTERN.search(text)
+    return text[match.start():] if match is not None else None
 
 
 class WakeGate:
@@ -98,6 +111,7 @@ class Utterance:
     transcript: str | None = None
     invoked: bool = False
     followup_id: str | None = None
+    playback_wake: bool = False
 
 
 def pcm_rms(audio):
@@ -249,6 +263,8 @@ class VoiceListener:
         self._selected = None
         self._enabled = self._pending_ptt = self._ptt_active = self._transcribing = False
         self._busy = False
+        self._playback_active = False
+        self._playback_generation = 0
         self._followup_id = None
         self._followup_seen = deque(maxlen=64)
         self._followup_from = self._followup_until = 0.0
@@ -340,6 +356,19 @@ class VoiceListener:
             self._epoch += 1
             self._changed.set()
             return True
+
+    def set_playback_active(self, active):
+        """Enable rolling wake checks without interrupting ordinary capture.
+
+        A transition invalidates only a pending playback probe. Repeated state
+        updates must not reset a request, follow-up window or the microphone.
+        """
+        if type(active) is not bool:
+            raise ValueError("Playback active must be a boolean")
+        with self._lock:
+            if self._playback_active != active:
+                self._playback_active = active
+                self._playback_generation += 1
 
     def request_ptt(self):
         with self._lock:
@@ -467,10 +496,12 @@ class VoiceListener:
         except Exception:
             raise VoiceError("Local speech activity model unavailable; check the installed speech dependencies") from None
         native_blocks = 0
+        audio_blocks = playback_next_block = 0
         voiced = 0
         probe = completed = None
         completed_voiced = 0
         confirmed = False
+        playback_confirmed = False
         last_audio = started = time.monotonic()
         awaiting_command = self._gate.armed(started)
         with sd.RawInputStream(device=index, channels=1, samplerate=CAPTURE_RATE,
@@ -480,6 +511,13 @@ class VoiceListener:
                 with self._lock:
                     if epoch != self._epoch or (not ptt and (not self._enabled or self._pending_ptt)):
                         return None
+                    playback = self._playback_active and not self._busy
+                    playback_generation = self._playback_generation
+                if (probe is not None and probe.get("playback") and not probe["handled"]
+                        and (not playback or probe["playback_generation"] != playback_generation)):
+                    # An old worker can finish, but cannot arm a new listening
+                    # session after the route was stopped or replaced.
+                    probe = None
                 if followup_id and time.monotonic() >= followup_until and not self._vad.active:
                     return None  # The answer window ends silently; normal wake listening resumes.
                 if self._overflow.is_set():
@@ -487,10 +525,18 @@ class VoiceListener:
                 if not stream.active:
                     raise VoiceError("Selected microphone stream stopped; retrying the same device")
                 if probe is not None and probe["done"].is_set() and not probe["handled"]:
+                    if (probe.get("playback")
+                            and not (completed is not None and completed.started_at == probe["segment_started_at"])
+                            and not (self._vad.active and self._vad.started_at == probe["segment_started_at"])):
+                        probe = None  # This rolling probe's audio has already been discarded.
+                        continue
                     probe["handled"] = True
                     if probe["error"]:
                         raise VoiceError("Local wake recognition failed; partial recording discarded")
-                    remainder = wake_remainder(probe["text"] or "")
+                    probe_text = probe["text"] or ""
+                    if probe.get("playback"):
+                        probe_text = _playback_wake_text(probe_text) or ""
+                    remainder = wake_remainder(probe_text)
                     if remainder is not None:
                         # A fresh wake after rejected ambient speech belongs to
                         # its own request, without the earlier conversation.
@@ -506,13 +552,31 @@ class VoiceListener:
                             else:
                                 raise VoiceError("Wake audio changed; partial recording discarded")
                         confirmed = True
+                        playback_confirmed = bool(probe.get("playback"))
                         if not remainder:
-                            self._gate.accept(probe["text"], now=time.monotonic())
+                            self._gate.accept(probe_text, now=time.monotonic())
                             awaiting_command = True
                         self._emit("listening", "Wake phrase heard; pause three seconds when finished")
+                    elif probe.get("playback"):
+                        # Ambient playback need not retain a growing 25-second
+                        # transcript. Trim only after a negative probe completes,
+                        # never while a worker still refers to this buffer.
+                        if (self._vad.active and completed is None
+                                and self._vad.started_at == probe["segment_started_at"]):
+                            trim = max(0, len(self._vad.chunks) - PLAYBACK_PROBE_BLOCKS)
+                            self._vad.chunks = self._vad.chunks[trim:]
+                            self._vad.started_at += trim * BLOCK_SECONDS
+                        probe = None
+                    elif playback:
+                        # A normal silence-triggered probe may finish just
+                        # after playback starts. Its negative result must not
+                        # prevent the new rolling checks.
+                        probe = None
                 if completed is not None and not self._vad.active and (probe is None or probe["done"].is_set()):
                     if probe is not None and completed_voiced == probe["voiced"]:
                         text = probe["text"] or ""
+                        if probe.get("playback"):
+                            text = _playback_wake_text(text) or ""
                         remainder = wake_remainder(text)
                         if not remainder:
                             # Ambient speech or a bare/repeated wake phrase needs
@@ -520,10 +584,13 @@ class VoiceListener:
                             # including any followup already in the VAD buffer.
                             completed, probe = None, None
                             confirmed = self._gate.armed(time.monotonic())
+                            playback_confirmed = False
                         else:
-                            return Utterance(completed.audio, completed.started_at, text, True)
+                            return Utterance(completed.audio, completed.started_at, text, True,
+                                             playback_wake=playback_confirmed)
                     else:
-                        return Utterance(completed.audio, completed.started_at, invoked=confirmed)
+                        return Utterance(completed.audio, completed.started_at, invoked=confirmed,
+                                         playback_wake=playback_confirmed)
                 if ptt:
                     self._emit("listening", "Push-to-talk: pause three seconds when finished")
                 elif followup_id:
@@ -544,6 +611,7 @@ class VoiceListener:
                 native_blocks += 1
                 blocks = converter.feed(audio)
                 for audio in blocks:
+                    audio_blocks += 1
                     speaking = activity.feed(audio)
                     voiced += int(speaking)
                     utterance = self._vad.feed(audio, timestamp, speaking=speaking)
@@ -563,10 +631,23 @@ class VoiceListener:
                         completed_voiced = voiced
                     if (completed is not None and len(completed.audio) + len(self._vad.chunks) * BLOCK_BYTES >= MAX_AUDIO_BYTES):
                         raise VoiceError("Speech reached the 25-second limit; nothing submitted. Try a shorter request")
-                    retry_probe = (probe is not None and probe["handled"]
+                    rolling = (playback and not ptt and not followup_id and not confirmed
+                               and not self._gate.armed(timestamp))
+                    if (rolling and probe is None and self._vad.active and self._vad.voiced >= 3
+                            and audio_blocks >= playback_next_block
+                            and len(self._vad.chunks) >= PLAYBACK_PROBE_INTERVAL_BLOCKS):
+                        offset = max(0, len(self._vad.chunks) - PLAYBACK_PROBE_BLOCKS)
+                        fresh = self._start_probe(b"".join(self._vad.chunks[offset:]), voiced)
+                        if fresh is not None:
+                            fresh.update(playback=True, playback_generation=playback_generation,
+                                         offset=offset, end_chunk=len(self._vad.chunks),
+                                         segment_started_at=self._vad.started_at)
+                            probe = fresh
+                            playback_next_block = audio_blocks + PLAYBACK_PROBE_INTERVAL_BLOCKS
+                    retry_probe = (probe is not None and probe["handled"] and not probe.get("playback")
                                    and wake_remainder(probe["text"] or "") is None
                                    and voiced >= probe["voiced"] + 3 and completed is None)
-                    if (not ptt and not followup_id and (probe is None or retry_probe) and not confirmed
+                    if (not rolling and not ptt and not followup_id and (probe is None or retry_probe) and not confirmed
                             and not self._gate.armed(timestamp) and self._vad.active
                             and self._vad.silence >= 20 and self._vad.voiced >= 3):
                         offset = max(0, probe["end_chunk"] - 10) if retry_probe else 0
@@ -624,8 +705,13 @@ class VoiceListener:
             remainder = wake_remainder(text)
             request = text if remainder is None else remainder
         else:
+            if utterance.playback_wake:
+                # Never turn the media prefix into a command. If final ASR lost
+                # the confirmed wake phrase, ask again instead of forwarding
+                # arbitrary preceding audio as the user's instruction.
+                text = _playback_wake_text(text) or ""
             request = self._gate.accept(text, now=now, started_at=utterance.started_at)
-            if request is None and utterance.invoked and wake_remainder(text) is None:
+            if request is None and utterance.invoked and not utterance.playback_wake and wake_remainder(text) is None:
                 # The trusted probe already heard the anchored wake phrase in
                 # this same retained audio; final recognition may omit it.
                 self._gate.reset()

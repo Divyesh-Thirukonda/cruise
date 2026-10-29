@@ -221,6 +221,10 @@
     $("computer-revoke").disabled = !ui.online || pending;
     $("computer-stop-live").disabled = !ui.online || pending;
     if (enabled) text("computer-expiry", "Access follows the paired device. Pause or revoke it at any time.");
+    const audio = ui.state?.computer_audio;
+    const receiver = ui.state?.device?.telemetry?.computer_audio;
+    text("audio-status", audio?.error || receiver?.error || (audio?.running ? `Computer audio → Pi speaker · ${receiver?.state || "connecting"}` : "Computer audio idle · starts when requested"));
+    $("audio-stop").hidden = audio?.running !== true;
     const camera = ui.state?.camera;
     text("camera-status", camera?.error || (camera?.state === "running" ? "Camera live · local Mac → Pi stream" : camera?.state === "starting" ? "Camera connecting…" : "Camera idle · starts when requested"));
     $("camera-stop").hidden = camera?.running !== true;
@@ -310,6 +314,19 @@
     $("program-kind").dataset.status = running ? "busy" : active ? "active" : "idle";
     text("active-revision", active?.revision ? `REV ${String(active.revision).slice(0, 8).toUpperCase()}` : "REV —");
     text("generation-note", running ? (active ? "Your current program is preserved and paused on the Pi while this request is processed." : "The Pi shows progress while the agent handles your request.") : "Requests can create checked programs or use the capabilities you have enabled.");
+
+    if (state?.computer_audio?.running && !running) {
+      text("preview-title", "Mac speaker");
+      text("program-kind", "COMPUTER AUDIO");
+      text("generation-note", "Your current app is retained. Stop computer audio to return to it.");
+      $("preview-image").hidden = true;
+      $("preview-placeholder").hidden = false;
+      $("preview-placeholder").dataset.mode = "empty";
+      const receiver = state?.device?.telemetry?.computer_audio;
+      setPlaceholder("Your Mac, through Modulate", receiver?.error || (receiver?.playing ? "Playing computer audio · B to stop" : "Connecting audio · play something on your Mac"));
+      text("preview-origin", "Audio status · local Mac → Pi");
+      return;
+    }
 
     if (!active) {
       ui.previewKey = null;
@@ -654,6 +671,7 @@
   $("voice-draft-edit").addEventListener("click", () => updateDraft("pause"));
   $("voice-draft-send").addEventListener("click", () => updateDraft("send"));
   $("voice-draft-discard").addEventListener("click", () => updateDraft("discard"));
+  $("audio-stop").addEventListener("click", () => action("audio", "/api/audio/stop", {}));
   $("camera-stop").addEventListener("click", () => action("camera", "/api/camera/stop", {}));
   $("computer-enable").addEventListener("click", () => computerAction("enable"));
   $("computer-revoke").addEventListener("click", () => computerAction("revoke"));

@@ -185,6 +185,11 @@ verification or driver files to implement an app. Existing system permissions,
 task scope and consequential-action authorization still apply in these tools.
 Stop after completing the user's actual task. A computer task leaves the current
 device app in place. Do not copy screen/email content into an application package.
+For "turn into a speaker for my computer", use computer_audio start. This streams
+Mac system audio locally to the Pi speaker, without a new macOS output device or
+a generated app. Do not tell the user to manually select the Pi in Sound settings.
+Use computer_audio stop to end it. Preserve the current app for return. Audio never
+goes to the model. Inspect returned status and report actual errors accurately.
 Use system_control for advertised volume/brightness reads and bounded changes;
 check its result rather than assuming every display supports native brightness.
 For a camera-on-the-mini-screen request, use camera_control to start the paired
@@ -219,6 +224,8 @@ TOOLS = [
          {"observation_id": {"type": "string"}, "action": {"type": "object", "description": "click/double_click: x,y integers 0–1000; origin screenshot top-left, bottom-right 1000,1000. Other action shapes are in the system instructions."},
           "requires_confirmation": {"type": "boolean"}, "description": {"type": "string"}},
          ["observation_id", "action", "requires_confirmation", "description"]),
+    tool("computer_audio", "Start, stop or inspect local Mac system audio playback through the Pi speaker. Requires paired Mac and connected speaker. No generated app or manual output selection is needed. Returns metadata only.",
+         {"action": {"type": "string", "enum": ["start", "stop", "status"]}}, ["action"]),
     tool("camera_control", "Start, stop or inspect the paired Mac's local live-camera stream for the mini display. Returns metadata only, never raw camera frames. Start may return starting; check status instead of restarting.",
          {"action": {"type": "string", "enum": ["start", "stop", "status"]}}, ["action"]),
     tool("system_control", "Read or adjust an advertised paired Mac system setting. Omit value for get, use integer 0–100 for set, integer -10–10 for delta, and boolean for volume.mute. Native brightness may be unavailable.",
@@ -435,12 +442,12 @@ class Orchestrator:
             raise
 
     def loop(self, text, role, turns):
-        tools = TOOLS if role == "orchestrator" else [item for item in TOOLS if item["function"]["name"] not in {"delegate_task", "activate_package", "ask_user", "computer_observe", "computer_act", "camera_control", "system_control"}]
+        tools = TOOLS if role == "orchestrator" else [item for item in TOOLS if item["function"]["name"] not in {"delegate_task", "activate_package", "ask_user", "computer_observe", "computer_act", "camera_control", "computer_audio", "system_control"}]
         prompt = SYSTEM if role == "orchestrator" else SYSTEM + f"\nYou are the {role} specialist. Return candidate IDs, observations and any missing user intent to the orchestrator. Never activate or ask the user directly."
         messages = [{"role": "system", "content": prompt}, {"role": "user", "content": text}]
         for _ in range(turns):
             if self.private_request:
-                tools = [item for item in TOOLS if item["function"]["name"] in {"computer_observe", "computer_act", "camera_control", "system_control", "ask_user", "inspect_capabilities"}]
+                tools = [item for item in TOOLS if item["function"]["name"] in {"computer_observe", "computer_act", "camera_control", "computer_audio", "system_control", "ask_user", "inspect_capabilities"}]
                 self.service.computer_authorized()
             if self.cancelled.is_set():
                 raise AgentError("Cancelled by user; no further tool actions")
@@ -571,12 +578,14 @@ class Orchestrator:
                     or (expected.get("type") == "boolean" and type(value) is not bool)
                     or ("enum" in expected and value not in expected["enum"])):
                 raise AgentError("Tool argument has an invalid type or value")
-        if role != "orchestrator" and name in {"activate_package", "delegate_task", "ask_user", "computer_observe", "computer_act", "camera_control", "system_control"}:
+        if role != "orchestrator" and name in {"activate_package", "delegate_task", "ask_user", "computer_observe", "computer_act", "camera_control", "computer_audio", "system_control"}:
             raise AgentError("Specialists cannot activate, ask the user, or spawn further specialists")
         if getattr(self, "clarification", None) is not None:
             raise AgentError("Waiting for the user's clarification")
-        if self.private_request and name not in {"computer_observe", "computer_act", "camera_control", "system_control", "ask_user", "inspect_capabilities"}:
+        if self.private_request and name not in {"computer_observe", "computer_act", "camera_control", "computer_audio", "system_control", "ask_user", "inspect_capabilities"}:
             raise AgentError("Computer task contents cannot be written into device packages or delegated")
+        if name == "computer_audio":
+            return self.service.computer_audio(arguments["action"])
         if name == "camera_control":
             return self.service.camera_control(arguments["action"])
         if name == "system_control":

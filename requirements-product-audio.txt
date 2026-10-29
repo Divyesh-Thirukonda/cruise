@@ -1,0 +1,7 @@
+# Optional native Mac system-audio capture. No loopback driver or cloud service.
+pyobjc-framework-ScreenCaptureKit==12.2.2; sys_platform == 'darwin'
+pyobjc-framework-CoreMedia==12.2.2; sys_platform == 'darwin'
+pyobjc-framework-CoreAudio==12.2.2; sys_platform == 'darwin'
+pyobjc-framework-Cocoa==12.2.2; sys_platform == 'darwin'
+pyobjc-framework-Quartz==12.2.2; sys_platform == 'darwin'
+pyobjc-framework-libdispatch==12.2.2; sys_platform == 'darwin'

@@ -25,6 +25,7 @@ from .device_transport import Companion, TransportError, save_private
 from .hardware import Screen
 from .rendering import font
 from .speaker import Speaker
+from .audio_receiver import AudioReceiver
 from .voice import VoiceListener
 
 
@@ -92,6 +93,9 @@ class Controller:
                                    on_cancel=self.cancel_request, on_unclear=self.unclear)
         self.speaker = Speaker(self.speaker_status, audio_fetch=self.companion.speech_audio)
         self.speaker_state = self.speaker.snapshot()
+        self.computer_audio = AudioReceiver(self._fetch_computer_audio,
+            sink=self.speaker_state.get("output") if self.speaker_state.get("pcm_backend") == "paplay" else None)
+        self.audio_blocked = None
         self.status_key = None
         self.dismissed_pairing = None
         self.pairing_in_flight = False
@@ -178,6 +182,45 @@ class Controller:
                 and math.isfinite(question["expires_at"]) and question["expires_at"] > time.time()):
             identifier = question["id"]
         self.voice.set_followup(identifier, seconds=20)
+        self._sync_computer_audio()
+
+    def _fetch_computer_audio(self, session, after, cancel):
+        if cancel.is_set():
+            return None
+        result = self.companion.post("audio", {"session": session, "after": after})
+        return None if cancel.is_set() else result.get("packet")
+
+    def _sync_computer_audio(self):
+        receiver = getattr(self, "computer_audio", None)
+        if receiver is None:
+            return
+        if (receiver.snapshot().get("output") is None and self.speaker_state.get("pcm_backend") == "paplay"
+                and self.speaker_state.get("output")):
+            receiver.set_sink(self.speaker_state["output"])
+        offer = self.host.get("computer_audio") or {}
+        session = offer.get("session")
+        enabled = (self._job_id(session) and offer.get("format") == "pcm_s16le_48000_stereo"
+                   and session != self.audio_blocked and time.monotonic() - self.last_response < 4)
+        receiver.set_enabled(bool(enabled), session)
+        voice = self.voice_state
+        listening = voice.get("state") == "transcribing" or (voice.get("state") == "listening" and
+                    voice.get("message", "").startswith(("Push-to-talk", "Wake phrase heard", "Listening for your answer")))
+        receiver.set_ducked(bool(self._speech_guard() or self._busy() or listening
+                                or self.host.get("clarification") or self.host.get("speech_pending")))
+        if hasattr(self.voice, "set_playback_active"):
+            audio_state = receiver.snapshot()
+            self.voice.set_playback_active(audio_state["enabled"] and not audio_state["ducked"])
+
+    def _stop_computer_audio(self):
+        receiver = getattr(self, "computer_audio", None)
+        if receiver is None:
+            return False
+        state = receiver.snapshot()
+        if state["enabled"]:
+            self.audio_blocked = state["session"]
+            receiver.set_enabled(False)
+            return True
+        return False
 
     def _update_speech(self, response):
         stop_id = response.get("speech_stop_id", 0)
@@ -256,6 +299,7 @@ class Controller:
 
     def cancel_request(self):
         stopped_audio = self._stop_speech()
+        stopped_audio = self._stop_computer_audio() or stopped_audio
         with self.lock:
             if self.build and self.build.get("awaiting_response"):
                 try:
@@ -366,6 +410,7 @@ class Controller:
                                                    "frame_fresh": camera_fresh},
                                         "voice_history": list(self.voice_history),
                                         "speaker": dict(self.speaker_state),
+                                        "computer_audio": self.computer_audio.snapshot() if hasattr(self, "computer_audio") else {},
                                         "processing": {"busy": bool(self._busy()),
                                                        **{key: (self.build or {}).get(key) for key in
                                                           ("job_id", "job_sequence", "phase", "title")}},
@@ -375,6 +420,8 @@ class Controller:
                     packet["failure"] = self.state["failure"]
                 if self.speech_ack is not None:
                     packet["speech_ack"] = self.speech_ack
+                if getattr(self, "audio_blocked", None):
+                    packet["audio_stopped"] = self.audio_blocked
                 if self.pairing.get("token"):
                     packet["volume_token"] = self.pairing["token"]
             response = self.companion.post("heartbeat", packet)
@@ -478,6 +525,8 @@ class Controller:
     def _handle_buttons(self, sample, started):
         sample = dict(sample)
         a, b, valid = self._tft_buttons()
+        if valid and b and not a:
+            self._stop_computer_audio()
         if valid and not b:
             self.speech_button_held = False
         if valid and b and self._speaker_active() and not self.speech_button_held:
@@ -659,6 +708,7 @@ class Controller:
 
     def run(self):
         self.speaker.start()
+        self.computer_audio.start()
         self.voice.start()
         worker = threading.Thread(target=self.network, name="modulate-link", daemon=True)
         worker.start()
@@ -681,10 +731,11 @@ class Controller:
                                 voice_message.startswith(("Push-to-talk", "Wake phrase heard", "Listening for your answer")))
                 busy = self.build is not None
                 speaking = self._speaker_active()
+                streaming = self.computer_audio.snapshot().get("enabled")
                 clarification = self.host.get("clarification")
                 question = clarification.get("question") if type(clarification) is dict else None
                 feedback = self._feedback_card()
-                overlay = speaking or busy or feedback is not None or self._offer() is not None or voice_overlay or bool(question)
+                overlay = streaming or speaking or busy or feedback is not None or self._offer() is not None or voice_overlay or bool(question)
                 if overlay:
                     sample["encoder_delta"] = 0
                 # A modal pairing/voice card temporarily pauses the game rather
@@ -719,6 +770,11 @@ class Controller:
                     footer = ("Say Hey Meta to answer" if voice == "wake_listening" and not waiting
                               else "Reply after I finish speaking")
                     self.status("Quick question", "\n".join(textwrap.wrap(question, 31)[:3]) + "\n" + footer)
+                elif streaming:
+                    audio = self.computer_audio.snapshot()
+                    detail = audio.get("error") or ("Playing computer audio" if audio.get("playing") else "Waiting for computer audio")
+                    self.status("Mac speaker", detail + "\nB: stop · Both buttons: talk")
+                    self._displayed("computer_audio", "Mac speaker")
                 elif self.host.get("agent_running") and not current.get("kind"):
                     self.status("Reinventing...", "Meta is building and testing\nFollow progress in Studio")
                 elif current.get("kind") == "control":
@@ -737,6 +793,7 @@ class Controller:
                 self.stop.wait(max(0, 0.05 - (time.monotonic() - started)))
         finally:
             self.stop.set()
+            self.computer_audio.stop()
             self.speaker.stop()
             self.voice.stop()
             worker.join(timeout=4)

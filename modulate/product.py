@@ -39,6 +39,7 @@ _TOOL_PROGRESS = {
     "computer_observe": ("planning", "Looking at the computer"),
     "computer_act": ("planning", "Using the computer"),
     "camera_control": ("planning", "Connecting the Mac camera"),
+    "computer_audio": ("planning", "Connecting computer audio"),
     "system_control": ("planning", "Adjusting the Mac"),
 }
 
@@ -246,6 +247,9 @@ class Product(AssistantIO):
                     "paired_host": paired,
                     "computer": {key: value for key, value in self.computer_status().items()
                                  if key in {"supported", "enabled", "scope"}},
+                    "computer_audio": {"supported": self.audio_status()["supported"],
+                                       "source": "paired_mac", "local_stream_only": True,
+                                       "format": "pcm_s16le_48000_stereo"},
                     "camera": {"supported": self.camera_status()["supported"],
                                "source": "paired_mac", "local_stream_only": True,
                                "width": 240, "height": 135},
@@ -547,6 +551,7 @@ class Product(AssistantIO):
             if job_id is not None and (not self.running or job_id != self.progress["job_id"]):
                 return {"cancelled": False, "reason": "That request has already finished"}
             self.agent.cancelled.set()
+            self.stop_computer_audio()
             self.computer.cancel()
             self._stop_speech()
             self.response = None
@@ -743,6 +748,8 @@ class Product(AssistantIO):
             self._acknowledge(packet.get("ack"))
             if failure is None:
                 self._restore_host_program()
+            if isinstance(packet.get("audio_stopped"), str):
+                self.stop_computer_audio(packet["audio_stopped"])
             self._sync_camera()
             if self.active and self.device_revision == self.revision:
                 if self.active["package"]["kind"] == "game" and commands:
@@ -783,7 +790,7 @@ class Product(AssistantIO):
                 if self.pending["phase"] == "stage":
                     pending["package"] = self.pending["package"]
             return {**self._assistant_heartbeat(packet),
-                    "camera_frame": self._camera_packet(),
+                    "camera_frame": self._camera_packet(), "computer_audio": self.audio_offer(),
                     "activation": pending, "active_revision": self.revision, "wake": self.wake,
                     "agent_running": self.running, "agent_state": self.agent_state(),
                     "clarification": self._clarification_state(),
@@ -882,6 +889,7 @@ class Product(AssistantIO):
             self.volume_read_at = None
             self.pairing = None
             self.computer.revoke()
+            self.stop_computer_audio()
             if self.camera:
                 self.camera.stop()
             if self.running:
@@ -912,7 +920,7 @@ class Product(AssistantIO):
                     "active": self.active, "candidate": self.candidate,
                     "agent": self.agent_state(),
                     "computer": self.computer_status(), "response": self._response_state(),
-                    "camera": self.camera_status(),
+                    "camera": self.camera_status(), "computer_audio": self.audio_status(),
                     "speech": self.speech_status(),
                     "voice_draft": copy.deepcopy(self.voice_draft),
                     "clarification": self._clarification_state(),

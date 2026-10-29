@@ -252,3 +252,18 @@ Installed `5a30a28` on host and Pi after the successful direct-answer trial. Thi
 Final paired-Mac evidence: [sanitized camera/desktop record](evidence/paired-mac-camera.json). The final trial ledger is **256 calls / $6.125349 held or used**, under the unchanged $50 ceiling. Native primary-display scope, keyboard repairs and live camera are implemented; arbitrary Mac workflows remain unmeasured.
 
 Final deployment `41f91e5` was installed on host and Pi with the archive SHA256 verified. All **185 final Pi checks passed without skips in 6.547 s**; the service is active, pairing restored automatically, and fresh camera frames/display recovered after restart. No new model call was used for restoration.
+
+
+## Mac system-audio capture and routing
+
+Optional host dependency installation:
+
+```sh
+.venv/bin/python -m pip install -r requirements-product-audio.txt
+```
+
+This requires macOS 13+ and native Screen and System Audio Recording access. `SystemAudio.refresh_access()` checks access without prompting; construction/status do not start capture. Explicit `start()` launches the audio worker. `chunk(after, session, timeout=0.5)` returns bounded 48 kHz stereo S16LE bytes with a session, sequence and reset flag; `stop()` clears the in-memory queue. The stream is local, contains system output rather than microphone input, and never goes to Meta or disk. It is separate from ElevenLabs reply audio.
+
+The optional `MacAudioRoute` mutes the existing Mac output only after the Pi acknowledges playback. Its `stop()` restores the prior mute when it still owns the same output, without changing volume. Output changes or an observed manual unmute are respected. Stop/revoke and orderly shutdown must call both helpers; a force-killed host may require manually unmuting the Mac.
+
+Host validation: **21 focused synthetic tests passed**. A native six-second capture received 58 packets / 1,113,600 bytes and stopped cleanly. Capture remained nonzero with Mac output muted, and a native mute/restore probe restored the original state without changing volume. No audio was retained. These are host probes; Pi audibility, continuous playback latency and wake interruption remain to validate live.

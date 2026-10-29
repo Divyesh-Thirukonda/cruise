@@ -175,6 +175,12 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
                 if device:
                     if path == "/device/speech":
                         return self.send(200, product.get_speech_audio(data.get("id")), "application/octet-stream")
+                    elif path == "/device/audio":
+                        result = product.audio_packet(data.get("session"), data.get("after"))
+                    elif path == "/device/audio/stop":
+                        if not isinstance(data.get("session"), str):
+                            raise ValueError("Identify the stream to stop")
+                        result = product.stop_computer_audio(data["session"])
                     elif path == "/device/heartbeat":
                         result = product.heartbeat(data)
                     elif path == "/device/request":
@@ -200,6 +206,8 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
                     result = product.draft(data.get("job_id"), data.get("action"), data.get("text"))
                 elif path == "/api/computer":
                     result = product.computer_session(data.get("action"), minutes=data.get("minutes", 15))
+                elif path == "/api/audio/stop":
+                    result = product.stop_computer_audio()
                 elif path == "/api/camera/stop":
                     result = product.stop_camera()
                 elif path == "/api/computer/approval":
@@ -272,6 +280,7 @@ def main():
     except KeyboardInterrupt:
         product.cancel()
     finally:
+        product.stop_computer_audio()
         if product.camera:
             product.camera.stop()
         studio.server_close()

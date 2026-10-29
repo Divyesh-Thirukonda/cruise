@@ -61,6 +61,7 @@ class AssistantIO(MacAccess):
         self.computer_paused = True
         self._save_mac_access()
         self.computer.revoke()
+        self.stop_computer_audio()
         if self.camera:
             self.camera.stop()
         if self.running and self.agent.private_request:
@@ -258,6 +259,7 @@ class AssistantIO(MacAccess):
     def speaker_action(self, action):
         with self.lock:
             if action == "stop":
+                self.stop_computer_audio()
                 self._stop_speech()
             elif action == "test":
                 if not self.connected():

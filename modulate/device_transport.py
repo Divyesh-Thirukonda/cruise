@@ -61,7 +61,7 @@ class Companion:
                                                  urllib.request.HTTPSHandler(context=context))
 
     def post(self, action, data):
-        if action not in {"heartbeat", "request", "pair", "rollback", "cancel", "unclear"}:
+        if action not in {"heartbeat", "request", "pair", "rollback", "cancel", "unclear", "audio", "audio/stop"}:
             raise TransportError("Unknown companion action")
         try:
             body = json.dumps(data, allow_nan=False).encode()

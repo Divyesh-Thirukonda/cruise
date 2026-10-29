@@ -59,3 +59,5 @@ The paired-Mac/camera extension was installed as `1b8cda7`: 570 host tests ran w
 ## Completion reply style
 
 The user requested shorter output after finished tasks. Successful-action confirmations now target one sentence, usually 5–15 words, with at most one essential control hint. Omit feature tours, tool recaps and unsolicited follow-ups. Requested readouts/explanations, necessary clarifications/failures and specialist handoffs retain the detail they need; no mechanical truncation is applied.
+
+Camera apps should default to native 240×135 detail (`pixelate:1`, natural colors). A request for a fun twist should prefer generated overlays; reduced-detail pixelation stays optional unless explicitly requested. The physical PiTFT resolution is not increased by this change.

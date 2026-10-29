@@ -60,6 +60,10 @@ respectively; x/y use the normal finite coordinate bounds -1024..1024.
 The trusted renderer supplies the actual live camera image locally; no raw
 pixels reach generated code or the model. Use clear first, then camera, then
 generated sprites/text/geometry for responsive overlays and procedural animation.
+Default to pixelate:1 and palette:'natural' for a clear camera image. For a fun
+twist, prefer generated overlays; make reduced-detail pixelation optional unless
+the user explicitly requests a pixelated look. The physical display is 240x135;
+do not promise a higher physical resolution.
 The visible original-sprite requirement still applies. Choose an appealing effect
 and meaningful controls without asking the user to select technical parameters.
 Sprites reference package assets. Use clear first every frame. Coordinates may be

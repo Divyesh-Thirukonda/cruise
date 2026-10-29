@@ -2,10 +2,10 @@
   "date": "2026-10-29",
   "deployment": {
     "url": "https://divy.live/connect",
-    "portfolio_main": "b74d20308f93504ff84cba746b211229130750d0",
-    "vercel_id": "dpl_GN1cLPYrEmYJ7kF7SjCoyACYyC4V",
+    "portfolio_main": "07c20fb68dd4e168062fe50f4684b09175dbf38e",
+    "vercel_id": "dpl_78KYRAruGTB2QDvqNJsffqEg3N17",
     "status": "READY",
-    "companion_commit": "d308eff"
+    "companion_commit": "13ea878"
   },
   "checks": {
     "host_suite": {
@@ -81,5 +81,38 @@
     "Development Cloudflare tunnel must remain running; recreation changes its origin.",
     "Camera preview sharing remains off by default.",
     "These specific live trials do not establish general computer-use or network reliability."
-  ]
+  ],
+  "browser_ui_followup": {
+    "date": "2026-10-29",
+    "surface": "Production divy.live/connect, Codex in-app browser; physical Pi and Mac companion",
+    "pairing_form": "passed; one-use local Studio code connected to the real Pi/Mac",
+    "reload_session": "passed; current app, paired Mac and permissions returned without a new code",
+    "system_permission_toggle": "passed; disabled through the visible switch, independently read on the companion, then restored",
+    "code_and_checks": "passed; actual camera package source and saved verification report visible",
+    "companion_restart": "passed; offline warning appeared, automatic recovery retained browser session and current application",
+    "disconnect": "passed; private dashboard cleared and companion reported zero browser sessions; native Pi/Mac pairing and camera kept running",
+    "used_code": "rejected with instruction to create a new connection code",
+    "fresh_code_reconnect": "passed",
+    "repairs": [
+      "Reauthenticate queued state snapshots and wake commands under the product lock",
+      "Invalidate stale polls across mutations, coalesce refreshes, clear local private state on disconnect",
+      "Publish session/device together and retain authenticated offline state on initial state failure"
+    ],
+    "focused_host_tests": 47,
+    "frontend_unit_tests": 13,
+    "production_build": "passed with pre-existing html5-qrcode source-map warnings",
+    "additional_model_calls": 0,
+    "final_browser_sessions": 1,
+    "remote_camera_preview": false,
+    "physical_phone_test": false,
+    "companion_commit": "13ea878",
+    "portfolio_commit": "07c20fb68dd4e168062fe50f4684b09175dbf38e",
+    "post_deploy_recheck": "passed; reload, disconnect, fresh-code reconnect, system toggle/readback/restore",
+    "connected_phone_width": {
+      "viewport": 390,
+      "scroll_width": 390,
+      "physical_phone_test": false
+    },
+    "browser_console_errors": []
+  }
 }

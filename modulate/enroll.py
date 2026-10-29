@@ -257,13 +257,15 @@ PAGE = """<!doctype html>
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Link your Modulate</title>
 <style>
-body{background:#151719;color:#eef0f4;font:16px system-ui;margin:48px auto;padding:24px;max-width:560px}
+body{background:#131416;color:#eef0f4;font:16px system-ui;margin:48px auto;padding:24px;max-width:560px}
 p{color:#b9c1cb;line-height:1.6}h1{letter-spacing:-.04em}label{display:block;margin:24px 0 8px}
 input,button,.primary{box-sizing:border-box;width:100%;font:inherit;padding:14px;border-radius:10px;border:1px solid #454b55;background:#20242a;color:inherit}
-input{font-family:ui-monospace,monospace;letter-spacing:.08em}button,.primary{margin-top:24px;background:#459eff;color:#102036;font-weight:650;cursor:pointer}
+input{font-family:ui-monospace,monospace;letter-spacing:.08em}button,.primary{margin-top:24px;background:#1daaf0;color:#081c27;font-weight:650;cursor:pointer}
 button:disabled{opacity:.55;cursor:wait}small{display:block;margin:8px 0;color:#9aa7b8;line-height:1.5}
 #status{white-space:pre-line;padding:16px;background:#20242a;border-radius:10px}#status:empty{display:none}
-a{color:#69b1ff}.primary{display:block;text-align:center;text-decoration:none}ol{display:flex;gap:16px;padding:0;list-style:none;color:#8b99aa;font-size:12px}li[aria-current=step]{color:#69b1ff}#complete{border-top:1px solid #454b55;margin-top:24px;padding-top:8px}[hidden]{display:none!important}
+a{color:#1daaf0}.primary{display:block;text-align:center;text-decoration:none}ol{display:flex;gap:16px;padding:0;list-style:none;color:#8b99aa;font-size:12px}li[aria-current=step]{color:#1daaf0}#complete{border-top:1px solid #454b55;margin-top:24px;padding-top:8px}[hidden]{display:none!important}
+
+input:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid #f0eb1d;outline-offset:4px}
 </style>
 <ol aria-label="Setup progress"><li id="step-link" aria-current="step">1 · Device link</li><li id="step-confirm">2 · Confirm on gadget</li><li id="step-mac">3 · Mac access</li></ol>
 <h1>Link your Modulate.</h1>

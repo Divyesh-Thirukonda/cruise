@@ -180,7 +180,8 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
                      "/": ("index.html", "text/html; charset=utf-8"), "/lab": ("lab.html", "text/html; charset=utf-8"), "/app.js": ("app.js", "text/javascript; charset=utf-8"),
                      "/lab.js": ("lab.js", "text/javascript; charset=utf-8"),
                      "/lab.css": ("lab.css", "text/css; charset=utf-8"),
-                     "/style.css": ("style.css", "text/css; charset=utf-8")}
+                     "/style.css": ("style.css", "text/css; charset=utf-8"),
+                     "/logo.png": ("logo.png", "image/png")}
             if path not in names:
                 return self.send(404, {"error": "Not found"})
             filename, mime = names[path]

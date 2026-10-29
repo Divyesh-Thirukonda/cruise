@@ -14,7 +14,7 @@ export function Card({ children, className = '', ...props }) {
   return <section className={`mc-card ${className}`} {...props}>{children}</section>;
 }
 export function Brand({ small }) {
-  return <span className={`mc-brand ${small ? 'mc-brand-small' : ''}`}><span className="mc-mark" aria-hidden="true"><i /><i /><i /></span>modulate<span className="mc-brand-period">.</span></span>;
+  return <span className={`mc-brand ${small ? 'mc-brand-small' : ''}`}><img className="mc-mark" src="/brand/modulate-cube.png" width="44" height="44" alt="" aria-hidden="true" />modulate<span className="mc-brand-period">.</span></span>;
 }
 export function GadgetIllustration() {
   return <div className="mc-gadget-art" aria-hidden="true">

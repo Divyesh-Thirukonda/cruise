@@ -243,3 +243,15 @@ private installation settings. Do not redirect arbitrary new Macs to an
 unrelated shared hub, claim connection from configuration alone, or pass codes
 in URLs. Show one next action, recover in place after restart/expiry/clipboard
 failure, and keep genuine physical/OS confirmation requirements visible.
+
+
+## Website cube identity and triad palette — October 29, 2026
+
+- Keep a rounded isometric cube around the impossible-triangle logo. The mark
+  remains monochrome; red `#F01E27`, blue `#1DAAF0` and yellow `#F0EB1D` apply
+  only to local/public web UI. Generated programs and Pi character screens retain
+  their colors.
+- Use blue for primary controls, yellow sparingly for highlights/warnings and
+  red for destructive/error accents, on neutral readable surfaces. The selected
+  generated raster and its provenance/prompt are documented in `branding.md`.
+- Keep customer flow, pairing, permissions and all runtime budgets unchanged.

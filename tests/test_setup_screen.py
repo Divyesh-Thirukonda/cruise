@@ -12,7 +12,7 @@ from PIL import ImageDraw
 
 from modulate.controls import neutral_input
 from modulate.deployment import CONNECT_HOST
-from modulate.device import Controller
+from modulate.device import Controller, main as device_main
 from modulate.device_transport import Companion, PendingCompanion, TransportError, save_private
 from modulate.setup_screen import CONNECT_URL, SetupScreen
 from tests import test_device as device_fixtures
@@ -342,6 +342,166 @@ class SetupControllerTests(unittest.TestCase):
         self.Companion.post.return_value = {"paired": False, "wake": True}
         self.controller._network_step()
         self.assertEqual([call.args[0] for call in self.Companion.post.call_args_list], ["heartbeat"])
+
+
+class DeviceEnrollmentUITests(unittest.TestCase):
+    """Physical release/confirmation and display privacy; no network or GPIO."""
+    setUp = device_fixtures.ControllerTests.setUp
+
+    def bootstrap(self, *, code=None, pending=None):
+        self.controller.companion = PendingCompanion(self.directory / "absent-enrollment.json")
+        self.controller.last_response = 0
+        self.controller.host = {}
+        service = Mock()
+        service.snapshot.return_value = {"available": True, "address": "192.168.100.123", "port": 8790,
+            "fingerprint": "0123456789abcdef0123", "code": code, "pending": pending}
+        service.confirm.return_value = True
+        self.controller.enrollment_setup = service
+        self.controller.draw_setup(self.controller._setup_card())
+        return service
+
+    def press(self, a=False, b=False, now=10):
+        self.buttons[0].current, self.buttons[1].current = not a, not b
+        return self.controller._handle_buttons(neutral_input(), now)
+
+    def test_only_fresh_small_a_opens_enrollment_window(self):
+        service = self.bootstrap()
+        self.press(a=True)
+        service.open_window.assert_not_called()
+        self.press()
+        self.controller._handle_buttons({**neutral_input(), "button_a": True}, 11)
+        service.open_window.assert_not_called()
+        self.press(a=True, now=12)
+        self.press(a=True, now=13)
+        service.open_window.assert_called_once_with()
+        service.confirm.assert_not_called()
+        self.assertTrue(self.controller.actions.empty())
+        self.assertTrue(self.controller.setup_actions.empty())
+
+    def test_new_pending_request_requires_render_then_release_before_approval(self):
+        service = self.bootstrap(code="07873334")
+        self.press()
+        self.press(a=True)
+        pending = {"id": "a" * 32, "host_address": "192.168.100.20"}
+        service.snapshot.return_value["pending"] = pending
+        self.press(a=True)
+        self.press()
+        self.press(a=True)
+        service.confirm.assert_not_called()
+        self.controller.draw_setup(self.controller._setup_card())
+        self.press(a=True)
+        service.confirm.assert_not_called()
+        self.press()
+        self.press(a=True)
+        self.press(a=True)
+        service.confirm.assert_called_once_with(pending["id"])
+        self.assertTrue(self.controller.actions.empty())
+
+    def test_chord_and_invalid_gpio_cannot_approve_enrollment(self):
+        pending = {"id": "b" * 32, "host_address": "192.168.100.20"}
+        service = self.bootstrap(code="07873334", pending=pending)
+        self.press()
+        self.press(a=True, b=True)
+        self.press(a=True)
+        service.confirm.assert_not_called()
+        self.press()
+        self.buttons[0].error = True
+        self.press(a=True)
+        self.buttons[0].error = False
+        self.press(a=True)
+        service.confirm.assert_not_called()
+        self.press()
+        self.press(a=True)
+        service.confirm.assert_called_once_with(pending["id"])
+
+    def test_b_rejects_request_and_hides_bootstrap_until_explicit_wake(self):
+        service = self.bootstrap(code="07873334", pending={"id": "c" * 32, "host_address": "192.168.100.20"})
+        self.press()
+        self.press(b=True)
+        service.close_window.assert_called_once_with()
+        service.confirm.assert_not_called()
+        self.assertIsNone(self.controller._setup_card())
+        service.snapshot.return_value.update(code=None, pending=None)
+        self.controller.setup_screen.wake()
+        self.assertEqual(self.controller._setup_card()["action"], "open_enrollment")
+        service.open_window.assert_not_called()
+
+    def test_expired_proposal_does_not_show_success_or_queue_pairing(self):
+        service = self.bootstrap(code="07873334", pending={"id": "d" * 32, "host_address": "192.168.100.20"})
+        service.confirm.return_value = False
+        self.press()
+        self.press(a=True)
+        self.assertEqual(self.controller.feedback["title"], "Setup not confirmed")
+        self.assertTrue(self.controller.actions.empty())
+        self.assertTrue(self.controller.setup_actions.empty())
+
+    def test_bootstrap_credentials_fit_screen_and_never_enter_telemetry(self):
+        service = self.bootstrap(code="07873334")
+        real_draw = ImageDraw.Draw
+        for pending in (None, {"id": "e" * 32, "host_address": "192.168.100.20"}):
+            service.snapshot.return_value["pending"] = pending
+            card = self.controller._setup_card()
+            self.controller.status_key = None
+            drawings = []
+            def capture(image):
+                drawing = Mock(wraps=real_draw(image))
+                drawings.append(drawing)
+                return drawing
+            with patch("modulate.device.ImageDraw.Draw", side_effect=capture):
+                self.controller.draw_setup(card)
+            for call in drawings[0].text.call_args_list:
+                (x, y), text = call.args
+                left, top, right, bottom = call.kwargs["font"].getbbox(text)
+                self.assertGreaterEqual(x + left, 0)
+                self.assertLess(x + right, 240, text)
+                self.assertLess(y + bottom, 135, text)
+                if text == "07873334":
+                    self.assertLess(y + bottom, 111, text)
+            self.controller.companion = self.Companion
+            self.Companion.post.return_value = {"paired": False}
+            self.controller._network_step()
+            packet = self.Companion.post.call_args.args[1]
+            text = json.dumps(packet)
+            self.assertNotIn("07873334", text)
+            self.assertNotIn(service.snapshot.return_value["fingerprint"], text)
+            self.assertNotIn("e" * 32, text)
+            self.controller.companion = PendingCompanion(self.directory / "absent-enrollment.json")
+
+
+class DeviceEnrollmentLifecycleTests(unittest.TestCase):
+    def test_existing_files_and_dangling_symlinks_never_open_enrollment(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for kind in ("invalid_file", "dangling_symlink"):
+                enrollment = root / (kind + ".json")
+                if kind == "invalid_file":
+                    enrollment.write_text("invalid enrollment must be repaired, not replaced")
+                else:
+                    enrollment.symlink_to(root / "missing-target")
+                with self.subTest(kind=kind), patch("sys.argv", ["modulate.device", "--state-dir", str(root / kind),
+                        "--enrollment", str(enrollment)]), patch("modulate.device.Controller") as controller, \
+                        patch("modulate.device.signal.signal"), patch("modulate.device.os.umask"), \
+                        patch("modulate.device_enrollment.EnrollmentServer") as service:
+                    device_main()
+                    controller.return_value.run.assert_called_once_with()
+                    service.assert_not_called()
+                self.assertTrue(enrollment.is_symlink() if kind == "dangling_symlink" else enrollment.is_file())
+
+    def test_first_boot_attaches_local_service_and_always_closes_it(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory) / "state"
+            enrollment = Path(directory) / "device-enrollment.json"
+            with patch("sys.argv", ["modulate.device", "--state-dir", str(state), "--enrollment", str(enrollment)]), \
+                    patch("modulate.device.Controller") as controller, patch("modulate.device.signal.signal"), \
+                    patch("modulate.device.os.umask"), patch("modulate.device_enrollment.EnrollmentServer") as service:
+                controller.return_value.run.side_effect = RuntimeError("synthetic display failure")
+                with self.assertRaisesRegex(RuntimeError, "synthetic display failure"):
+                    device_main()
+                service.assert_called_once_with(state / "setup", str(enrollment))
+                self.assertIs(controller.return_value.enrollment_setup, service.return_value)
+                service.return_value.start.assert_called_once_with()
+                service.return_value.close.assert_called_once_with()
+                self.assertFalse(enrollment.exists())
 
 
 if __name__ == "__main__":

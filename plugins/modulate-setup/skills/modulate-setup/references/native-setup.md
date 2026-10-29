@@ -1,22 +1,42 @@
 # Native setup reference
 
-Use the current checked-out runtime documentation and CLI `--help` as the source of truth. The commands below describe the supported shape, not credentials or a fixed machine address.
+Use the current checked-out runtime documentation and CLI `--help` as the source of truth. Commands below describe agent-operated setup through supported access, not terminal instructions for the customer. Do not use Raspberry Pi Connect or a developer's browser/account as an implicit setup dependency.
 
 ## Mac companion
 
 The native bridge targets macOS. Check Python 3.11+, Git and OpenSSL. Create a dedicated virtual environment only when an appropriate one does not already exist. Install the checkout's pinned `requirements-product-host.txt`. Add its computer/camera requirements only for features the user enables. Preserve the current environment and service configuration when repairing an installation.
 
-Studio is started from the repository root with `python -m modulate.studio`. It accepts a literal reachable `--host-address`, the intended Pi's literal `--device-address`, `--state-dir`, optional private `--env-file` and `--connect-env-file`, and an explicit `--budget`. The default budget is zero. Never copy a developer's historical budget into a new user's installation.
+Studio is started from the repository root with `python -m modulate.studio`. It accepts a literal reachable `--host-address`, the intended Pi's literal `--device-address`, `--state-dir`, optional private `--env-file` and `--connect-env-file`, and an explicit `--budget`. A new installation uses zero until the user authorizes spending; an existing installation retains its actual authorized ceiling and usage/unknown-cost holds. Never copy a developer's historical budget into a new user's installation.
 
 Read existing configuration without displaying its values. Keep credentials in ignored private files with mode 0600 or an appropriate server secret store. The model and ElevenLabs keys belong to the host/server, never the Pi or browser. Verify current provider endpoint/model access rather than assuming the sample model is available to a new account.
 
-Local Studio listens on `http://127.0.0.1:8787`; the Pi controller uses a separate TLS endpoint on port 8788. The server creates private enrollment and certificate files in the selected state directory. A changed host IP can require a coordinated certificate/enrollment update, not a reset of the app library or ledgers.
+Local Studio listens on `http://127.0.0.1:8787` and must be checked on the Mac. It deliberately cannot be reached from the Pi at the Mac's network address; a failed Pi-to-Mac HTTP request on 8787 is not a connectivity diagnosis. The Pi uses a separate certificate-pinned HTTPS endpoint on 8788, with a device credential and exact peer-address check. Verify that path through enrolled telemetry; do not disable TLS checks or authentication to probe it.
 
-## Raspberry Pi
+The server creates private enrollment and certificate files in the selected state directory. A changed host IP can require a coordinated enrollment update, not a reset of apps or ledgers. Obtain current addresses from the user's supported setup/access path; never recover old addresses or tokens from development logs or backup archives. Complete dependency/configuration preparation while device access is unresolved; do not claim Studio and Pi are connected just because local Studio starts.
 
-Use the user's existing Pi OS and files. Inspect the actual board, SPI/I2C configuration, permissions, screen, microphone and audio output. Only install missing prerequisites. The tested Pi uses OS packages `python3-venv`, `python3-pil`, `python3-lgpio`, `libseccomp2` and `libportaudio2`, a virtual environment with system packages, and `requirements-product-pi.txt`. Prepare faster-whisper's `tiny.en` CPU/int8 cache under the same device user when absent. Do not silently download a different model during a spoken request.
+## Preloaded gadget: enroll from this Mac
 
-Transfer only `device-enrollment.json` and its public `device-cert.pem` through an authorized authenticated channel. Keep the relative certificate path valid; do not transfer the host TLS private key or provider credentials. Use the existing device state directory with `python -m modulate.device --state-dir … --enrollment …`. The repository includes a systemd template at `deploy/modulate-device.service`; adapt paths and user to the installation and avoid two owners of the display/microphone.
+Keep the gadget and Mac on a network that allows them to reach each other. Use the current IPv4 address on the gadget's setup screen; no device browser login or SSH is required. If the screen has no address, resolve its network connection first. Do not guess from historical development IPs.
+
+1. On the Mac, run `python -m modulate.enroll --device-address <current-screen-IPv4> --print-host-address`. This reads the OS route's source address without sending a network payload.
+2. Start Studio using that output as `--host-address`, the gadget's exact address as `--device-address`, and the intended existing state directory, credentials and spending ceiling. Preserve prior state and ledgers; do not create a second installation to avoid an error. If its existing certificate does not match the current Mac address, repair the enrollment/certificate together after a private backup.
+3. Run `python -m modulate.enroll --device-address <current-screen-IPv4> --state-dir <existing-state>`, using the same Python environment. Open the helper's `http://127.0.0.1:8791` page on the Mac. The helper reads only the companion's device enrollment and public certificate; it never sends provider credentials or the companion's TLS private key.
+4. Ask the user to press the small A button to open device setup, then enter the full 20-character gadget identity and eight-digit setup code directly into this local page. Keep these out of chat, logs and screenshots. The code expires after five minutes. This code is not the later website connection code.
+5. The helper pins the device's TLS certificate identity before sending enrollment. It stages a request; the user checks the Mac address shown on the gadget and presses A freshly to accept, or B to reject. Do not simulate this button press. Wait for the helper's matching completion receipt, then verify fresh Pi telemetry in Studio. Never call “awaiting confirmation” a completed link.
+
+The gadget setup service is a narrow, temporary enrollment path on TLS port 8790; it does not accept shell commands, runtime updates or caller-chosen file paths. It will not overwrite an existing enrollment. Native Mac pairing still requires another fresh physical confirmation, followed by a separate browser code as described below.
+
+An older device whose screen only says **“Enroll this Pi once”** does not have this service. That is a genuine factory/runtime-update blocker, not a code-entry or permission error. Finish Mac preparation, explain that the device needs that update, and stop before claiming a working link. Do not substitute Raspberry Pi Connect, customer shell commands or archived credentials. This source implementation does not prove any particular physical device has been updated or tested.
+
+## Blank Pi / developer-kit installation
+
+This is separate from normal preloaded-gadget setup. Initial Raspberry Pi OS, Wi-Fi and installation access must be provisioned first. Explain the physical SD-card preparation step and establish a supported access method, such as SSH explicitly configured for this user's Mac. Do not erase an existing card without authorization or claim this repository provides a finished Modulate OS image. The agent performs commands once access exists; the customer should not need to edit a Pi remote shell.
+
+Use only an explicitly authorized SSH target/identity or another documented authenticated installation channel. Do not search browser tabs for a logged-in Pi account, silently add SSH keys, reuse revoked access, or ask for remote-terminal command output. Existing OS files and an intentional fresh reset must be respected; missing enrollment after that reset is expected, and old enrollment/pairing must not be restored from backups.
+
+Once authorized access exists, inspect the actual board, SPI/I2C configuration, permissions, screen, microphone and audio output. Only install missing prerequisites. The tested Pi uses OS packages `python3-venv`, `python3-pil`, `python3-lgpio`, `libseccomp2` and `libportaudio2`, a virtual environment with system packages, and `requirements-product-pi.txt`. Prepare faster-whisper's `tiny.en` CPU/int8 cache under the same device user when absent. Do not silently download a different model during a spoken request.
+
+Install the maintained runtime with `python -m modulate.device --state-dir … --enrollment …` using the intended device state directory. The repository includes a systemd template at `deploy/modulate-device.service`; adapt paths and user and avoid two owners of the display/microphone. Once the updated un-enrolled runtime is running, use the physical enrollment flow above. Never transfer the host TLS private key or provider credentials to the Pi.
 
 If this Mac already serves another Pi, determine whether the user is replacing it or wants an additional device before changing the peer address or enrollment. The current host has one exact Pi peer allowlist; do not claim it supports two simultaneous devices. A replacement can retain the host's app library and spending ledgers while updating enrollment separately. Back up the intended existing state privately before making that change.
 

@@ -169,3 +169,37 @@ Capture is a mirror and does not change Mac output. `MacAudioRoute` is a separat
 The host passed native capture, muted capture and mute/restore probes; physical Pi playback remains separate evidence. APIs and reused bindings: Apple's [ScreenCaptureKit sample](https://developer.apple.com/documentation/screencapturekit/capturing-screen-content-in-macos), [current-process exclusion](https://developer.apple.com/documentation/screencapturekit/scstreamconfiguration/excludescurrentprocessaudio), [CoreAudio mute property](https://developer.apple.com/documentation/coreaudio/kaudiodevicepropertymute), and [PyObjC ScreenCaptureKit](https://pyobjc.readthedocs.io/en/latest/apinotes/ScreenCaptureKit.html). Current-process exclusion does not prevent acoustic feedback from the Pi speaker; microphone/playback arbitration requires its own physical validation.
 
 The installed `computer_audio` tool uses the existing enrolled TLS origin and bearer/peer checks. A separate receiver long-polls bounded audio packets, leaving heartbeats responsive. Its cursor binds to the current stream; discontinuity, resume and overruns flush playback to the live edge. Pair expiry, pause, revoke, disconnect or playback failure stop capture and release the mute lease. PiTFT B latches a stopped stream ID across repeated offers, while speech/request ducking only pauses playback and drains incoming audio. A separate playback flag enables periodic local wake probes without disabling the microphone; this is not acoustic echo cancellation. A live typed start and spoken stop were user-confirmed on the actual speaker/Mac. [Evidence](evidence/computer-audio.json).
+
+## Preloaded device enrollment
+
+The customer setup contract assumes the device software is factory-loaded.
+Customer agents operate on the Mac; Raspberry Pi Connect, SSH credentials,
+developer accounts and historical private addresses are not setup dependencies.
+The device must already have a working network route to the Mac (IPv4 for this
+bootstrap release). Wi-Fi provisioning and a distributable OS image are separate
+work, not provided by the downloadable skill.
+
+On an unenrolled boot only, the trusted device service starts HTTPS port 8790.
+Its own local EC certificate is pinned by the first 20 hexadecimal SHA-256
+characters read from the physical display (80-bit out-of-band identity). A fresh
+small-A press opens an eight-digit setup code for five minutes with five global
+invalid attempts. The Mac helper verifies that pin before sending HTTP bytes;
+it never disables checks on the normal companion transport. Customer setup
+values are entered in a loopback-only, origin/CSRF-protected Mac form on 8791.
+
+The device accepts only the HTTPS companion origin on 8788, its public
+certificate and device bearer credential. The literal source peer must match
+the origin and the certificate IP SAN. The bounded payload is held in memory
+until a new physical A press confirms the rendered request; a held button,
+PTT chord or stale proposal cannot authorize it. Commit uses exclusive atomic
+file creation, mode 600 and a fixed generated public-certificate filename;
+existing enrollment, saved apps and ledgers are preserved. Authenticated
+receipts identify the exact proposal, and the Mac does not report completion
+from an unrelated receipt. There is no command, provider-key, generated-code
+or arbitrary-file transfer API. Certificates use existing Python TLS and
+[OpenSSL X.509 tooling](https://docs.openssl.org/3.0/man1/openssl-x509/).
+
+The device reloads enrollment through PendingCompanion; the existing separate
+native Mac pairing and browser-session protocols still apply. A paired boot
+does not open this bootstrap listener. A legacy image without this service
+requires a factory update, not an invented customer remote-shell fallback.

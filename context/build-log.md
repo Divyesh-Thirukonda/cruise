@@ -580,3 +580,26 @@ copy/paste → install/start → verified link/code sequence and labels the plug
 optional. Unreachable-companion messages provide setup/restart actions while
 preserving specific code errors. Local verification: 24 client tests, 39 API
 tests, source provenance and the Next.js production build passed.
+
+## October 29 — Preloaded-device enrollment and corrected setup skill
+
+The copied setup prompt assumed access to a developer's Pi remote shell and
+misused Mac-local port 8787 as a Pi connectivity check. Replaced that dependency
+with a device HTTPS enrollment service and a Mac-only loopback setup form. A
+physical button opens a five-minute code window; the helper checks the displayed
+certificate identity before transmitting, and a separate fresh button confirms
+the exact staged Mac request. The service accepts only connection credentials,
+never shell commands or executable packages, and cannot overwrite enrollment.
+
+Updated the portable skill/plugin to version 0.2.0 and clarified the website
+sequence: prepare the Mac, link the preloaded gadget, confirm Mac access, then
+use a separate browser code. Blank hardware, missing network access and older
+factory software are explained as prerequisites, not hidden remote-shell work.
+The intentional reset and existing cumulative ledgers are preserved.
+
+Validation: 987 Python tests completed with 13 skips; five package tests and the
+skill validator passed. The web checks passed 39 API and 24 client tests plus
+source verification and a Next.js production build. Tests include actual local
+HTTPS protocol traffic with simulated physical confirmation; this is not a
+customer/physical-device onboarding success. No model calls were required.
+Factory installation and deployed website verification are recorded separately.

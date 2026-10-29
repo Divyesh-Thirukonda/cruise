@@ -20,7 +20,7 @@ Another hands-free request increased the reversed step to −10. Two live UI rol
 
 The user confirmed the **Indie Developer** track and [owned hardware](context/hardware.md). This is a working hackathon prototype: early audio failures required resampling/buffering fixes, and a shutdown race caused unintended game fallback. The shutdown fix preserved the exact game revision across two verified restarts. These trials do not establish broad wake/noise or failure reliability; revocation and performance testing remain. The [number prototype guide](context/number-prototype.md) preserves its earlier evidence.
 
-**Computer-task and speaker paths are implemented; the complete assistant loop awaits a live trial.** For requests such as “read my email,” the new path uses Meta vision and real cursor/keyboard actions in a separately authorized Chrome window, without a Gmail API. A 15-minute grant, fresh-observation checks, stop/revoke controls and transient responses bound the session. The user heard a standalone spoken sentence through the USB speaker at 40% volume. The Pi speech worker can pause its microphone during playback. Native dependencies are installed and both Mac permissions report granted; the user authorized the Chrome/screenshot-to-Meta trial, but actual model-driven capture/cursor operation and integrated spoken reply remain untested. [Setup, privacy and validation limits](context/product-runtime.md#computer-tasks-and-spoken-replies).
+**A live Meta computer task and spoken reply now work in a local test.** From a typed request, the agent used Chrome screenshots and real cursor/keyboard actions to enter a phrase, click Verify and observe the confirmation in eight model calls. The resulting browser state was independently checked, the user heard the Pi's final reply, and Dodge Fall remained retained. This is evidence for the typed local-form path; the spoken request to read Gmail is still pending. Computer control uses a separate 15-minute Chrome-window grant, fresh observations and stop/revoke controls, without a Gmail API. [Exact trial, setup and privacy limits](context/product-runtime.md#computer-tasks-and-spoken-replies).
 
 ## Run the product studio
 
@@ -44,7 +44,7 @@ The latest voice update keeps ambient transcription visually quiet. A wake-only 
 4. **Control the computer.** Link the Mac through the companion and trusted bridge. Show the knob changing actual OS volume, then the demonstrated spoken sensitivity and direction changes.
 5. **Recover.** Show a rejected package, unavailable component, or failed activation leaving the previous working experience usable.
 
-After separate live validation, add a short browser task with its permission shown, visible cursor actions and an audible reply. Keep that evidence distinct from the already demonstrated game/volume flow.
+The typed local-form trial can demonstrate a browser task with permission shown, visible cursor actions and an audible reply. Label its typed input and test-page scope; do not present it as proof of spoken email access.
 
 Voice is a core demo goal. Push-to-talk can establish it before wake-word detection; any host microphone or typed-input fallback must be identified. “Hey Meta” is a proposed activation phrase, not a claim that an official Meta voice-assistant integration exists. The user's “make Mario Kart” example is translated into an original small kart racer using our own or licensed assets.
 

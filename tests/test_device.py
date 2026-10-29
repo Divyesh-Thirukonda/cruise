@@ -286,7 +286,7 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(self.controller.build["phase"], "cancelled")
         self.controller._update_build(self.job_response(running=False, status="cancelled", phase="cancelled"))
         self.assertIsNone(self.controller.build)
-        self.assertEqual(self.controller._feedback_card()["title"], "Build cancelled")
+        self.assertEqual(self.controller._feedback_card()["title"], "Request cancelled")
         self.assertNotIn("Previous program", self.controller._feedback_card()["detail"])
 
     def test_newer_job_recovers_a_missed_terminal_and_rejects_old_or_equal_different_jobs(self):

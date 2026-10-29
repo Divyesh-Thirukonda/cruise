@@ -111,6 +111,9 @@ class MacOSBackend:
     def capture(self, window, cancelled):
         return self._call("capture", {"window": window}, cancelled=cancelled)
 
+    def focus(self, window, cancelled):
+        return self._call("focus", {"window": window}, cancelled=cancelled)
+
     def perform(self, window, action, cancelled):
         return self._call("action", {"window": window, "action": action}, cancelled=cancelled)
 
@@ -263,6 +266,40 @@ class ComputerController:
             finally:
                 self.active = False
 
+    def begin_task(self):
+        """A new user request may resume a cancelled, still-valid grant."""
+        with self.lock:
+            self.cancelled.clear()
+            self.observation = None
+
+    def focus(self):
+        """Bring only the granted window forward; caller limits this to once per task."""
+        with self.lock:
+            self._expire()
+            if not self.grant:
+                raise ComputerError("Computer access is disabled or expired")
+            if self.cancelled.is_set():
+                raise ComputerError("Computer action cancelled")
+            info = self._inspect()
+            if not info["supported"] or not all(info["permissions"].values()):
+                self.grant = self.observation = None
+                raise ComputerError("Computer permission was removed")
+            self.observation = None
+            self.active = True
+            try:
+                self.backend.focus(self.grant["window"], self.cancelled)
+                self._check()
+                self.error = None
+                return {"focused": True}
+            except ComputerError as error:
+                self.error = str(error)
+                raise
+            except Exception:
+                self.error = "Could not focus the granted Chrome window; bring it forward and start a new request"
+                raise ComputerError(self.error) from None
+            finally:
+                self.active = False
+
     def act(self, observation_id, action):
         with self.lock:
             window = self._check()
@@ -410,6 +447,73 @@ def _native_guard(window):
     ComputerController._valid_window(current["window"])
 
 
+def _native_focus_target(window):
+    """Resolve an existing visible grant without requiring it to be frontmost."""
+    import ApplicationServices as AX
+    import AppKit
+    import Quartz
+    ComputerController._valid_window(window)
+    if not Quartz.CGPreflightScreenCaptureAccess() or not AX.AXIsProcessTrusted():
+        raise ComputerError("Computer permission was removed")
+    app = AppKit.NSRunningApplication.runningApplicationWithProcessIdentifier_(window["pid"])
+    if app is None or app.bundleIdentifier() != "com.google.Chrome":
+        raise ComputerError("The granted Chrome window is no longer available")
+    screen = Quartz.CGDisplayBounds(Quartz.CGMainDisplayID())
+    primary = [int(screen.origin.x), int(screen.origin.y), int(screen.size.width), int(screen.size.height)]
+    windows = Quartz.CGWindowListCopyWindowInfo(
+        Quartz.kCGWindowListOptionOnScreenOnly | Quartz.kCGWindowListExcludeDesktopElements,
+        Quartz.kCGNullWindowID)
+    candidates = [_front_chrome_window([entry], window["pid"], primary) for entry in windows or ()]
+    matching = [entry for entry in candidates if entry and entry["bounds"] == window["bounds"]]
+    # AX exposes geometry, not a public CGWindowID mapping. Refuse ambiguity
+    # rather than raising another window that happens to have the same bounds.
+    if len(matching) != 1 or not _same_window(matching[0], window):
+        raise ComputerError("The granted Chrome window changed or cannot be identified uniquely")
+    return app
+
+
+def _native_focus(window):
+    import ApplicationServices as AX
+    import AppKit
+    app = _native_focus_target(window)
+    application = AX.AXUIElementCreateApplication(window["pid"])
+    error, windows = AX.AXUIElementCopyAttributeValue(application, AX.kAXWindowsAttribute, None)
+    if error:
+        raise ComputerError("Chrome's accessible windows could not be read")
+    matches = []
+    for candidate in windows or ():
+        p_error, position = AX.AXUIElementCopyAttributeValue(candidate, AX.kAXPositionAttribute, None)
+        s_error, size = AX.AXUIElementCopyAttributeValue(candidate, AX.kAXSizeAttribute, None)
+        if p_error or s_error:
+            continue
+        p_ok, point = AX.AXValueGetValue(position, AX.kAXValueCGPointType, None)
+        s_ok, extent = AX.AXValueGetValue(size, AX.kAXValueCGSizeType, None)
+        if not p_ok or not s_ok:
+            continue
+        bounds = [math.ceil(point.x), math.ceil(point.y),
+                  math.floor(point.x + extent.width) - math.ceil(point.x),
+                  math.floor(point.y + extent.height) - math.ceil(point.y)]
+        if bounds == window["bounds"]:
+            matches.append(candidate)
+    if len(matches) != 1:
+        raise ComputerError("The granted Chrome window cannot be raised unambiguously")
+    _native_focus_target(window)  # Recheck identity/geometry immediately before changing focus.
+    if AX.AXUIElementPerformAction(matches[0], AX.kAXRaiseAction):
+        raise ComputerError("The granted Chrome window could not be raised")
+    if not app.activateWithOptions_(AppKit.NSApplicationActivateIgnoringOtherApps):
+        raise ComputerError("The granted Chrome window could not be activated")
+    # App activation is asynchronous. Never retry the focus action itself.
+    deadline = time.monotonic() + .4
+    while True:
+        try:
+            _native_guard(window)
+            return {"focused": True}
+        except ComputerError:
+            if time.monotonic() >= deadline:
+                raise
+            time.sleep(.02)
+
+
 def _release_input(automation, method, *arguments):
     # A corner stop must still permit releasing an input we already pressed.
     # All movement/press operations keep the failsafe enabled.
@@ -429,6 +533,8 @@ def _native(operation, payload):
             raise ComputerError("Computer dependencies unavailable")
         return _native_inspect()
     window = payload["window"]
+    if operation == "focus":
+        return _native_focus(window)
     _native_guard(window)
     if operation == "capture":
         from mss import MSS

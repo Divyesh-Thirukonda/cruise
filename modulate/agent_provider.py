@@ -62,7 +62,17 @@ _META_CONTEXT_TOKENS = 1_048_576
 
 
 class AgentProviderError(RuntimeError):
-    """A sanitized configuration, protocol, or transport failure."""
+    """Sanitized failure; optional billing describes a received Meta reply.
+
+    None means usage is unknown and the reservation must remain held. Repairable
+    marks a completed, billed reply with invalid assistant/tool output; it never
+    authorizes executing that output or automatically retrying a request.
+    """
+
+    def __init__(self, message, *, billed_cost_microdollars=None, repairable=False):
+        super().__init__(message)
+        self.billed_cost_microdollars = billed_cost_microdollars
+        self.repairable = repairable
 
 
 ProviderError = AgentProviderError
@@ -353,8 +363,9 @@ def cost_microdollars(provider, model, usage):
     """Round up a standard-rate usage estimate; None means unknown, never free.
 
     Deliberately ignores cache discounts, so the reported estimate can be higher
-    than the invoice. A caller must retain its reservation on unknown usage or a
-    failed request. Reasoning tokens are already included in completion_tokens.
+    than the invoice. A caller must retain its reservation whenever usage is
+    unknown. A rejected assistant/tool payload may still
+    carry validated billing. Reasoning tokens are included in completion_tokens.
     """
     if provider == "ollama":
         return 0
@@ -489,31 +500,49 @@ class AgentProvider:
     def complete(self, messages, tools):
         local = self.config.provider == "ollama"
         payload, names = self._payload(messages, tools)
+        # Transport/JSON failures have no trustworthy billing metadata. Do not
+        # catch them as repairable model output or release their reservation.
         result = self._request(payload)
-        if local:
-            if result.get("done") is not True or result.get("done_reason") == "length":
-                raise AgentProviderError("Provider did not finish the assistant turn.")
-            message = result.get("message")
-        else:
-            choices = result.get("choices")
-            if not isinstance(choices, list) or len(choices) != 1 or not isinstance(choices[0], dict):
-                raise AgentProviderError("Provider returned invalid choices.")
-            if choices[0].get("finish_reason") not in {"stop", "tool_calls"}:
-                raise AgentProviderError("Provider did not finish the assistant turn.")
-            message = choices[0].get("message")
-        if not isinstance(message, dict) or message.get("role") != "assistant":
-            raise AgentProviderError("Provider returned an invalid assistant message.")
-        content = message.get("content")
-        content = "" if content is None else _string(content, "assistant content", MAX_CONTENT_CHARS, empty=True)
-        calls = _calls(message.get("tool_calls"), allowed=names, generate_ids=local)
-        if not content and not calls:
-            raise AgentProviderError("Provider returned an empty assistant turn.")
-        normalized = {
-            "content": content, "tool_calls": calls, "usage": _usage(result, local),
-            "model": _identifier(result.get("model", self.config.model)), "provider": self.config.provider,
-        }
-        # Only replay these fields to the model; do not display private reasoning.
-        reasoning_field = "thinking" if local else "reasoning_content"
-        if message.get(reasoning_field) is not None:
-            normalized[reasoning_field] = _string(message[reasoning_field], "reasoning metadata", MAX_CONTENT_CHARS, empty=True)
-        return normalized
+        # Validate billing independently, before assistant/tool action parsing.
+        # Missing model or usage cannot establish a charge on a rejected reply.
+        usage = _usage(result, local)
+        model = _identifier(result.get("model", self.config.model))
+        billed = (cost_microdollars("meta", model, usage)
+                  if self.config.provider == "meta" and "model" in result else None)
+        repairable = False
+        try:
+            if local:
+                if result.get("done") is not True or result.get("done_reason") == "length":
+                    raise AgentProviderError("Provider did not finish the assistant turn.")
+                message = result.get("message")
+            else:
+                choices = result.get("choices")
+                if not isinstance(choices, list) or len(choices) != 1 or not isinstance(choices[0], dict):
+                    raise AgentProviderError("Provider returned invalid choices.")
+                finish = choices[0].get("finish_reason")
+                if not isinstance(finish, str) or finish not in {"stop", "tool_calls"}:
+                    raise AgentProviderError("Provider did not finish the assistant turn.")
+                message = choices[0].get("message")
+                if isinstance(message, dict) and message.get("refusal"):
+                    raise AgentProviderError("Provider refused the request.")
+            # Only a completed Meta turn with known billing can invite a bounded
+            # repair. Tool allowlisting and JSON validation remain unchanged.
+            repairable = billed is not None
+            if not isinstance(message, dict) or message.get("role") != "assistant":
+                raise AgentProviderError("Provider returned an invalid assistant message.")
+            content = message.get("content")
+            content = "" if content is None else _string(content, "assistant content", MAX_CONTENT_CHARS, empty=True)
+            calls = _calls(message.get("tool_calls"), allowed=names, generate_ids=local)
+            if not content and not calls:
+                raise AgentProviderError("Provider returned an empty assistant turn.")
+            normalized = {"content": content, "tool_calls": calls, "usage": usage,
+                          "model": model, "provider": self.config.provider}
+            # Only replay these fields to the model; do not display private reasoning.
+            reasoning_field = "thinking" if local else "reasoning_content"
+            if message.get(reasoning_field) is not None:
+                normalized[reasoning_field] = _string(message[reasoning_field], "reasoning metadata", MAX_CONTENT_CHARS, empty=True)
+            return normalized
+        except AgentProviderError as error:
+            error.billed_cost_microdollars = billed
+            error.repairable = repairable
+            raise

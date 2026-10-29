@@ -12,6 +12,7 @@ import unittest
 from unittest.mock import patch
 
 from modulate.agent import AgentError
+from modulate.agent_provider import AgentProviderError
 from modulate.computer import ComputerError
 from modulate.product import Product
 from tests.test_agent import ScriptedProvider, reply
@@ -31,6 +32,9 @@ class FakeComputer:
         self.actions = []
         self.observations = 0
         self.cancellations = 0
+        self.focuses = 0
+        self.task_starts = 0
+        self.on_focus = None
 
     def status(self):
         return {"supported": True, "enabled": self.enabled, "expires_at": None,
@@ -47,6 +51,14 @@ class FakeComputer:
 
     def cancel(self):
         self.cancellations += 1
+
+    def begin_task(self):
+        self.task_starts += 1
+
+    def focus(self):
+        self.focuses += 1
+        if self.on_focus:
+            self.on_focus()
 
     def observe(self):
         if not self.enabled:
@@ -210,6 +222,106 @@ class AssistantIOTests(unittest.TestCase):
         reopened = Product(self.directory, self.provider, backend=FakeBackend(), computer=FakeComputer())
         self.assertIsNone(reopened.state()["response"])
         self.assertIsNone(reopened.speech_message)
+
+    def test_new_user_job_focuses_once_before_first_observation_only(self):
+        self.connect_computer()
+        self.provider.script = [reply(("computer_observe", {})), reply(("computer_observe", {})),
+                                reply(content="First synthetic result"),
+                                reply(("computer_observe", {})), reply(content="Next synthetic result")]
+        self.request()
+        self.assertEqual(self.computer.focuses, 1)
+        self.assertEqual(self.computer.observations, 2)
+        self.request("A fresh computer task")
+        self.assertEqual(self.computer.focuses, 2)
+        self.assertEqual(self.computer.observations, 3)
+        self.assertEqual(self.computer.task_starts, 2)
+
+    def test_failed_focus_consumes_allowance_and_cancel_prevents_capture(self):
+        self.connect_computer()
+        self.product.computer_focus_pending = True
+
+        def failed_focus():
+            raise ComputerError("Synthetic window changed")
+
+        self.computer.on_focus = failed_focus
+        with self.assertRaisesRegex(AgentError, "window changed"):
+            self.product.computer_observe()
+        self.assertEqual(self.computer.observations, 0)
+        self.computer.on_focus = None
+        self.product.computer_observe()
+        self.assertEqual(self.computer.focuses, 1, "A tool retry must not take focus again")
+        self.product.computer_focus_pending = True
+        self.computer.on_focus = self.product.agent.cancelled.set
+        with self.assertRaisesRegex(AgentError, "cancelled"):
+            self.product.computer_observe()
+        self.assertEqual(self.computer.observations, 1, "Cancellation after focus blocks capture")
+
+    def test_disabled_or_cancelled_job_cannot_consume_focus(self):
+        self.connect_computer()
+        self.product.computer_focus_pending = True
+        self.product.agent.cancelled.set()
+        with self.assertRaises(AgentError):
+            self.product.computer_observe()
+        self.product.agent.cancelled.clear()
+        self.product.computer_session("revoke")
+        with self.assertRaises(AgentError):
+            self.product.computer_observe()
+        self.assertEqual(self.computer.focuses, 0)
+
+    def test_private_failure_explains_and_speaks_without_persisting_error(self):
+        self.connect_computer()
+        failure = "Synthetic provider could not read this screen. Please try again."
+        private_request = "SYNTHETIC_PRIVATE_FAILED_REQUEST_6ca9"
+        self.provider.script = [reply(("computer_observe", {})), AgentProviderError(failure)]
+        accepted = self.request(private_request)
+        state = self.product.state()
+        self.assertEqual(state["agent"]["status"], "failed")
+        expected = "I couldn't finish that computer request. " + failure
+        self.assertEqual(state["response"]["text"], expected)
+        speech = self.heartbeat()["speech"]
+        self.assertEqual(speech["text"], expected)
+        self.assertEqual(speech["job_id"], accepted["job_id"])
+        self.assert_not_persisted(failure, private_request, "U1lOVEhFVElDX1BSSVZBVEVfSU1BR0U=")
+        saved = json.loads(self.product.job_path.read_text())
+        self.assertEqual(saved["summary"], "Computer request stopped.")
+        failed = next(event for event in self.product.events if event["type"] == "request_failed")
+        self.assertEqual(failed["exception_type"], "AgentProviderError")
+        self.assertNotIn("detail", failed)
+        reopened = Product(self.directory, self.provider, backend=FakeBackend(), computer=FakeComputer())
+        self.assertIsNone(reopened.state()["response"])
+        self.assertIsNone(reopened.speech_message)
+
+    def test_unexpected_private_exception_does_not_speak_raw_payload(self):
+        self.connect_computer()
+        private = "SYNTHETIC_PRIVATE_EXCEPTION_PAYLOAD_93b2"
+        self.provider.script = [reply(("computer_observe", {})), RuntimeError(private)]
+        self.request()
+        self.assertIn("unexpected computer error", self.product.state()["response"]["text"])
+        self.assertNotIn(private, self.product.state()["response"]["text"])
+        self.assertNotIn(private, self.heartbeat()["speech"]["text"])
+        self.assert_not_persisted(private)
+
+    def test_cancelled_private_failure_remains_quiet(self):
+        self.connect_computer()
+        entered, release = threading.Event(), threading.Event()
+        self.addCleanup(release.set)
+        failure = "SYNTHETIC_PRIVATE_LATE_FAILURE_226c"
+
+        def delayed_failure(messages, tools):
+            entered.set()
+            self.assertTrue(release.wait(2))
+            raise AgentProviderError(failure)
+
+        self.provider.script = [reply(("computer_observe", {})), delayed_failure]
+        accepted = self.product.request("Read the synthetic screen")
+        self.assertTrue(entered.wait(1))
+        self.product.cancel(accepted["job_id"])
+        release.set()
+        self.wait_finished()
+        self.assertEqual(self.product.state()["agent"]["status"], "cancelled")
+        self.assertIsNone(self.product.state()["response"])
+        self.assertIsNone(self.heartbeat()["speech"])
+        self.assert_not_persisted(failure)
 
     def test_only_exact_current_speech_acknowledgement_clears_message(self):
         self.heartbeat()

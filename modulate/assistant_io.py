@@ -20,6 +20,7 @@ class AssistantIO:
         self.computer_approval = None
         self.computer_approval_decision = None
         self.computer_approved_action = None
+        self.computer_focus_pending = False
 
     def computer_status(self):
         value = self.computer.status()
@@ -64,6 +65,12 @@ class AssistantIO:
     def computer_observe(self):
         self.computer_authorized()
         try:
+            with self.lock:
+                focus = self.computer_focus_pending
+                self.computer_focus_pending = False
+            if focus:
+                self.computer.focus()
+                self.computer_authorized()
             return self.computer.observe()
         except ComputerError as error:
             raise AgentError(str(error)) from None

@@ -292,7 +292,7 @@ class Controller:
                 self.finished_jobs.append(identifier)
                 self.build = None
                 if was_busy and state["status"] != "completed":
-                    title = "Build cancelled" if state["status"] == "cancelled" else "Build failed"
+                    title = "Request cancelled" if state["status"] == "cancelled" else "Request failed"
                     self._feedback(title, "See Studio for details")
                 elif was_busy:
                     self.feedback = None

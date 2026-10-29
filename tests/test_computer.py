@@ -12,7 +12,8 @@ from unittest.mock import Mock, patch
 from PIL import Image
 
 from modulate.computer import (ComputerController, ComputerError, MacOSBackend,
-                              _front_chrome_window, _image_bytes, _native_inspect, _release_input)
+                              _front_chrome_window, _image_bytes, _native_inspect, _native_focus,
+                              _native_focus_target, _release_input)
 
 
 class FakeDesktop:
@@ -23,11 +24,22 @@ class FakeDesktop:
         self.calls = []
         self.inspections = 0
         self.on_capture = self.on_perform = None
+        self.on_focus = None
+        self.foreground = True
         self.image_size = (1280, 720)
 
     def inspect(self):
         self.inspections += 1
-        return {"supported": True, "permissions": dict(self.permissions), "window": copy.deepcopy(self.window)}
+        return {"supported": True, "permissions": dict(self.permissions),
+                "window": copy.deepcopy(self.window) if self.foreground else None}
+
+    def focus(self, window, cancelled):
+        if window != self.window or cancelled.is_set():
+            raise ComputerError("Synthetic granted window changed or request cancelled")
+        self.calls.append(("focus", copy.deepcopy(window)))
+        if self.on_focus:
+            self.on_focus(cancelled)
+        self.foreground = True
 
     def capture(self, window, cancelled):
         self.calls.append(("capture", copy.deepcopy(window)))
@@ -99,6 +111,67 @@ class NativeWindowSelectionTests(unittest.TestCase):
             self.assertEqual(_native_inspect()["window"]["id"], 2)
         quartz.CGWindowListCopyWindowInfo.assert_called_once_with(17, 0)
 
+    def test_native_focus_target_requires_original_id_pid_bounds_and_unique_geometry(self):
+        selected = self.window(2)
+        grant = _front_chrome_window([selected], 123, self.primary)
+        quartz = SimpleNamespace(
+            CGPreflightScreenCaptureAccess=lambda: True, CGMainDisplayID=lambda: 1,
+            CGDisplayBounds=lambda _: SimpleNamespace(origin=SimpleNamespace(x=0, y=0), size=SimpleNamespace(width=1920, height=1080)),
+            CGWindowListCopyWindowInfo=Mock(return_value=[selected]),
+            kCGWindowListOptionOnScreenOnly=1, kCGWindowListExcludeDesktopElements=16, kCGNullWindowID=0)
+        app = Mock()
+        app.bundleIdentifier.return_value = "com.google.Chrome"
+        appkit = SimpleNamespace(NSRunningApplication=SimpleNamespace(runningApplicationWithProcessIdentifier_=Mock(return_value=app)))
+        permissions = SimpleNamespace(AXIsProcessTrusted=lambda: True)
+        with patch.dict("sys.modules", {"Quartz": quartz, "AppKit": appkit, "ApplicationServices": permissions}):
+            self.assertIs(_native_focus_target(grant), app)
+            for entries in ([], [self.window(9)], [self.window(2, kCGWindowOwnerPID=456)],
+                            [self.window(2, width=900)], [selected, self.window(3)]):
+                with self.subTest(entries=len(entries)):
+                    quartz.CGWindowListCopyWindowInfo.return_value = entries
+                    with self.assertRaises(ComputerError):
+                        _native_focus_target(grant)
+            quartz.CGWindowListCopyWindowInfo.return_value = [selected]
+            app.bundleIdentifier.return_value = "com.apple.Terminal"
+            with self.assertRaises(ComputerError):
+                _native_focus_target(grant)
+        app.activateWithOptions_.assert_not_called()
+
+    def test_native_focus_raises_only_unambiguous_ax_window_then_verifies_identity(self):
+        grant = _front_chrome_window([self.window(2)], 123, self.primary)
+        app = Mock()
+        app.activateWithOptions_.return_value = True
+        elements = ["different", "selected"]
+
+        def attribute(element, key, _):
+            if key == "windows":
+                return 0, elements
+            if key == "position":
+                return 0, SimpleNamespace(x=10 if element == "selected" else 50, y=44)
+            return 0, SimpleNamespace(width=1470, height=923)
+
+        ax = SimpleNamespace(
+            AXUIElementCreateApplication=Mock(return_value="application"),
+            AXUIElementCopyAttributeValue=Mock(side_effect=attribute),
+            AXValueGetValue=lambda value, kind, _: (True, value),
+            AXUIElementPerformAction=Mock(return_value=0), kAXWindowsAttribute="windows",
+            kAXPositionAttribute="position", kAXSizeAttribute="size",
+            kAXValueCGPointType=1, kAXValueCGSizeType=2, kAXRaiseAction="raise")
+        with patch.dict("sys.modules", {"ApplicationServices": ax, "AppKit": SimpleNamespace(NSApplicationActivateIgnoringOtherApps=2)}), patch("modulate.computer._native_focus_target", return_value=app) as target, patch("modulate.computer._native_guard") as guard:
+            self.assertEqual(_native_focus(grant), {"focused": True})
+            ax.AXUIElementCreateApplication.assert_called_once_with(123)
+            ax.AXUIElementPerformAction.assert_called_once_with("selected", "raise")
+            app.activateWithOptions_.assert_called_once_with(2)
+            self.assertEqual(target.call_count, 2, "Recheck selected identity immediately before raising")
+            guard.assert_called_once_with(grant)
+            ax.AXUIElementPerformAction.reset_mock()
+            app.activateWithOptions_.reset_mock()
+            elements[:] = ["selected", "selected"]
+            with self.assertRaisesRegex(ComputerError, "unambiguously"):
+                _native_focus(grant)
+            ax.AXUIElementPerformAction.assert_not_called()
+            app.activateWithOptions_.assert_not_called()
+
 
 class ComputerTests(unittest.TestCase):
     def setUp(self):
@@ -153,6 +226,64 @@ class ComputerTests(unittest.TestCase):
         self.desktop.window["bounds"][0] = 1000
         with self.assertRaisesRegex(ComputerError, "primary"):
             self.controller.enable()
+
+    def test_focus_returns_only_granted_window_without_extending_expiry(self):
+        self.controller.enable(1)
+        grant = copy.deepcopy(self.controller.grant)
+        self.desktop.foreground = False
+        self.now += 30
+        self.assertTrue(self.controller.focus()["focused"])
+        self.assertEqual(self.controller.grant, grant)
+        self.assertEqual(self.desktop.calls, [("focus", grant["window"])])
+        self.assertIn("image_url", self.controller.observe())
+        self.desktop.foreground = False
+        with self.assertRaises(ComputerError):
+            self.controller.observe()
+        self.assertEqual(len([call for call in self.desktop.calls if call[0] == "focus"]), 1)
+
+    def test_focus_rejects_revoked_expired_cancelled_or_changed_grants(self):
+        for change in ("revoked", "expired", "cancelled", "permission", "window"):
+            with self.subTest(change=change):
+                self.setUp()
+                self.controller.enable(1)
+                if change == "revoked":
+                    self.controller.revoke()
+                elif change == "expired":
+                    self.now += 60
+                elif change == "cancelled":
+                    self.controller.cancel()
+                elif change == "permission":
+                    self.desktop.permissions["accessibility"] = False
+                else:
+                    self.desktop.window["id"] += 1
+                with self.assertRaises(ComputerError):
+                    self.controller.focus()
+                self.assertEqual(self.desktop.calls, [])
+
+    def test_focus_checks_identity_and_cancellation_after_native_call(self):
+        for change in ("window", "cancelled"):
+            with self.subTest(change=change):
+                self.setUp()
+                self.controller.enable()
+                self.desktop.on_focus = (lambda _: self.desktop.window.update(id=90)) if change == "window" else (lambda cancelled: cancelled.set())
+                with self.assertRaises(ComputerError):
+                    self.controller.focus()
+                self.assertIsNone(self.controller.observation)
+                self.assertFalse(self.controller.active)
+
+    def test_only_new_task_resumes_previous_cancellation_without_renewing_grant(self):
+        self.controller.enable(1)
+        deadline = self.controller.grant["deadline"]
+        self.controller.cancel()
+        with self.assertRaises(ComputerError):
+            self.controller.focus()
+        self.controller.begin_task()
+        self.controller.focus()
+        self.assertEqual(self.controller.grant["deadline"], deadline)
+        self.controller.revoke()
+        self.controller.begin_task()
+        with self.assertRaises(ComputerError):
+            self.controller.focus()
 
     def test_duration_is_bounded_and_expiry_uses_monotonic_time(self):
         for value in (True, 0, -1, 16, float("nan"), "15"):

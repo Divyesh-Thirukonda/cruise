@@ -13,7 +13,7 @@ import threading
 import time
 import uuid
 
-from .agent_provider import cost_microdollars
+from .agent_provider import AgentProviderError, cost_microdollars
 from .game_runtime import Game, validate_package, verify
 from .rendering import Renderer, png
 
@@ -283,6 +283,7 @@ class Orchestrator:
         self.candidates = {}
         self.request_id = None
         self.private_request = False
+        self.protocol_repairs = 0
 
     def event(self, kind, **values):
         if self.private_request or kind == "request_started":
@@ -309,6 +310,7 @@ class Orchestrator:
         self.request_id = uuid.uuid4().hex
         self.cancelled.clear()
         self.calls = self.delegations = 0
+        self.protocol_repairs = 0
         self.candidates = {}
         self.clarification = None
         self.private_request = bool(private)
@@ -321,7 +323,7 @@ class Orchestrator:
             self.event("request_finished", title="Agent finished", detail=result, role="orchestrator")
             return result
         except Exception as error:
-            self.event("request_failed", title="Build stopped", detail=str(error)[:500], role="orchestrator")
+            self.event("request_failed", title="Build stopped", exception_type=type(error).__name__, role="orchestrator")
             raise
 
     def loop(self, text, role, turns):
@@ -345,7 +347,24 @@ class Orchestrator:
                 # This call has not been dispatched, so its reservation is unused.
                 self.ledger.settle(call_id, 0)
                 raise AgentError("Cancelled by user; no further tool actions")
-            reply = self.provider.complete(messages, tools)
+            try:
+                reply = self.provider.complete(messages, tools)
+            except AgentProviderError as error:
+                # A fully received but malformed model turn may still report
+                # valid billing. Unknown transport/usage failures retain their
+                # reservation; never treat an uncertain call as free.
+                self.ledger.settle(call_id, getattr(error, "billed_cost_microdollars", None))
+                if (not getattr(error, "repairable", False) or self.protocol_repairs >= 2
+                        or self.cancelled.is_set()):
+                    raise
+                self.protocol_repairs += 1
+                self.event("model_response_rejected", title="Repairing the model response", role=role,
+                           exception_type=type(error).__name__)
+                messages.append({"role": "user", "content":
+                    "The fixed tool interface rejected your previous response: " + str(error) +
+                    " No action from that response was executed. Choose only currently advertised tools, "
+                    "with a valid JSON object for arguments, or return a short answer. Retry once now."})
+                continue
             self.ledger.settle(call_id, cost_microdollars(reply["provider"], reply["model"], reply["usage"]))
             if self.cancelled.is_set():
                 raise AgentError("Cancelled by user; no further tool actions")

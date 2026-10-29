@@ -13,6 +13,7 @@ import time
 import uuid
 
 from .agent import AgentError, Ledger, Orchestrator, digest
+from .agent_provider import AgentProviderError
 from .game_runtime import validate_commands, validate_input, validate_package
 from .host_bridge import BridgeStore, BridgeError
 from .rendering import Renderer, png
@@ -297,6 +298,8 @@ class Product(AssistantIO):
             self.response = None
             self._stop_speech()
             self.computer_approved_action = None
+            self.computer.begin_task()
+            self.computer_focus_pending = True
             job_id = uuid.uuid4().hex
             self.progress = {"job_id": job_id, "job_sequence": job_sequence, "request_id": None, "phase": "queued",
                              "title": "Request received", "tool": None, "role": "orchestrator"}
@@ -347,7 +350,13 @@ class Product(AssistantIO):
                           else self.agent.run(request_text))
                 summary = result if isinstance(result, str) else "Request finished."
             except Exception as error:
-                summary = str(error)[:500]
+                # Trusted component/provider errors carry user-facing guidance.
+                # Unexpected exceptions can contain paths or private payloads.
+                summary = (" ".join(str(error).split())[:500]
+                           if not self.agent.private_request or isinstance(error, (AgentError, AgentProviderError))
+                           else "An unexpected computer error occurred. Please try again.")
+                if self.agent.private_request:
+                    summary = "I couldn't finish that computer request. " + summary
                 outcome = "error"
             finally:
                 with self.lock:
@@ -357,7 +366,7 @@ class Product(AssistantIO):
                         self.running = False
                         self.voice_draft = None
                         self.draft_deadline = None
-                        if outcome == "ready":
+                        if outcome in {"ready", "error"}:
                             self._publish_response(summary, job_id)
                         self.summary = ("Task complete. Response available in Studio." if self.agent.private_request
                                         and outcome == "ready" else "Computer request stopped." if self.agent.private_request

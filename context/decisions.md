@@ -163,7 +163,7 @@ After validating the standalone production path, revert only the portfolio's
 Modulate feature commits and redeploy its main branch. Do not reset shared Git
 history or discard unrelated portfolio work.
 
-## October 29 — Guided connection flow and Codex setup skill
+## October 29 — Guided connection flow and portable setup skill
 
 The user requested a simpler React/Next.js experience that exposes one useful
 step at a time. Use a minimal first-visit introduction and connection-code form,
@@ -186,10 +186,17 @@ original portfolio source hashes alongside current hashes. This remains the
 dedicated Modulate deployment, with no portfolio dependency.
 
 Put initial installation instructions on a separate setup page with a copyable
-Codex prompt and optional downloadable local plugin. The plugin discovers and
+coding-agent prompt and optional downloadable skill package. The skill discovers and
 repairs existing setup before creating replacements, preserves private state,
 and guides human hardware/OS steps. Downloading a plugin does not automatically
 install native services or grant access. The public site serves one configured
 hub; a different user's Mac/Pi needs its own runtime and remote deployment.
 Do not imply a signed installer, automatic permission grants or self-service
 multi-tenant enrollment.
+
+The user clarified that setup should work with their choice of coding agent.
+Use portable Markdown instructions as the default path: open the folder, read
+`skills/modulate-setup/SKILL.md`, and follow it with local file/command tools.
+Optionally install through the agent's own skill mechanism. Keep the existing
+Codex manifest/catalog installer as a separately documented optional adapter;
+do not represent it as universally compatible or require it for setup.

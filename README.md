@@ -68,11 +68,14 @@ Studio. The sidebar appears only in the connected workspace; **Device** and
 **Developer tools**. Connecting preserves current permissions; the access step
 only saves choices the user changes. Returning sessions go straight to Studio.
 
-Need installation help? [Set up with Codex](https://modulate-connect.vercel.app/connect/setup)
+Need installation help? [Set up with your coding agent](https://modulate-connect.vercel.app/connect/setup)
 offers a copyable prompt and the downloadable [Modulate Setup plugin](plugins/modulate-setup).
-The skill checks and reuses existing software, guides native permission and
-physical steps, and preserves apps, pairing, credentials and spending history.
-It does not silently install native services or connect arbitrary Macs to the
+Open the downloaded folder in your coding agent and ask it to read
+`skills/modulate-setup/SKILL.md` and follow it. Optionally keep the skill through
+your agent's supported skill mechanism. The portable instructions check and
+reuse existing software, guide native permission and
+physical steps, and preserve apps, pairing, credentials and spending history.
+They do not silently install native services or connect arbitrary Macs to the
 shared public hub. The guided flow is deployed and verified; see the
 [build log](context/build-log.md).
 

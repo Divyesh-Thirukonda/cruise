@@ -31,27 +31,30 @@ The browser connection expires after eight hours and can be disconnected indepen
 
 Page reloads and companion restarts retain an unexpired browser session. During a companion outage the dashboard disables actions and retries automatically. Disconnect immediately clears the browser's private view; older polling responses cannot restore it. Reconnecting requires a fresh code because the original code was consumed.
 
-## Set up with Codex
+## Set up with your coding agent
 
-The separate `/connect/setup` page offers **Copy Codex prompt** and an optional
+The separate `/connect/setup` page offers **Copy setup prompt** and an optional
 **Download plugin**, with the full prompt available for manual copying if the
 browser clipboard is unavailable. The main connection page links here when a
 visitor has no code. Setup guidance does not require access to private dashboard
 state.
 
 The downloadable [Modulate Setup plugin](../plugins/modulate-setup) includes a
-local Codex manifest, setup skill, read-only inspection helper and explicit
-plugin installer. Unzip `/downloads/modulate-setup.zip`, open its folder in Codex
-and ask it to install Modulate Setup. This installs a guided skill into a local
-plugin source; enabling it remains a Codex action. Downloading it does not grant
-native access, start companion services or bundle provider keys.
+portable Markdown skill and a read-only inspection helper. Unzip
+`/downloads/modulate-setup.zip`, open its folder in your coding agent, and ask it
+to read `skills/modulate-setup/SKILL.md` and follow it. No particular agent or
+plugin installation is required; the agent needs local file and command tools
+to perform software setup. Optionally keep the skill using that agent's supported
+skill mechanism. Downloading it does not grant native access, start companion
+services or bundle provider keys. The package README separately documents its
+optional Codex-specific adapter; that installer is not universal.
 
 The skill checks for running **and stopped** installations before recreating
 anything. It preserves existing apps, credentials, enrollment, pairing and
 spending records; distinguishes replacing a Pi from adding another; and guides
 the next necessary physical or macOS permission step. A new user chooses their
 own provider access and spending ceiling before paid tests. The copyable prompt
-also works without installing the plugin by pointing Codex at its published
+also works without installing the plugin by pointing the agent at its published
 setup guidance.
 
 The public deployment still routes to one configured companion. Setting up a

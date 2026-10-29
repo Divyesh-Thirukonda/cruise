@@ -46,8 +46,14 @@
   "live_pairing_performed": false,
   "model_calls": 0,
   "limitations": [
-    "User must confirm the actual physical setup screen.",
     "No new enrollment or native/browser pairing was performed; fresh user state preserved.",
     "Wi-Fi provisioning and multi-tenant public hosting remain separate."
-  ]
+  ],
+  "physical_screen_confirmation": {
+    "date": "2026-10-29",
+    "source": "direct user reply",
+    "screen": "Set up on your Mac",
+    "visible": true,
+    "pairing_tested": false
+  }
 }

@@ -691,3 +691,38 @@ no further developer-shell access was used.
 limits: the Pi reports no unique USB input and its latest I2C report has no
 responding modules. These are separate from the successful Mac connection and
 are not presented as verified voice or hardware readiness.
+
+## October 29 — Customer setup stays out of developer Studio
+
+The user clarified that localhost Studio should not be an onboarding destination.
+Added a focused Mac `/setup` page for one step at a time: device connection,
+native code comparison, then a browser connection code and return to the website.
+Enrollment completion now automatically opens that page. The root console is
+retained for development. The website and portable setup package 0.4.0 return
+the customer to `/connect`, then access review and the public workspace. Existing
+valid browser sessions are retained instead of forcing another pairing.
+
+Local setup endpoints use the existing cookie/CSRF/Origin boundary, reuse active
+codes, require fresh device/native/gateway state, and never grant native access
+without the physical confirmation. Codes do not enter redirect URLs, ordinary
+state or agent context. Missing transport remains an agent repair step; a
+configured gateway does not establish a browser connection. The UI renews CSRF
+after a companion restart, preserves manual navigation after clipboard failure,
+and clears expired or replaced offers. An independent rehearsal caught a stale
+offer/count inference; the fix clears invalidated offers and leaves current
+browser verification to the website.
+
+Validation: 1,039 Python tests completed with 13 skips. The new setup plus prior
+pairing UI tests passed 15 checks; public API tests passed 39 and React tests
+passed 29, including retained sessions, initial connectivity errors and recovery.
+Next.js production build, source verification and five package checks passed.
+Later plain-text/probe integration changes passed their affected focused tests.
+These are automated/synthetic checks, not a new physical onboarding trial.
+
+Restarted the Mac companion with its existing private connection configuration
+and restored the previously configured authenticated outbound gateway. Updated
+only the dedicated Modulate project's companion origin for the new tunnel.
+Native pairing and both cumulative ledgers were retained; the TLS key/certificate
+and enrollment are byte-identical. No model calls, new Mac grants or browser
+claims were made. Pi-only offline guidance wording is updated in factory source;
+the installed Pi runtime was not replaced during this web-flow change.

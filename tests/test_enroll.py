@@ -326,13 +326,13 @@ class EnrollmentReceiptTests(unittest.TestCase):
         self.assertEqual(job.snapshot()["status"], "complete")
         self.assertNotIn(CODE, json.dumps(observed + [job.snapshot()]))
 
-    def test_completed_device_link_points_to_local_mac_access_without_promising_remote_code(self):
+    def test_completed_device_link_points_to_connection_setup_not_developer_studio(self):
         job, _ = self.run_job([{"id": IDENTIFIER, "status": "complete"}])
         result = job.snapshot()
         self.assertEqual(result["stage"], "mac_access")
-        self.assertEqual(result["next_action"], "open_studio")
-        self.assertEqual(result["studio_url"], "http://127.0.0.1:8787/")
-        self.assertIn("optional", result["message"])
+        self.assertEqual(result["next_action"], "open_setup")
+        self.assertEqual(result["setup_url"], "http://127.0.0.1:8787/setup")
+        self.assertIn("connection setup", result["message"])
         self.assertNotIn("create your website", result["message"])
 
     def test_structured_errors_distinguish_expiry_unknown_rejection_and_save_failure(self):
@@ -457,8 +457,8 @@ class LocalEnrollmentBrowserStateTests(unittest.TestCase):
 const vm=require('node:vm'), assert=require('node:assert/strict'), fs=require('node:fs');
 const elements=new Map();
 function element(id){if(!elements.has(id))elements.set(id,{value:id==='code'?'01234567':'',hidden:false,disabled:false,textContent:'',attrs:{},setAttribute(k,v){this.attrs[k]=v;},removeAttribute(k){delete this.attrs[k];}});return elements.get(id);}
-let cleared=false;
-const context=vm.createContext({document:{getElementById:element},setInterval:()=>1,clearInterval:()=>{cleared=true;},fetch:async()=>({ok:true,json:async()=>({status:'ready',updated_at:1})})});
+let cleared=false, navigation=null;
+const context=vm.createContext({window:{location:{replace:(url)=>{navigation=url;}}},document:{getElementById:element},setInterval:()=>1,clearInterval:()=>{cleared=true;},fetch:async()=>({ok:true,json:async()=>({status:'ready',updated_at:1})})});
 vm.runInContext(fs.readFileSync(0,'utf8'),context);
 vm.runInContext("render({status:'error',message:'Check group 2 character 8',updated_at:20})",context);
 assert.equal(element('code').value,'01234567'); // Pin failure sent nothing; code can still be used.
@@ -472,6 +472,7 @@ vm.runInContext("render({status:'complete',message:'Device linked',updated_at:22
 assert.equal(element('complete').hidden,false);
 assert.equal(element('step-mac').attrs['aria-current'],'step');
 assert.equal(cleared,true);
+assert.equal(navigation,'http://127.0.0.1:8787/setup');
 vm.runInContext("render({status:'error',message:'Old retry',updated_at:21})",context);
 assert.equal(element('status').textContent,'Device linked');
 assert.equal(element('form').hidden,true);

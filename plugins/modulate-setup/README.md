@@ -10,14 +10,14 @@ Unzip the download and open the `modulate-setup` folder in your coding agent on 
 
 You can also paste [setup-prompt.txt](setup-prompt.txt) directly into your coding agent without downloading or installing anything. The prompt links to the same published skill.
 
-To keep the skill for later, optionally install it using your agent's supported skill mechanism. Reading the Markdown works without a native plugin adapter. Your agent needs local files and commands for software setup and browser tools to operate the pages. It handles the Mac steps; you supply anything it cannot observe and confirm the matching request on the gadget. Local Studio is a complete setup outcome; remote browser access is optional. A chat-only agent can explain the steps but cannot install it for you.
+To keep the skill for later, optionally install it using your agent's supported skill mechanism. Reading the Markdown works without a native plugin adapter. Your agent needs local files and commands for software setup and browser tools to operate the pages. It handles the Mac steps; you supply anything it cannot observe and confirm the matching request on the gadget. The agent keeps companion details behind the scenes, opens a small local confirmation page only when needed, then returns you to the website to finish connecting. A working local link is checked separately from the website session. A chat-only agent can explain the steps but cannot install it for you.
 
 <details>
 <summary>Optional technical adapter: Codex local plugin</summary>
 
 The included `.codex-plugin/plugin.json`, `agents/openai.yaml` and `install.py` are an optional Codex-specific adapter, not a universal plugin installer. Other agents should use the portable skill above or their own supported installation method.
 
-For this adapter, ask Codex to inspect the package and run `python3 install.py --install`. It copies only this package into `~/.codex/plugins/modulate-setup/0.3.0` and adds it to `~/.agents/plugins/marketplace.json`, preserving other entries. It does not enable the plugin or modify permissions. Restart Codex, select **Modulate Setup** from the local Plugins source, and install/enable it. Then use `$modulate-setup`.
+For this adapter, ask Codex to inspect the package and run `python3 install.py --install`. It copies only this package into `~/.codex/plugins/modulate-setup/0.4.0` and adds it to `~/.agents/plugins/marketplace.json`, preserving other entries. It does not enable the plugin or modify permissions. Restart Codex, select **Modulate Setup** from the local Plugins source, and install/enable it. Then use `$modulate-setup`.
 
 Running `python3 install.py` without `--install` prints the planned changes only. A different existing plugin at that path or a conflicting catalog entry, including an older version's registration, is left untouched for review. The script prints the catalog backup path when it changes an existing catalog. Use Codex's normal uninstall/disable controls to remove access; the source files remain local.
 

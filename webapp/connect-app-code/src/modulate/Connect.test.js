@@ -226,12 +226,12 @@ test('a temporary outage keeps the connection and recovers automatically', async
     await screen.findByText('Hey Meta is on');
     offline = true;
     await act(async () => { jest.advanceTimersByTime(document.hidden ? 8000 : 1500); });
-    expect(screen.getByText('Modulate Studio isn’t reachable on your Mac. Retrying automatically.')).toBeInTheDocument();
+    expect(screen.getByText('Your Modulate connection isn’t reachable yet. Ask your setup agent to finish or reconnect it.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Disconnect browser' })).toBeInTheDocument();
     offline = false;
     await act(async () => { jest.advanceTimersByTime(document.hidden ? 8000 : 1500); });
     expect(within(screen.getByRole('region', { name: 'Device connection' })).getByText('Connected')).toBeInTheDocument();
-    expect(screen.queryByText('Modulate Studio isn’t reachable on your Mac. Retrying automatically.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Your Modulate connection isn’t reachable yet. Ask your setup agent to finish or reconnect it.')).not.toBeInTheDocument();
   } finally { jest.useRealTimers(); }
 });
 
@@ -243,7 +243,7 @@ test('an initial state failure retains the authenticated session as offline and 
     return initialState;
   });
   render(<Connect />);
-  await screen.findByText('Modulate Studio isn’t reachable on your Mac. Retrying automatically.');
+  await screen.findByText('Your Modulate connection isn’t reachable yet. Ask your setup agent to finish or reconnect it.');
   expect(screen.getByRole('button', { name: 'Disconnect browser' })).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Connect to Modulate' })).not.toBeInTheDocument();
   expect(within(screen.getByRole('region', { name: 'Device connection' })).queryByText('Connected')).not.toBeInTheDocument();
@@ -253,4 +253,62 @@ test('an initial state failure retains the authenticated session as offline and 
   fireEvent.click(screen.getByRole('button', { name: 'Refresh', exact: true }));
   await within(screen.getByRole('region', { name: 'Device connection' })).findByText('Connected');
   expect(screen.getByText('Hey Meta is on')).toBeInTheDocument();
+});
+
+test('an initial connection failure is visible and links to setup without leaking backend details', async () => {
+  usePathname.mockReturnValue('/connect');
+  connectApi.mockRejectedValue(Object.assign(new Error('private gateway trace and credential'), { status: 502 }));
+  render(<Connect />);
+  await screen.findByText('Your Modulate connection isn’t reachable yet. Ask your setup agent to finish or reconnect it.');
+  expect(screen.queryByText(/private gateway trace/)).not.toBeInTheDocument();
+  expect(screen.queryByText('Browser connected')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Get connection help' }));
+  expect(useRouter().push).toHaveBeenCalledWith('/connect/setup');
+  expect(connectApi.mock.calls.every(([, payload]) => payload === undefined)).toBe(true);
+});
+
+test('a recovered initial session check clears the warning without creating a browser session', async () => {
+  jest.useFakeTimers();
+  usePathname.mockReturnValue('/connect');
+  let unavailable = true;
+  connectApi.mockImplementation(async () => {
+    if (unavailable) throw new Error('Network down');
+    return { connected: false };
+  });
+  try {
+    render(<Connect />);
+    await screen.findByRole('button', { name: 'Get connection help' });
+    unavailable = false;
+    await act(async () => { jest.advanceTimersByTime(document.hidden ? 8000 : 1500); });
+    expect(screen.queryByRole('button', { name: 'Get connection help' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Connect to Modulate' })).toBeInTheDocument();
+    expect(screen.queryByText('Browser connected')).not.toBeInTheDocument();
+    expect(connectApi.mock.calls.every(([, payload]) => payload === undefined)).toBe(true);
+  } finally { jest.useRealTimers(); }
+});
+
+test('returning to the website retains a valid browser session and opens its workspace', async () => {
+  usePathname.mockReturnValue('/connect');
+  connectApi.mockImplementation(async action => action === 'session' ? connectedSession : initialState);
+  render(<Connect />);
+  await screen.findByText('Hey Meta is on');
+  expect(useRouter().replace).toHaveBeenCalledWith('/connect/studio');
+  expect(screen.queryByRole('button', { name: 'Connect to Modulate' })).not.toBeInTheDocument();
+  expect(connectApi.mock.calls.every(([, payload]) => payload === undefined)).toBe(true);
+});
+
+test('a failed browser claim stays on the connection form and gives actionable help', async () => {
+  usePathname.mockReturnValue('/connect');
+  connectApi.mockImplementation(async (action, payload) => {
+    if (payload?.code) throw Object.assign(new Error('private upstream traceback'), { status: 503 });
+    return { connected: false };
+  });
+  render(<Connect />);
+  await waitFor(() => expect(screen.getByLabelText(/connection code/i)).toBeEnabled());
+  fireEvent.change(screen.getByLabelText(/connection code/i), { target: { value: '01234567' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Connect to Modulate' }));
+  await screen.findByText('Your Modulate connection isn’t reachable yet. Ask your setup agent to finish or reconnect it.');
+  expect(screen.getByLabelText(/connection code/i)).toHaveValue('01234567');
+  expect(screen.queryByText(/private upstream/)).not.toBeInTheDocument();
+  expect(useRouter().push).not.toHaveBeenCalledWith('/connect/access');
 });

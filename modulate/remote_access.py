@@ -134,7 +134,7 @@ class RemoteAccess:
         with self.lock:
             pairing = self.pairing
             if not pairing or pairing["expires_at"] <= self.clock() or pairing["attempts"] >= 6:
-                raise RemoteAccessError("Create a new connection code in the Mac's local Studio", 401)
+                raise RemoteAccessError("Get a new browser connection code from the connection setup screen on your Mac", 401)
             pairing["attempts"] += 1
             if (type(code) is not str or not re.fullmatch(r"[0-9]{8}", code)
                     or not secrets.compare_digest(pairing["hash"], _hash(code))):
@@ -142,7 +142,7 @@ class RemoteAccess:
             self.state["sessions"] = {key: item for key, item in self.state["sessions"].items()
                                       if item["expires_at"] > self.clock()}
             if len(self.state["sessions"]) >= 12:
-                raise RemoteAccessError("Disconnect an old browser in local Studio first")
+                raise RemoteAccessError("Disconnect one of your linked browsers before adding another")
             token = secrets.token_urlsafe(32)
             self.state["sessions"][_hash(token)] = {"name": name.strip(), "expires_at": self.clock() + SESSION_SECONDS}
             self.pairing = None

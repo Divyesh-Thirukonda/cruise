@@ -24,7 +24,7 @@ The user confirmed the **Indie Developer** track and [owned hardware](context/ha
 
 Later spoken requests created and refined Metro Dash, then generated **Star Dash — Astronaut Runner**, retained across restart and the email trial. The update adds one-time focus of the granted Chrome window, spoken failure feedback and up to two malformed-response repairs within existing call/budget limits. Validation ran 417 local tests with three Mac PyAV skips, 46 final Pi device checks after the earlier 92 speaker/device tests, and 69 focused duration-integration tests. The **$50 total ledger ceiling** is live; that checkpoint recorded 147 calls / $5.343662 held or used. The earlier two-hour grant had an October 28, 11:56 PM Eastern expiry. [Grant state and ledger snapshots](context/product-runtime.md#install-the-host).
 
-## Run the product studio
+## Run the development studio
 
 ```sh
 python3 -m venv .venv
@@ -32,7 +32,7 @@ python3 -m venv .venv
 .venv/bin/python -m unittest discover -s tests -v
 ```
 
-Then follow the [host/Pi setup guide](context/product-runtime.md) for private credentials, a selected spending ceiling, pinned TLS enrollment and device launch. The companion is served locally at `http://127.0.0.1:8787`; it shows the real preview, connected controls, agent activity, generated source and checks. It is a working control surface, not a promotional website. The macOS host bridge and Pi device are separate trusted processes; no model key belongs in the browser or on the Pi.
+Then follow the [host/Pi setup guide](context/product-runtime.md) for private credentials, a selected spending ceiling, pinned TLS enrollment and device launch. Customer setup uses the focused `http://127.0.0.1:8787/setup` pairing page and returns to the website. The developer companion is served locally at `http://127.0.0.1:8787`; it shows the real preview, connected controls, agent activity, generated source and checks. It is a working control surface, not a promotional website. The macOS host bridge and Pi device are separate trusted processes; no model key belongs in the browser or on the Pi.
 
 While processing, the Pi and companion show the actual stage. The user confirmed the Listening → processing transition; a later 60-sample trace showed processing throughout all sampled busy stages and then ready/game. The current program is retained and paused. [Processing and restart evidence](context/evidence/processing-and-restart.json) distinguishes software telemetry from optical confirmation.
 

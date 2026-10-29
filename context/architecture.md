@@ -221,3 +221,14 @@ are allowlisted; legacy ambiguous errors are not diagnosed as expiry. Identity
 mismatch locations are hints for physical inspection, never replacement pins.
 The 0.3.0 setup probe prints only allowlisted status fields from fixed loopback
 endpoints, with redirects/proxies disabled and bounded response sizes.
+
+### Focused customer pairing screen
+
+The Mac companion serves `/setup` for customer code comparison and browser
+connection handoff; `/` remains the developer console. Enrollment completion
+uses `/setup`, never the developer console. Customer setup reads are local,
+cookie/CSRF protected and omit app content, model activity and spending records.
+Explicit pairing actions reuse valid pending offers, check current device
+online/native pairing/gateway state and retain physical confirmation. No
+credential is passed in a return URL. The reviewed public destination remains
+fixed; a missing gateway is a visible incomplete step, not a successful web link.

@@ -39,7 +39,7 @@ DEVICE_ERRORS = {
     "wrong_code": ("The device did not accept that code. Check its current eight digits and setup window on the gadget.", "check_code"),
     "attempts_exhausted": ("Too many incorrect attempts closed setup. Press small A for a fresh code.", "new_setup_code"),
     "request_pending": ("A link request is already waiting on the gadget. Check that screen before starting another request.", "check_device"),
-    "already_enrolled": ("This gadget already has a saved device link. Open Studio to check the existing connection.", "check_studio"),
+    "already_enrolled": ("This gadget already has a saved device link. Open connection setup to check the existing connection.", "check_studio"),
     "invalid_enrollment": ("The gadget rejected this Mac’s connection configuration. Ask your agent to check Studio’s address and certificate.", "check_studio"),
     "source_mismatch": ("Studio’s address does not match the Mac reaching the gadget. Ask your agent to check the current network route.", "check_studio"),
     "receipt_not_found": ("The gadget no longer has this request. Check its screen; this helper has not confirmed a link.", "check_device"),
@@ -226,9 +226,9 @@ class EnrollmentJob:
                     raise EnrollmentError("The gadget acknowledged a different setup request. This link is not confirmed.", "request_mismatch", "check_device")
                 status = reply.get("status")
                 if status == "complete":
-                    self.update(status="complete", stage="mac_access", next_action="open_studio",
-                                studio_url="http://127.0.0.1:8787/",
-                                message="Device linked. Continue in Studio to check Mac access. If it asks for approval, compare the code shown on both screens before pressing A. Remote browser access is optional.")
+                    self.update(status="complete", stage="mac_access", next_action="open_setup",
+                                setup_url="http://127.0.0.1:8787/setup",
+                                message="Device linked. Opening connection setup to compare Mac access, then continue to the Modulate website.")
                     return
                 if status == "expired":
                     raise EnrollmentError("The pending link expired before confirmation. Press small A for a fresh setup code.",
@@ -276,8 +276,8 @@ a{color:#69b1ff}.primary{display:block;text-align:center;text-decoration:none}ol
 <button id="submit">Send link request</button>
 </form>
 <p id="status" role="status" aria-live="polite"></p>
-<section id="complete" hidden><h2>Your device link is saved.</h2><p>Continue in local Studio. If Mac access still needs approval, Studio and the gadget must show the same comparison code. Check both screens before pressing A.</p><a class="primary" href="http://127.0.0.1:8787/">Continue to Mac access</a><small>Remote browser access is optional and is set up separately.</small></section>
-<p id="studio-link"><a href="http://127.0.0.1:8787/">Open local Studio</a></p>
+<section id="complete" hidden><h2>Your device link is saved.</h2><p>Opening connection setup. Compare the Mac access code on both screens before approving, then finish on the Modulate website.</p><a class="primary" href="http://127.0.0.1:8787/setup">Continue setup</a></section>
+<p id="studio-link"><a href="http://127.0.0.1:8787/setup">Open connection setup</a></p>
 <small>Local setup: this form sends connection details to your gadget, not a cloud service.</small>
 <script>
 const csrf=__CSRF__;
@@ -298,7 +298,7 @@ function render(d){
   for(const [id,current] of [['step-link',!pending&&!complete],['step-confirm',pending],['step-mac',complete]]){
     const el=document.getElementById(id);if(current)el.setAttribute('aria-current','step');else el.removeAttribute('aria-current');
   }
-  if(complete)clearInterval(timer);
+  if(complete){clearInterval(timer); if(typeof window!=='undefined')window.location.replace('http://127.0.0.1:8787/setup');}
 }
 form.onsubmit=async e=>{
   e.preventDefault();if(submitting||complete)return;submitting=true;submit.disabled=true;

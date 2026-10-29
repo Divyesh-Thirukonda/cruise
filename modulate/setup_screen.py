@@ -129,8 +129,8 @@ class SetupScreen:
             action = "next"
         elif not fresh:
             title = "Reconnect your Mac"
-            lines = (["Open Modulate Studio", "on your Mac. Check Wi-Fi", "on both. Retrying..."] if self.page == 0 else
-                     ["Setup guide:", CONNECT_HOST, "/connect", "Keep the companion open."])
+            lines = (["Keep your Mac awake.", "Check Wi-Fi on both.", "Retrying connection..."] if self.page == 0 else
+                     ["Setup guide:", CONNECT_HOST, "/connect", "Resume setup on your Mac."])
             action = "next"
         else:
             title = "Link your computer" if reason == "pairing" else "Connection setup"
@@ -139,9 +139,9 @@ class SetupScreen:
                 lines = [CONNECT_HOST, "/connect", "on your phone or Mac.", "A shows a one-use code."]
             elif action == "start_pairing":
                 lines = ["Browser connected." if (host.get("setup_status") or {}).get("browser_count") else "Mac companion found.",
-                         "Open Studio on your Mac.", "A shows a comparison code.", "Compare before approving."]
+                         "Continue pairing on Mac.", "A shows a comparison code.", "Compare before approving."]
             else:
-                lines = ["Mac pairing is ready.", "Local Studio: on your Mac", "127.0.0.1:8787"]
+                lines = ["Your Mac is linked.", "Finish website setup", "with your setup agent."]
         return {"kind": "guide", "title": title, "lines": lines, "action": action, "connect_url": CONNECT_URL}
 
     def buttons(self, card, a, b, valid):

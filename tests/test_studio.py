@@ -7,6 +7,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from html.parser import HTMLParser
 import json
 import threading
+import time
+from types import SimpleNamespace
 import unittest
 
 from modulate.studio import handler_for
@@ -15,6 +17,9 @@ from modulate.studio import handler_for
 class FakeProduct:
     def __init__(self):
         self.calls = []
+        self.lock = threading.RLock()
+        self.remote_access = None
+        self.setup_offer = None
         self.wake = True
         self.preview_bytes = b"live-test-image"
         self.candidate_preview_bytes = b"candidate-test-image"
@@ -227,6 +232,111 @@ class StudioTests(unittest.TestCase):
         self.assertIn("SameSite=Strict", headers["Set-Cookie"])
         self.assertEqual(headers["Cache-Control"], "no-store")
         self.assertIn("frame-ancestors 'none'", headers["Content-Security-Policy"])
+
+    def configure_customer_setup(self, product, **changes):
+        state = {"device_connected": True, "paired_mac": False, "pairing_saved": False,
+                 "local_ready": False, "remote_enabled": False, "browser_count": 0,
+                 "pairing_expires_at": None, "native_permissions": {}, **changes}
+        product.remote_access = SimpleNamespace(pairing_active=lambda code, expiry: expiry > time.time())
+        product.local_pairing = lambda: getattr(product, "pending_customer_pairing", None)
+        def create():
+            product.calls.append(("create_pairing",))
+            product.pending_customer_pairing = {"code": "12345678", "expires_at": time.time() + 300}
+            return product.pending_customer_pairing
+        product.create_pairing = create
+        def setup(action):
+            if action == "status":
+                return {**state, "private_content": "not-for-this-page"}
+            product.calls.append(("connection_setup", action))
+            if action == "create_browser_code":
+                product.setup_offer = {"kind": "browser_code", "code": "87654321",
+                                       "expires_at": time.time() + 300, "browser_count": state["browser_count"]}
+            return {"display_requested": True}
+        product.connection_setup = setup
+        return state
+
+    def test_customer_setup_page_uses_external_assets_and_no_developer_dashboard(self):
+        _, port = self.start(csrf="synthetic-csrf", cookie="synthetic-session")
+        for path in ("/setup", "/setup.js", "/setup.css"):
+            status, headers, body = self.request(port, path)
+            self.assertEqual(status, 200)
+            self.assertIn("script-src 'self'", headers["Content-Security-Policy"])
+            self.assertNotIn("unsafe-inline", headers["Content-Security-Policy"])
+            self.assertTrue(body)
+        html = self.request(port, "/setup")[2].decode()
+        self.assertIn('src="/setup.js"', html)
+        self.assertIn('href="/setup.css"', html)
+        self.assertIn('href="https://modulate-connect.vercel.app/connect"', html)
+        self.assertNotIn("__CONNECT_URL__", html)
+        self.assertNotIn('id="request"', html)
+        self.assertNotIn('href="/"', html)
+
+    def test_customer_setup_status_and_codes_are_local_session_only(self):
+        product, port = self.start(csrf="synthetic-csrf", cookie="synthetic-session")
+        self.configure_customer_setup(product, paired_mac=True, local_ready=True, remote_enabled=True)
+        product.setup_offer = {"kind": "browser_code", "code": "87654321", "expires_at": time.time() + 300, "browser_count": 0}
+        good = {"X-CSRF-Token": "synthetic-csrf", "Cookie": "modulate=synthetic-session"}
+        for headers in ({}, {"Cookie": good["Cookie"]}, {"X-CSRF-Token": good["X-CSRF-Token"]},
+                        {**good, "Origin": "https://other.example"}, {**good, "Host": "other.example"},
+                        {**good, "Sec-Fetch-Site": "cross-site"}):
+            self.assertEqual(self.request(port, "/api/setup", headers=headers)[0], 403)
+        status, _, body = self.request(port, "/api/setup", headers=good)
+        self.assertEqual(status, 200)
+        data = json.loads(body)
+        self.assertEqual(data["browser_pairing"]["code"], "87654321")
+        self.assertEqual(data["website_url"], "https://modulate-connect.vercel.app/connect")
+        self.assertNotIn("private_content", data)
+        self.assertNotIn(b"87654321", self.request(port, "/api/state")[2])
+        _, device_port = self.start(device=True, peer="127.0.0.1", device_key="synthetic-device")
+        for path in ("/setup", "/setup.js", "/setup.css", "/api/setup"):
+            self.assertEqual(self.request(device_port, path, headers={"Authorization": "Bearer synthetic-device"})[0], 403)
+
+    def test_customer_pairing_reuses_pending_code_and_does_not_rotate_on_repeated_clicks(self):
+        product, port = self.start(csrf="synthetic-csrf", cookie="synthetic-session")
+        state = self.configure_customer_setup(product)
+        results = [self.request(port, "/api/setup/pairing", method="POST", body="{}", headers=self.headers(port)) for _ in range(2)]
+        self.assertEqual([item[0] for item in results], [200, 200])
+        self.assertEqual([json.loads(item[2])["pending"]["code"] for item in results], ["12345678"] * 2)
+        self.assertEqual(product.calls, [("create_pairing",)])
+        state.update(paired_mac=True, local_ready=True)
+        status, _, body = self.request(port, "/api/setup/pairing", method="POST", body="{}", headers=self.headers(port))
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body), {"pending": None, "already_paired": True})
+        self.assertEqual(product.calls, [("create_pairing",)])
+
+    def test_customer_browser_code_requires_current_online_pairing_and_gateway_and_reuses_code(self):
+        product, port = self.start(csrf="synthetic-csrf", cookie="synthetic-session")
+        state = self.configure_customer_setup(product, paired_mac=True, local_ready=True, remote_enabled=True)
+        good_state = dict(state)
+        # A previously successful status read does not authorize a later stale mutation.
+        self.assertEqual(self.request(port, "/api/setup", headers=self.headers(port))[0], 200)
+        for changes in ({"device_connected": False}, {"paired_mac": False}, {"local_ready": False}, {"remote_enabled": False}):
+            state.update(good_state); state.update(changes)
+            self.assertEqual(self.request(port, "/api/setup/browser-code", method="POST", body="{}", headers=self.headers(port))[0], 400)
+        self.assertEqual(product.calls, [])
+        state.update(good_state)
+        for _ in range(2):
+            status, _, body = self.request(port, "/api/setup/browser-code", method="POST", body="{}", headers=self.headers(port))
+            self.assertEqual(status, 200)
+            self.assertEqual(json.loads(body)["browser_pairing"]["code"], "87654321")
+        self.assertEqual(product.calls, [("connection_setup", "create_browser_code")])
+        product.setup_offer["expires_at"] = time.time() - 1
+        self.assertIsNone(json.loads(self.request(port, "/api/setup", headers=self.headers(port))[2])["browser_pairing"])
+        product.setup_offer["expires_at"] = time.time() + 300
+        state["paired_mac"] = False
+        self.assertIsNone(json.loads(self.request(port, "/api/setup", headers=self.headers(port))[2])["browser_pairing"])
+        state.update(paired_mac=True, device_connected=False)
+        self.assertIsNone(json.loads(self.request(port, "/api/setup", headers=self.headers(port))[2])["browser_pairing"])
+
+    def test_customer_setup_mutations_keep_existing_auth_and_reject_extra_fields(self):
+        product, port = self.start(csrf="synthetic-csrf", cookie="synthetic-session")
+        self.configure_customer_setup(product, paired_mac=True, local_ready=True, remote_enabled=True)
+        for path in ("/api/setup/pairing", "/api/setup/browser-code"):
+            for missing in ("Origin", "Cookie", "X-CSRF-Token"):
+                headers = {key: value for key, value in self.headers(port).items() if key != missing}
+                self.assertEqual(self.request(port, path, method="POST", body="{}", headers=headers)[0], 403)
+            self.assertEqual(self.request(port, path, method="POST", body='{"redirect":"https://evil.example"}', headers=self.headers(port))[0], 400)
+        self.assertEqual(product.calls, [])
 
     def test_interaction_lab_resources_are_external_and_permitted_by_unchanged_csp(self):
         _, port = self.start(csrf="synthetic-csrf", cookie="synthetic-session")

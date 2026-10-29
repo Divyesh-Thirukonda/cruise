@@ -122,7 +122,7 @@ class ConnectionSetupTests(unittest.TestCase):
         self.assertIsNone(self.remote.pairing)
         result = self.product.connection_setup("show")
         self.assertFalse(result["remote_enabled"])
-        self.assertIn("127.0.0.1:8787", self.product.setup_offer["lines"][0])
+        self.assertIn("Continue on your Mac", self.product.setup_offer["lines"][0])
         self.product.last_seen = None
         self.assertFalse(self.product.connection_setup("status")["device_connected"])
         for action in ("show", "start_pairing", "create_browser_code"):
@@ -148,8 +148,10 @@ class ConnectionSetupTests(unittest.TestCase):
         status = self.product.connection_setup("status")
         self.assertTrue(status["local_ready"])
         self.assertFalse(status["remote_enabled"])
-        self.assertEqual(status["local_studio_url"], "http://127.0.0.1:8787")
-        self.assertTrue(any(status["local_studio_url"] in line for line in status["instructions"]))
+        self.assertEqual(status["companion_setup_url"], "http://127.0.0.1:8787/setup")
+        self.assertFalse(status["browser_linked"])
+        self.assertNotIn("local_studio_url", status)
+        self.assertTrue(any("website connection still needs setup" in line for line in status["instructions"]))
         self.assertFalse(any("vercel.app" in line for line in status["instructions"]))
         self.product.connection_setup("show")
         self.assertNotIn("code", self.product.setup_offer)

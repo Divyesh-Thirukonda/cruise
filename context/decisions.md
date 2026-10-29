@@ -228,3 +228,18 @@ local Studio read, never normal state, model context or remote gateway output.
 Explain bounded error causes where available; legacy missing reasons remain
 uncertain. A reported identity typo requires physical verification and never
 automatic trust in the network certificate.
+
+## October 29 — Website is the customer destination
+
+The user superseded the earlier default of finishing customer setup in local
+Studio. Keep that console as a developer tool, while customer setup uses the
+minimal Mac `/setup` comparison/handoff screen and returns to the installation's
+website `/connect` form. An explicitly local-only use can still stop locally;
+the website journey is not complete until its own session and device state work.
+Preserve valid sessions and native pairing rather than replaying onboarding.
+
+Handle remote transport configuration through the setup agent and existing
+private installation settings. Do not redirect arbitrary new Macs to an
+unrelated shared hub, claim connection from configuration alone, or pass codes
+in URLs. Show one next action, recover in place after restart/expiry/clipboard
+failure, and keep genuine physical/OS confirmation requirements visible.

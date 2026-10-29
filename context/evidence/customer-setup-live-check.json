@@ -1,0 +1,16 @@
+{
+  "device_online": true,
+  "native_pairing_active": true,
+  "gateway_enabled": true,
+  "browser_sessions": 0,
+  "has_pending_code": false,
+  "state_files_unchanged": {
+    "budget.json": true,
+    "tts-character-ledger.json": true,
+    "device-cert.pem": true,
+    "device-key.pem": true,
+    "device-enrollment.json": true
+  },
+  "new_physical_pairing_trial": false,
+  "new_browser_claim_performed": false
+}

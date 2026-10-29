@@ -749,3 +749,12 @@ the installed Pi runtime was not replaced during this web-flow change.
 - Independent review found no behavioral, route or CSP blocker. The generated
   PNG is retained at full resolution (628 KB) for now; smaller exports are a
   potential future asset optimization.
+
+
+## Programmatic logo study — October 29, 2026
+
+Created a 1,304-byte transparent SVG from rounded polygon geometry and one seam
+repeated at 120-degree intervals. Its standard-library Python drawing script,
+preview page and browser screenshot are in `assets/brand/`. Inspected the mark
+with the wordmark and at 24/32/48 px; parsed the SVG successfully. No image model,
+website deployment, device changes or API calls were used for this study.

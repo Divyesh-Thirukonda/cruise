@@ -92,5 +92,31 @@ class VoiceFlowTests(unittest.TestCase):
     def test_unowned_clarification_callback_is_rejected(self):
         with self.assertRaises(AgentError): self.product.request_clarification('What should change?')
 
+    def test_second_clarification_retains_original_goal(self):
+        _, first = self.queued('Make the falling meteors faster', source='website')
+        def ask(text):
+            self.product.request_clarification('How much faster?')
+            return 'How much faster?'
+        with patch.object(self.product.agent, 'run', side_effect=ask): first()
+        _, second = self.queued('A little', source='website')
+        with patch.object(self.product.agent, 'run', side_effect=ask): second()
+        _, third = self.queued('Twenty percent', source='website')
+        with patch.object(self.product.agent, 'run', return_value='Done') as run: third()
+        self.assertIn('Make the falling meteors faster', run.call_args.args[0])
+
+    def test_exact_question_can_be_dismissed_without_cancelling_future_jobs(self):
+        job, work = self.queued('Make it better',source='website')
+        def ask(text):
+            self.product.request_clarification('What should change?')
+            return 'What should change?'
+        with patch.object(self.product.agent,'run',side_effect=ask):work()
+        self.assertFalse(self.product.cancel('c'*32)['cancelled'])
+        self.assertIsNotNone(self.product.clarification)
+        self.assertTrue(self.product.cancel(job)['dismissed_question'])
+        self.assertIsNone(self.product.clarification)
+        new, _ = self.queued(source='website')
+        self.assertFalse(self.product.cancel(job)['cancelled'])
+        self.assertTrue(self.product.running)
+
 if __name__ == '__main__':
     unittest.main()

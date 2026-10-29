@@ -328,11 +328,11 @@ class Product:
                     request_text = self.voice_draft["text"] if self.voice_draft else text.strip()
                     self.voice_draft = None
                     self.draft_deadline = None
-                    self.current_request = request_text
                     if followup:
                         request_text = ("Previous request: " + followup["original"][:1600] +
                                         "\nClarifying question: " + followup["question"] +
                                         "\nUser's reply (may replace the request): " + request_text[:1800])
+                    self.current_request = request_text
                 result = self.agent.run(request_text)
                 summary = result if isinstance(result, str) else "Request finished."
             except Exception as error:
@@ -379,6 +379,7 @@ class Product:
                     or getattr(self.job_context, "job_id", None) != self.progress["job_id"]):
                 raise AgentError("This request is no longer active")
             self.clarification = {"question": question.strip(), "request_id": self.progress["request_id"],
+                                  "job_id": self.progress["job_id"],
                                   "original": self.current_request or ""}
             return {"clarification_required": True, "question": question.strip()}
 
@@ -403,6 +404,10 @@ class Product:
 
     def cancel(self, job_id=None):
         with self.changed:
+            if (not self.running and self.clarification
+                    and (job_id is None or job_id == self.clarification["job_id"])):
+                self.clarification = None
+                return {"cancelled": True, "dismissed_question": True}
             if job_id is not None and (not self.running or job_id != self.progress["job_id"]):
                 return {"cancelled": False, "reason": "That request has already finished"}
             self.agent.cancelled.set()
@@ -627,6 +632,7 @@ class Product:
             return {"activation": pending, "active_revision": self.revision, "wake": self.wake,
                     "agent_running": self.running, "agent_state": self.agent_state(),
                     "clarification": ({"question": self.clarification["question"],
+                                       "job_id": self.clarification["job_id"],
                                        "request_id": self.clarification["request_id"]} if self.clarification else None),
                     "volume": self.volume, "paired": bool(self.capabilities()["paired_host"]),
                     "failure_ack": ({key: failure[key] for key in ("revision", "restored_revision")} if failure is not None else None),
@@ -749,6 +755,7 @@ class Product:
                     "agent": self.agent_state(),
                     "voice_draft": copy.deepcopy(self.voice_draft),
                     "clarification": ({"question": self.clarification["question"],
+                                       "job_id": self.clarification["job_id"],
                                        "request_id": self.clarification["request_id"]} if self.clarification else None),
                     "events": list(self.events), "volume": self.volume,
                     "paired": bool(self.capabilities()["paired_host"]), "wake": self.wake,

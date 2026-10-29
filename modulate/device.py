@@ -153,6 +153,8 @@ class Controller:
                 return True
             state = self.host.get("agent_state") or {}
             identifier = (self.build or {}).get("job_id") or (state.get("job_id") if state.get("running") else None)
+            if identifier is None:
+                identifier = (self.host.get("clarification") or {}).get("job_id")
             if not self._job_id(identifier):
                 self._feedback("Nothing to cancel", "Your current app stays active")
                 return False

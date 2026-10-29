@@ -58,6 +58,11 @@ class ControllerTests(unittest.TestCase):
         self.assertIsNone(self.controller.build)
         self.Companion.post.assert_not_called()
 
+    def test_voice_cancel_can_dismiss_exact_pending_question(self):
+        self.controller.host={'clarification':{'job_id':'f'*32,'question':'What should change?'}}
+        self.assertTrue(self.controller.cancel_request())
+        self.assertEqual(self.controller.cancellations.get_nowait(),'f'*32)
+
     def test_busy_voice_cancel_sends_exact_heard_job_not_a_later_job(self):
         self.controller.build={'job_id':'a'*32,'awaiting_response':False}
         self.assertTrue(self.controller.cancel_request())

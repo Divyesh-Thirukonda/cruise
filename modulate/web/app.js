@@ -120,6 +120,7 @@
     $("request-submit").disabled = !ui.online || state?.device?.connected !== true || running || ui.submitting || !$("request").value.trim();
     $("cancel").hidden = !running;
     $("cancel").disabled = !ui.online || ui.mutating.has("cancel");
+    $("clarification-dismiss").disabled = !ui.online || !state?.clarification || ui.mutating.has("cancel");
     $("rollback").disabled = !ui.online || running || !state?.active?.previous || ui.mutating.has("rollback");
     $("pairing-open").disabled = !ui.online || ui.mutating.has("pairing");
     $("pairing-refresh").disabled = !ui.online || ui.mutating.has("pairing");
@@ -573,6 +574,9 @@
     $("voice-instructions").hidden = !expanded;
   });
   $("cancel").addEventListener("click", () => action("cancel", "/api/cancel", {}, "Cancellation requested. The current program stays available."));
+  $("clarification-dismiss").addEventListener("click", () => {
+    if (!$("clarification-dismiss").disabled) return action("cancel", "/api/cancel", {}, "Clarification dismissed. Keeping your current app.");
+  });
   $("rollback").addEventListener("click", () => action("rollback", "/api/rollback", {}, "Previous version restored."));
   $("revoke").addEventListener("click", () => action("revoke", "/api/revoke", {}, "Device access revoked."));
   $("wake-toggle").addEventListener("click", () => action("wake", "/api/wake", {enabled: ui.state?.wake !== true}));

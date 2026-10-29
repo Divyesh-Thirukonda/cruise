@@ -21,7 +21,9 @@ The orchestrator and specialists share bounded turns, eighteen calls per request
 | Primary game experience | User-confirmed direction: generated game on the device screen | Supersedes phone-game control and the earlier music/video workflow as the main demo |
 | Game scope | Pixel Kart Sprint from text; MODULATE: Self Assembly from speech | First-game controls confirmed; observed device rates about 13 fps. Further gameplay/performance testing remains |
 | Second experience | Paired knob-to-Mac-volume demonstrated | User confirmed direction; live deltas and independent native reads confirmed OS values. Revocation/fault trials remain |
-| Voice | Native 48 kHz capture → PyAV resampling → local Whisper | Initial rate/overflow failures repaired with resampling, 0.25 s latency and retry fixes; PTT and hands-free refinements succeeded; 34 Pi voice tests passed without skips |
+| Voice | Native 48 kHz capture → PyAV resampling → local Whisper | Wake-only check after a 0.5-second pause keeps recording; full requests wait three seconds of silence. User confirmed the repaired wake acknowledgement. Ambient checks are passive; audio at 25 seconds is discarded |
+| Request review and cancellation | User-requested voice polish | Separate three-second transcript review; Edit pauses sending, Send now submits, Discard cancels. Busy wake cancellation is implemented; a held request was cancelled by voice on the Pi with zero model calls |
+| Clarification | Model-directed `ask_user` with next-reply context | One short question ends the agent turn; the next reply includes the original request and question. Preserve valid short answers; do not claim a numeric confidence threshold |
 | Agent behavior | Live tools, bounded delegation and recovery demonstrated once | First game used 11 calls and coder delegation chosen after a malformed write; repeatability remains to measure |
 | Generated code boundary | JavaScript application packages on a fixed QuickJS-NG runtime | OS-restricted subprocess, fixed drawing/input API and independently maintained verifier; no generated firmware |
 | Control actions | Declarative encoder-to-volume binding plus allowlisted bridge | Generated code has no privileged host/driver access; fixed macOS actions validate values and sequence numbers |
@@ -41,3 +43,5 @@ The orchestrator and specialists share bounded turns, eighteen calls per request
 | License | Unselected | Agree deliberately; public visibility alone does not grant reuse rights |
 
 The core prototype loop has typed/spoken game, native-volume, spoken-refinement and rollback evidence. Preserve each run’s input mode and distinguish unit tests from physical/reliability trials. Record exact revisions, acknowledgements and failures; keep secrets, raw audio and private conversations outside Git.
+
+The voice-polish changes preserve the fixed application-package and trusted bridge boundary. Latest local validation ran 313 tests with three PyAV-dependent skips. All 164 focused Pi tests passed without skips. Live wake acknowledgement and voice cancellation of a held draft were user-confirmed; a synthetic transcript produced a live Meta clarification, and Studio edit/discard made zero new model calls. These trials are not a recognition-rate benchmark. See [voice evidence](evidence/voice-review-cancellation.json).

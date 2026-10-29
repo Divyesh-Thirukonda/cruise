@@ -47,6 +47,11 @@ class Controller:
         self.setup_actions = queue.Queue(maxsize=1)
         self.setup_in_flight = False
         self.setup_reopen_start = None
+        # main attaches the local enrollment service only on an unenrolled boot.
+        # Keeping construction outside Controller also keeps synthetic IO tests
+        # from opening a listener or generating a device TLS identity.
+        self.enrollment_setup = None
+        self.enrollment_rendered_id = None
         self.library_screen = LibraryScreen()
         self.library_actions = queue.Queue(maxsize=1)
         self.library_exit_guard = False
@@ -621,7 +626,8 @@ class Controller:
             return self.setup_screen.update(
                 enrolled=not isinstance(self.companion, PendingCompanion) or self.companion.configured,
                 fresh=time.monotonic() - self.last_response < 4, host=self.host,
-                now=time.monotonic(), wall=time.time())
+                now=time.monotonic(), wall=time.time(),
+                enrollment_setup=self.enrollment_setup.snapshot() if self.enrollment_setup else None)
 
     def _library_card(self):
         with self.lock:
@@ -678,8 +684,22 @@ class Controller:
         if a and b:
             self.setup_screen.buttons_released = False
         if card and self.display_state.get("kind") == "setup" and not (a and b):
+            # A proposal arriving between frames must actually be shown before
+            # a release/press can authorize it. A held A can never approve it.
+            if (card["kind"] == "enrollment_confirm"
+                    and self.enrollment_rendered_id != card.get("id")):
+                self.setup_screen.buttons_released = False
+                sample.update(button_a=False, button_b=False, encoder_delta=0)
+                return sample
             action = self.setup_screen.buttons(card, a, b, valid)
-            if action in {"create_browser_code", "start_pairing"} and not self.setup_in_flight:
+            if self.enrollment_setup and action == "open_enrollment":
+                self.enrollment_setup.open_window()
+            elif self.enrollment_setup and action == "confirm_enrollment":
+                if not self.enrollment_setup.confirm(card["id"]):
+                    self._feedback("Setup not confirmed", "Request expired or changed.\nStart setup again on your Mac.")
+            elif self.enrollment_setup and action == "dismiss":
+                self.enrollment_setup.close_window()
+            elif action in {"create_browser_code", "start_pairing"} and not self.setup_in_flight:
                 try:
                     self.setup_actions.put_nowait(action)
                     self.setup_in_flight = True
@@ -921,14 +941,21 @@ class Controller:
                    kind="processing", animate=connected)
 
     def draw_setup(self, card):
-        key = ("setup", card.get("id"), card["title"], tuple(card["lines"]), card.get("code"), self.setup_in_flight)
+        key = ("setup", card.get("id"), card["title"], tuple(card["lines"]), card.get("code"),
+               card.get("address"), card.get("fingerprint"), self.setup_in_flight)
         if key == self.status_key:
             return
         image = Image.new("RGB", (240, 135), "#101113")
         draw = ImageDraw.Draw(image)
         draw.text((9, 6), "MODULATE / SETUP", font=font(10), fill="#469DFF")
         draw.text((9, 24), card["title"][:25], font=font(15), fill="white")
-        if card["kind"] == "browser_code":
+        if card["kind"] == "enrollment_code":
+            draw.text((9, 45), f"{card['address']}:{card['port']}", font=font(11), fill="#CCD5E0")
+            fingerprint = card["fingerprint"].upper()
+            draw.text((9, 61), "Key: " + fingerprint[:10] + " " + fingerprint[10:], font=font(10), fill="#CCD5E0")
+            draw.text((9, 79), card["code"], font=font(26), fill="#74B8FF")
+            footer = "A: new code   B: cancel"
+        elif card["kind"] == "browser_code":
             draw.text((9, 46), CONNECT_HOST, font=font(11), fill="#CCD5E0")
             draw.text((9, 60), "/connect", font=font(10), fill="#CCD5E0")
             draw.text((9, 74), card["code"], font=font(26), fill="#74B8FF")
@@ -937,13 +964,17 @@ class Controller:
             for index, line in enumerate(card["lines"][:4]):
                 draw.text((9, 48 + index * 14), line[:33], font=font(11), fill="#CCD5E0")
             footer = ("Working...   B: later" if self.setup_in_flight else
+                      "A: link   B: decline" if card["action"] == "confirm_enrollment" else
+                      "A: setup code   B: later" if card["action"] == "open_enrollment" else
                       "A: show code   B: later" if card["action"] == "create_browser_code" else
                       "A: pair Mac   B: later" if card["action"] == "start_pairing" else "A: next   B: later")
         draw.line((9, 111, 231, 111), fill="#343A42")
         draw.text((9, 117), footer, font=font(10), fill="#A6B0BC")
         self.present(image)
         with self.lock:
-            self.display_state = {"kind": "setup", "title": card["title"], "offer_id": card.get("id")}
+            self.enrollment_rendered_id = card.get("id") if card["kind"] == "enrollment_confirm" else None
+            self.display_state = {"kind": "setup", "title": card["title"],
+                                  "offer_id": None if card["kind"].startswith("enrollment_") else card.get("id")}
         self.status_key = key
 
     def draw_library(self):
@@ -1108,10 +1139,23 @@ def main():
         return
     lock = (directory / "device.lock").open("w")
     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    controller = Controller(directory, args.enrollment, microphone=args.microphone)
-    for signum in (signal.SIGINT, signal.SIGTERM):
-        signal.signal(signum, lambda *_: controller.stop.set())
-    controller.run()
+    enrollment_setup = None
+    try:
+        controller = Controller(directory, args.enrollment, microphone=args.microphone)
+        # An unreadable or invalid existing file needs repair; it is not an
+        # invitation to replace an enrollment, including a dangling symlink.
+        if not os.path.lexists(args.enrollment):
+            from .device_enrollment import EnrollmentServer
+            enrollment_setup = EnrollmentServer(directory / "setup", args.enrollment)
+            enrollment_setup.start()
+            controller.enrollment_setup = enrollment_setup
+        for signum in (signal.SIGINT, signal.SIGTERM):
+            signal.signal(signum, lambda *_: controller.stop.set())
+        controller.run()
+    finally:
+        if enrollment_setup:
+            enrollment_setup.close()
+        lock.close()
 
 
 if __name__ == "__main__":

@@ -23,7 +23,7 @@ class SetupScreen:
             self.dismissed = False
             self.page = 0
 
-    def update(self, *, enrolled, fresh, host, now, wall):
+    def update(self, *, enrolled, fresh, host, now, wall, enrollment_setup=None):
         reason = ("enrollment" if not enrolled else "offline" if not fresh and now - self.started >= 8
                   else "pairing" if fresh and host.get("paired") is False else None)
         # A recovered paired connection ends the episode. Dismissal never persists
@@ -36,7 +36,8 @@ class SetupScreen:
             card = dict(offer)
             card["action"] = "next" if offer["kind"] == "browser_code" else self._action(host)
         elif (reason and not self.dismissed) or self.force:
-            card = self._local_card(reason, host, enrolled, fresh)
+            card = (self._enrollment_card(enrollment_setup) if not enrolled else None)
+            card = card or self._local_card(reason, host, enrolled, fresh)
         else:
             self.identity = None
             self.buttons_released = False
@@ -46,6 +47,40 @@ class SetupScreen:
             self.identity = identity
             self.buttons_released = False
         return card
+
+    @staticmethod
+    def _enrollment_card(setup):
+        """Render only the trusted local bootstrap service, never a host offer."""
+        if type(setup) is not dict:
+            return None
+        if setup.get("completed"):
+            return {"kind": "guide", "title": "Connecting to your Mac", "lines": [
+                "Device details saved.", "Keep Modulate Studio open.", "Checking the connection..."],
+                "action": "next", "connect_url": CONNECT_URL}
+        if not setup.get("address") and not setup.get("error"):
+            return {"kind": "guide", "title": "Connect to your network", "lines": [
+                "Use configured Wi-Fi", "or plug in Ethernet.", "Put your Mac on that network.",
+                "Checking for an address..."], "action": "next", "connect_url": CONNECT_URL}
+        if setup.get("available") is not True:
+            return {"kind": "guide", "title": "Setup unavailable", "lines": [
+                "Restart your device.", "If setup stays unavailable,", "ask for a software update."],
+                "action": "next", "connect_url": CONNECT_URL}
+        address = str(setup.get("address") or "No network address")
+        pending = setup.get("pending")
+        if type(pending) is dict and re.fullmatch(r"[0-9a-f]{32}", str(pending.get("id", ""))):
+            return {"kind": "enrollment_confirm", "id": pending["id"], "title": "Link this Mac?",
+                    "lines": [str(pending.get("host_address", "")), "Match request on your Mac:",
+                              pending["id"][-8:].upper(), "Only approve your request."],
+                    "action": "confirm_enrollment", "connect_url": CONNECT_URL}
+        code, fingerprint = setup.get("code"), setup.get("fingerprint")
+        if (type(code) is str and re.fullmatch(r"[0-9]{8}", code)
+                and type(fingerprint) is str and re.fullmatch(r"[0-9a-f]{20}", fingerprint)):
+            return {"kind": "enrollment_code", "title": "Mac setup details", "lines": [],
+                    "address": address, "port": setup.get("port", 8790), "fingerprint": fingerprint,
+                    "code": code, "action": "open_enrollment", "connect_url": CONNECT_URL}
+        return {"kind": "guide", "title": "Set up on your Mac", "lines": [
+            CONNECT_HOST, "/connect/setup", "A shows your device details.", "Mac + gadget: same Wi-Fi"],
+            "action": "open_enrollment", "connect_url": CONNECT_URL}
 
     @staticmethod
     def _offer(offer, fresh, wall):
@@ -78,7 +113,7 @@ class SetupScreen:
         if not enrolled:
             title = "Set up Modulate"
             lines = (["Open on your computer:", CONNECT_HOST, "/connect", "Follow the setup guide."] if self.page == 0 else
-                     ["Start the Mac companion.", "Enroll this Pi once.", "Then restart Modulate."])
+                     ["Set up on your Mac first.", "No device shell is needed.", "Use the device setup guide."])
             action = "next"
         elif not fresh:
             title = "Reconnect your Mac"

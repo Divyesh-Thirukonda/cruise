@@ -200,3 +200,15 @@ Use portable Markdown instructions as the default path: open the folder, read
 Optionally install through the agent's own skill mechanism. Keep the existing
 Codex manifest/catalog installer as a separately documented optional adapter;
 do not represent it as universally compatible or require it for setup.
+
+## October 29 — Preloaded gadget setup without customer shell access
+
+The user confirmed that customer setup assumes factory-loaded Modulate software.
+The customer and their coding agent work on the Mac and use the device screen;
+Raspberry Pi Connect, developer accounts, historical IPs and SSH-key installation
+are not onboarding dependencies. Add a narrow enrollment service with a physical
+certificate identity, expiring setup code and separate fresh button confirmation.
+Keep native Mac pairing and browser sessions distinct, preserve all saved state
+and spending, and report older device software as a factory-update requirement.
+Initial network provisioning and a finished OS image remain separate work.
+The user authorized a one-time developer-shell update of this test gadget only.

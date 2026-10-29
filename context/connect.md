@@ -11,10 +11,13 @@ divy.live trials in the evidence remain labeled with their original destination.
 
 ## Connect a browser
 
-First time here? **Set up your Mac** before entering a code. Modulate Studio is
+First time here? **Set up your Mac** before entering a browser code. Modulate is
+assumed to arrive with its device runtime already installed and network access
+available. The coding agent works on the customer's Mac, not in a Pi remote
+shell or developer account. Modulate Studio is
 the companion software that must be installed and running on the Mac; opening
 this website alone does not start it. Copy the setup prompt into your coding
-agent so it can prepare and start Studio, the Pi runtime and their connection.
+agent so it can prepare and start Studio and link the preloaded gadget.
 It should finish with the verified connection-page URL for your installation
 and a fresh browser code displayed in local Studio or on the Pi. A separate
 installation needs its own configured URL, not the shared demo's unrelated hub.
@@ -73,6 +76,42 @@ multi-tenant provisioning is claimed.
 
 ## On-device setup
 
+### First link, without a Pi shell
+
+The preloaded runtime now includes a small HTTPS enrollment service on the
+device's IPv4 port 8790. It starts only when enrollment is absent. Small **A**
+opens a five-minute setup window and displays the current address, a 20-hex
+device certificate identity and an eight-digit **device setup code**. Network
+access must already work (configured Wi-Fi or Ethernet); this does not provision
+Wi-Fi or turn a blank SD card into a Modulate image.
+
+The agent prepares Studio on the Mac using that current device address. It can
+find the Mac's route address with `python -m modulate.enroll --device-address
+<on-screen IPv4> --print-host-address` (no network payload). After Studio starts
+with the proper host/device addresses and the retained state/ledger, run
+`python -m modulate.enroll --device-address <on-screen IPv4> --state-dir
+<existing state>`. The helper opens a loopback-only form at
+`http://127.0.0.1:8791`; enter the identity and device setup code there, not in
+chat or logs. Compare the displayed Mac/request on both screens, then press
+small **A** again on the device to save the link; **B** declines it. The runtime
+loads the enrollment without a restart. This is followed by the existing,
+separate native Mac-access confirmation and then a browser connection code.
+
+The Mac verifies the physical certificate pin before sending any enrollment
+credential. The device accepts only a bounded origin/public certificate/device
+credential, checks the connecting Mac's address and certificate, and commits
+only after a fresh physical confirmation of the exact pending request. It does
+not accept shell commands, code, provider keys or caller-selected file paths,
+and cannot overwrite existing enrollment. Five invalid attempts close the
+window; expiry, rejection, stale confirmations and disk failures do not grant
+access. See [architecture](architecture.md#preloaded-device-enrollment).
+
+Older installed software that only says “Enroll this Pi once” needs a factory
+update. The customer skill must report that concrete limitation, not search
+development backups, add SSH keys or open a developer's Raspberry Pi Connect
+account. A blank Pi remains a separate developer-kit installation. Automated
+tests of this path are separate from physical setup evidence.
+
 The maintained Pi runtime displays setup locally if enrollment is missing/invalid, the companion cannot be reached after an eight-second startup grace, or the reachable Mac is not paired. This card needs no model/API connection. A healthy paired boot goes straight to the retained app. A missing browser dashboard alone does not interrupt working Mac/voice controls.
 
 - Small PiTFT **A** advances local instructions, prepares a one-use browser code when the public gateway is available, or starts native Mac pairing when a browser is already connected. The card tells you which action will happen.
@@ -82,7 +121,7 @@ The maintained Pi runtime displays setup locally if enrollment is missing/invali
 
 Browser codes appear only in authenticated device setup offers, never the model's results, normal dashboard state or spoken reply. They expire after five minutes and disappear when consumed, replaced or revoked. A fresh matching Pi display telemetry report can confirm that an offered guide is visible; queued work is not reported as physical display success.
 
-This does **not** replace the initial Raspberry Pi OS/Wi-Fi configuration, installation of the companion/runtime, pinned Pi enrollment, or the user's macOS permission dialogs. The setup page and local card explain those remaining human steps. The current public site connects to this configured hub; a signed installer and self-service enrollment for arbitrary computers remain unimplemented.
+This does **not** replace initial Raspberry Pi OS/Wi-Fi configuration, factory installation of the runtime, installation of the Mac companion, or macOS permission dialogs. It adds device-to-Mac enrollment for a preloaded gadget; it does not add a signed installer or multi-tenant public gateway. The current public site still connects to one configured hub.
 
 ## What the switches mean
 

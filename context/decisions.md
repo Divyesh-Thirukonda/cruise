@@ -255,3 +255,10 @@ failure, and keep genuine physical/OS confirmation requirements visible.
   red for destructive/error accents, on neutral readable surfaces. The selected
   generated raster and its provenance/prompt are documented in `branding.md`.
 - Keep customer flow, pairing, permissions and all runtime budgets unchanged.
+
+
+## Programmatic logo direction — October 29, 2026
+
+The user requested simple programmatic logo construction instead of further image
+generation. Use editable SVG geometry with identical repeated sections. The new
+`assets/brand/` study is a draft; the deployed identity remains unchanged.

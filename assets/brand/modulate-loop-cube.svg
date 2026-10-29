@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <title>Modulate — interlocking cube</title>
+  <desc>Three matching bent modules around a central opening, with exact 120-degree rotational symmetry.</desc>
+  <defs>
+    <path id="seam" d="M219.798 141 L155.713 104"/>
+    <mask id="openings">
+      <rect width="256" height="256" fill="white"/>
+      <path d="M91.627 101.000 L122.804 83.000 Q128.000 80.000 133.196 83.000 L164.373 101.000 Q169.569 104.000 169.569 110.000 L169.569 146.000 Q169.569 152.000 164.373 155.000 L133.196 173.000 Q128.000 176.000 122.804 173.000 L91.627 155.000 Q86.431 152.000 86.431 146.000 L86.431 110.000 Q86.431 104.000 91.627 101.000 Z" fill="black"/>
+      <g stroke="black" stroke-width="9" stroke-linecap="butt">
+        <use href="#seam"/>
+        <use href="#seam" transform="rotate(120 128 128)"/>
+        <use href="#seam" transform="rotate(240 128 128)"/>
+      </g>
+    </mask>
+  </defs>
+  <path d="M55.254 74.000 L117.608 38.000 Q128.000 32.000 138.392 38.000 L200.746 74.000 Q211.138 80.000 211.138 92.000 L211.138 164.000 Q211.138 176.000 200.746 182.000 L138.392 218.000 Q128.000 224.000 117.608 218.000 L55.254 182.000 Q44.862 176.000 44.862 164.000 L44.862 92.000 Q44.862 80.000 55.254 74.000 Z" fill="white" mask="url(#openings)"/>
+</svg>

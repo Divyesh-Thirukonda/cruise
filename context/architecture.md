@@ -59,6 +59,14 @@ Installed `9b172e8` adds model-selected runtime skills: `computer-use`, `device-
 
 Recent context contains up to 12 turns eligible for eight hours, including outcome (`completed`, `failed`, `cancelled`, `awaiting_answer`), selected skills and bounded observed action results. Before/after values are retained when returned by the trusted tool; a failed overall request may still have applied a recorded action. The model uses this reference data for “again,” “louder” or “undo,” with the explicit current request and live state taking precedence. Remembered values are not new permission. Non-private records persist in `recent-context.json` in the ignored private state directory with mode `0600`. Expired records are excluded on read; the file is rewritten on the next save or clear.
 
+Library knob direction is a trusted UI preference, separate from generated app
+bindings. `app_library(set_preferences, encoder_direction=forward|reversed)` saves
+an absolute value atomically in private `library/preferences.json`; legacy state
+defaults forward. Current preferences enter intent context, and saved before/after
+values support undo. The Pi applies the sign only to library encoder input, then
+adds joystick input normally. A changed menu version invalidates stale actions
+and requires fresh button input. See [the library contract](app-library.md).
+
 Computer-task details remain RAM-only and available for two minutes. Automatic context shows a redacted marker; recovering details with `read_recent_context(include_private:true)` requires current computer authorization and enters private mode, preventing package writing/delegation. No screenshots, raw audio or arbitrary tool payloads enter memory. Studio's **Forget recent context**, after current work finishes or is cancelled, clears remembered turns and pending clarification. Revocation and new pairing also clear context; a generation check prevents older jobs from repopulating it.
 
 Pi volume uses `speaker_control(get|set|delta|mute)` and fixed PulseAudio operations on the selected sink shared by TTS and streamed Mac audio. Set accepts 0–100; delta accepts nonzero ±1–10 percentage points and clamps at the limits; mute takes a boolean. Startup only reads the existing level. An expiring command is bound to device session, sink, epoch and revision; the worker consumes it once and returns actual before/after readback. The host reports success only on the matching acknowledgement, with replay, withdrawal and disconnect checks. Timeout leaves the outcome unknown rather than inventing success or retrying a possible write. Immediate Pi volume does not add a new generated binding type.

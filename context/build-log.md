@@ -379,3 +379,19 @@ NumPy-backed speech-activity tests** under Python 3.11. Library persistence,
 idempotence, corruption, stale inputs, menu-only direction and contextual undo are
 covered. These checks do not establish physical wake reliability. Deployment and
 physical-trial results will be recorded separately.
+
+Installed code `272c938` on the Pi after verifying archive SHA256
+`8ae15a1f8f3c4db2cce5d55b6f38b61ec0337e63895a29266d55da6fcf8bf68f`.
+All **217 focused Pi tests passed without skips in 13.656 s**; the restarted
+device service reported active. Restarted the companion with its existing private
+configuration and $50 ledger ceiling, preserving the existing tunnel and grants.
+
+Two typed live Meta requests with the library open passed: “Reverse the knob here”
+saved `reversed`, and “Undo that” restored `forward`. Each loaded `app-library`
+then used its trusted tool; neither asked a question nor wrote a package. The
+active revision remained `435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462`.
+The ledger moved from 506 / $10.303666 to 512 / $10.373154 calls / held-or-used
+dollars. No linking test was performed. The boot setup card may be dismissed with
+small B before physical menu testing. Requested a fresh spoken wake/menu trial;
+its outcome is pending, not counted as a successful physical test.
+[Sanitized evidence](evidence/wake-library-preferences.json).

@@ -158,6 +158,14 @@ class AgentTests(unittest.TestCase):
         self.assertFalse(any(item["type"] == "tool_started" for item in self.service.events))
         self.assertEqual(agent.ledger.status()["charged_or_reserved_dollars"], 0)
 
+    def test_orchestrator_can_finish_after_twelve_turns_within_shared_call_budget(self):
+        steps = [reply(("inspect_capabilities", {})) for _ in range(12)]
+        agent, provider = self.make([*steps, reply(content="Finished after inspecting the last result.")])
+        self.assertEqual(agent.run("Synthetic multistep computer task"),
+                         "Finished after inspecting the last result.")
+        self.assertEqual(len(provider.requests), 13)
+        self.assertLessEqual(agent.calls, agent.max_calls)
+
     def test_repeated_identical_tool_failure_stops_and_counter_resets_for_new_request(self):
         failing = reply(("read_current_package", {}))
         agent, provider = self.make([failing, failing, failing, reply(content="Must not be called")])

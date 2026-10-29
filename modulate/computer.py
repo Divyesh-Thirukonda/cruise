@@ -414,6 +414,45 @@ def _release_input(automation, method, *arguments, **keywords):
         automation.FAILSAFE = enabled
 
 
+def _native_type_text(text, desktop, automation, quartz):
+    # Physical keycodes work in controls (including Calculator) that do not
+    # accept a multi-character Unicode event. Keep Unicode for characters
+    # outside ASCII; no clipboard or shell is involved.
+    # https://pyautogui.readthedocs.io/en/latest/keyboard.html
+    for offset in range(0, len(text), 20):
+        _native_guard(desktop)
+        for character in text[offset:offset + 20]:
+            automation.failSafeCheck()
+            if " " <= character <= "~":
+                try:
+                    # One character per write keeps interruption cleanup exact.
+                    automation.write(character, interval=0, _pause=False)
+                except BaseException:
+                    try:
+                        _release_input(automation, "keyUp", character)
+                    finally:
+                        _release_input(automation, "keyUp", "shift")
+                    raise
+            elif character in "\n\t":
+                key = "enter" if character == "\n" else "tab"
+                try:
+                    automation.keyDown(key, _pause=False)
+                finally:
+                    _release_input(automation, "keyUp", key)
+            else:
+                # A non-BMP character occupies two UTF-16 code units but must
+                # stay one event, so surrogate pairs are never split.
+                units = len(character.encode("utf-16-le")) // 2
+                try:
+                    event = quartz.CGEventCreateKeyboardEvent(None, 0, True)
+                    quartz.CGEventKeyboardSetUnicodeString(event, units, character)
+                    quartz.CGEventPost(quartz.kCGHIDEventTap, event)
+                finally:
+                    event = quartz.CGEventCreateKeyboardEvent(None, 0, False)
+                    quartz.CGEventKeyboardSetUnicodeString(event, units, character)
+                    quartz.CGEventPost(quartz.kCGHIDEventTap, event)
+
+
 def _native(operation, payload):
     if operation == "inspect":
         # Fail truthfully if capture/input dependencies are not installed.
@@ -483,22 +522,7 @@ def _native(operation, payload):
             for key in reversed(held):
                 _release_input(pyautogui, "keyUp", key)
     elif kind == "type_text":
-        # Unicode key events avoid the clipboard and shell. Deliver small chunks
-        # so permissions and display identity are checked during longer text entry.
-        text = action["text"]
-        for offset in range(0, len(text), 20):
-            _native_guard(window)
-            pyautogui.failSafeCheck()
-            chunk = text[offset:offset + 20]
-            units = len(chunk.encode("utf-16-le")) // 2
-            try:
-                event = Quartz.CGEventCreateKeyboardEvent(None, 0, True)
-                Quartz.CGEventKeyboardSetUnicodeString(event, units, chunk)
-                Quartz.CGEventPost(Quartz.kCGHIDEventTap, event)
-            finally:
-                event = Quartz.CGEventCreateKeyboardEvent(None, 0, False)
-                Quartz.CGEventKeyboardSetUnicodeString(event, units, chunk)
-                Quartz.CGEventPost(Quartz.kCGHIDEventTap, event)
+        _native_type_text(action["text"], window, pyautogui, Quartz)
     else:
         raise ComputerError("Unknown native action")
     return {"performed": True}

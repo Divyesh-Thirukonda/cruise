@@ -1,9 +1,12 @@
 """Synthetic Pi camera-frame validation; no capture, GPIO, network or files."""
 import base64
+from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
+import queue
+import threading
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from PIL import Image
 
@@ -144,6 +147,72 @@ class DeviceCameraTests(unittest.TestCase):
         self.controller._update_camera(self.packet())
         self.assertIsNone(self.controller._live_camera_image())
         self.assertEqual(self.controller.camera_frames_received, 0)
+
+    def test_camera_telemetry_and_present_cannot_invert_runtime_controller_locks(self):
+        controller = self.controller
+        controller.lock = threading.RLock()
+        runtime_lock = threading.RLock()
+        rendering, snapshot_requested = threading.Event(), threading.Event()
+        snapshots_under_controller_lock = []
+
+        def snapshot():
+            snapshots_under_controller_lock.append(controller.lock._is_owned())
+            snapshot_requested.set()
+            with runtime_lock:
+                return dict(self.current)
+
+        controller.runtime = SimpleNamespace(snapshot=snapshot, _lock=runtime_lock)
+        controller.screen = SimpleNamespace(display=Mock())
+        controller.camera_image = Image.new("RGB", (240, 135), "red")
+        controller.camera_identity = (self.current["revision"], "b" * 32, 1)
+        controller.camera_received_at = self.now
+        controller.camera_frames_received = 1
+        for name in ("cancellations", "requests", "actions", "responses"):
+            setattr(controller, name, queue.Queue())
+        controller.session = "c" * 32
+        controller.sequence = controller.encoder_pending = 0
+        controller.encoder_revision = self.current["revision"]
+        controller.state = dict(self.current)
+        controller.sample = {"encoder_delta": 0}
+        controller.commands = []
+        controller.fps = 20
+        controller.voice_state = controller.speaker_state = {}
+        controller.voice_history = []
+        controller.build = None
+        controller.request_in_flight = False
+        controller.host = controller.pairing = {}
+        controller.display_state = {}
+        controller.speech_ack = None
+        controller.controls = SimpleNamespace(capabilities=lambda: {"controls": [], "devices": [], "warnings": []})
+        controller.companion = SimpleNamespace(post=Mock(return_value={}))
+
+        def draw_frame():
+            # DeviceActivation.tick holds its runtime lock while present() takes
+            # the controller lock. Force telemetry to request a snapshot exactly
+            # then. A bounded acquire makes the old deadlock a test failure,
+            # never a hanging test worker.
+            with runtime_lock:
+                rendering.set()
+                self.assertTrue(snapshot_requested.wait(1))
+                acquired = controller.lock.acquire(timeout=0.5)
+                self.assertTrue(acquired, "Telemetry held the controller lock while waiting for the runtime")
+                try:
+                    controller.present(controller.camera_image)
+                finally:
+                    controller.lock.release()
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            draw = pool.submit(draw_frame)
+            self.assertTrue(rendering.wait(1))
+            heartbeat = pool.submit(controller._network_step)
+            draw.result(timeout=2)
+            heartbeat.result(timeout=2)
+        self.assertTrue(snapshots_under_controller_lock)
+        self.assertFalse(any(snapshots_under_controller_lock))
+        controller.screen.display.image.assert_called_once()
+        endpoint, packet = controller.companion.post.call_args.args
+        self.assertEqual(endpoint, "heartbeat")
+        self.assertEqual(packet["telemetry"]["camera"], {"frames_received": 1, "frame_fresh": True})
 
 
 if __name__ == "__main__":

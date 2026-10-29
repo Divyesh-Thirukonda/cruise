@@ -389,7 +389,7 @@ class Orchestrator:
         self.manifest_revision = digest(self.manifest)
         self.event("request_started", title="Listening to your idea", detail=text, role="orchestrator")
         try:
-            result = self.loop(text, "orchestrator", 12)
+            result = self.loop(text, "orchestrator", self.max_calls)
             self.event("request_finished", title="Agent finished", detail=result, role="orchestrator")
             return result
         except Exception as error:

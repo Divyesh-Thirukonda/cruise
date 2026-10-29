@@ -13,7 +13,7 @@ from PIL import Image
 
 from modulate.computer import (ComputerController, ComputerError, MacOSBackend,
                               _image_bytes, _native, _native_guard, _native_inspect,
-                              _native_launch_app, _release_input)
+                              _native_launch_app, _native_type_text, _release_input)
 
 
 class FakeDesktop:
@@ -308,6 +308,70 @@ class NativeHelperTests(unittest.TestCase):
         automation.keyUp.side_effect = release
         with self.assertRaises(RuntimeError): _release_input(automation, "keyUp", "command")
         self.assertTrue(automation.FAILSAFE)
+
+    def test_native_mixed_text_uses_physical_ascii_and_separate_unicode_characters(self):
+        events = []
+        automation, quartz = Mock(FAILSAFE=True), Mock()
+        automation.write.side_effect = lambda text, **kw: events.append(("ascii", text))
+        automation.keyDown.side_effect = lambda key, **kw: events.append(("down", key))
+        automation.keyUp.side_effect = lambda key, **kw: events.append(("up", key))
+        quartz.CGEventCreateKeyboardEvent.side_effect = lambda source, key, down: {"down": down}
+        quartz.CGEventKeyboardSetUnicodeString.side_effect = lambda event, units, text: event.update(units=units, text=text)
+        quartz.CGEventPost.side_effect = lambda tap, event: events.append(("unicode", event["down"], event["units"], event["text"]))
+        payload = {"desktop": {"id": 1, "bounds": [0, 0, 1920, 1080]},
+                   "action": {"type": "type_text", "text": "2+2\nA\té🙂!"}}
+        with patch.dict("sys.modules", {"pyautogui": automation, "Quartz": quartz}), \
+             patch("modulate.computer._native_guard"):
+            self.assertTrue(_native("action", payload)["performed"])
+        self.assertEqual(events, [("ascii", "2"), ("ascii", "+"), ("ascii", "2"),
+                                 ("down", "enter"), ("up", "enter"), ("ascii", "A"),
+                                 ("down", "tab"), ("up", "tab"),
+                                 ("unicode", True, 1, "é"), ("unicode", False, 1, "é"),
+                                 ("unicode", True, 2, "🙂"), ("unicode", False, 2, "🙂"),
+                                 ("ascii", "!")])
+        for call in automation.write.call_args_list:
+            self.assertEqual(call.kwargs, {"interval": 0, "_pause": False})
+
+    def test_long_text_rechecks_permission_before_next_bounded_chunk(self):
+        automation, quartz = Mock(FAILSAFE=True), Mock()
+        with patch("modulate.computer._native_guard", side_effect=[None, ComputerError("Permission revoked")]):
+            with self.assertRaisesRegex(ComputerError, "Permission revoked"):
+                _native_type_text("a" * 20 + "never typed", {}, automation, quartz)
+        self.assertEqual(automation.write.call_count, 20)
+        quartz.CGEventPost.assert_not_called()
+
+    def test_interrupted_ascii_write_releases_character_and_shift_with_failsafe_disabled(self):
+        automation, quartz = Mock(FAILSAFE=True), Mock()
+        automation.write.side_effect = ComputerError("Computer helper stopped")
+        released = []
+        def release(key, **kwargs):
+            self.assertFalse(automation.FAILSAFE)
+            released.append(key)
+        automation.keyUp.side_effect = release
+        with patch("modulate.computer._native_guard"):
+            with self.assertRaisesRegex(ComputerError, "helper stopped"):
+                _native_type_text("A later", {}, automation, quartz)
+        self.assertEqual(released, ["A", "shift"])
+        self.assertEqual(automation.write.call_count, 1)
+        self.assertTrue(automation.FAILSAFE)
+
+    def test_interrupted_unicode_event_still_posts_release_and_stops_remaining_text(self):
+        automation, quartz = Mock(FAILSAFE=True), Mock()
+        quartz.CGEventCreateKeyboardEvent.side_effect = lambda source, key, down: down
+        quartz.CGEventPost.side_effect = [ComputerError("Computer helper stopped"), None]
+        with patch("modulate.computer._native_guard"):
+            with self.assertRaisesRegex(ComputerError, "helper stopped"):
+                _native_type_text("éA", {}, automation, quartz)
+        self.assertEqual([call.args[1] for call in quartz.CGEventPost.call_args_list], [True, False])
+        automation.write.assert_not_called()
+
+    def test_text_corner_stop_prevents_the_next_character(self):
+        automation, quartz = Mock(FAILSAFE=True), Mock()
+        automation.failSafeCheck.side_effect = [None, RuntimeError("Corner stop")]
+        with patch("modulate.computer._native_guard"):
+            with self.assertRaisesRegex(RuntimeError, "Corner stop"):
+                _native_type_text("ab", {}, automation, quartz)
+        automation.write.assert_called_once_with("a", interval=0, _pause=False)
 
     def test_image_encoder_bounds_synthetic_retina_image(self):
         data, width, height = _image_bytes(Image.effect_noise((2400, 1600), 80).convert("RGB"))

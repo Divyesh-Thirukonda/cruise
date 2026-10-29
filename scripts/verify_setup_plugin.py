@@ -18,7 +18,7 @@ class PluginPackageTests(unittest.TestCase):
             self.assertEqual(path.read_bytes(), expected, f"Regenerate {path.name}")
         installer = load_installer()
         version, files = installer.package_files(SOURCE)
-        self.assertEqual(version, "0.1.1")
+        self.assertEqual(version, "0.1.2")
         zipped = next(content for path, content in generated.items() if path.suffix == ".zip")
         with zipfile.ZipFile(io.BytesIO(zipped)) as archive:
             self.assertEqual(set(archive.namelist()), {"modulate-setup/" + name for name in files})

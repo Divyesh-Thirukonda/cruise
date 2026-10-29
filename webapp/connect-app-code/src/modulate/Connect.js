@@ -185,7 +185,7 @@ export default function Connect() {
       if (success) setNotice({ text: success, type: 'success' });
       return result;
     } catch (error) {
-      if (mounted.current) setNotice({ text: error.message || 'That action could not be completed.', type: 'error' });
+      if (mounted.current) setNotice({ text: error.message || 'That action could not be completed.', type: 'error', setupHelp: !error.status || [502, 503, 504].includes(error.status) });
       return null;
     } finally {
       mutationRunning.current = false;
@@ -305,7 +305,7 @@ export default function Connect() {
       <main className="mc-main" id="mc-main">
         <div className="mc-page-heading"><div className="mc-page-title"><button className="mc-menu-button" type="button" aria-label="Open navigation" aria-expanded={menuOpen} aria-controls="mc-navigation" onClick={() => setMenuOpen(true)}><Menu size={22} /></button><div><h1>{pageTitles[view][0]}</h1><p>{pageTitles[view][1]}</p></div></div>{authenticated && <Button icon={RefreshCw} quiet disabled={Boolean(busy)} onClick={refresh}>Refresh</Button>}</div>
         {notice && <div className={`mc-notice mc-notice-${notice.type}`} role="status">{notice.type === 'success' ? <CheckCircle2 size={18} /> : <Bell size={18} />}<span>{notice.text}</span><button aria-label="Dismiss notification" onClick={() => setNotice(null)}><X size={16} /></button></div>}
-        {authenticated && !online && <div className="mc-notice mc-notice-warning" role="status"><Wifi size={18} /><span>Your companion is offline. Keep Modulate Studio running on the paired Mac. Retrying automatically.</span></div>}
+        {authenticated && !online && <div className="mc-notice mc-notice-warning" role="status"><Wifi size={18} /><span>Modulate Studio isn’t reachable on your Mac. Retrying automatically.<button className="mf-notice-action" type="button" onClick={() => navigate('setup')}>Set up or restart Studio<ArrowRight size={14} /></button></span></div>}
         {computer?.active && <div className="mc-live-control" role="status"><span className="mc-pulse-dot" /><strong>Modulate is using your Mac</strong><span>{computer.scope || 'Paired Mac desktop'}</span><Button danger icon={Square} onClick={() => act('computer', '/api/computer', { action: 'revoke' })} disabled={genericDisabled}>Pause access</Button></div>}
 
         {approval && <Card className="mc-approval" role="status"><span className="mc-eyebrow">YOUR DECISION</span><h2>One action needs your approval</h2><p>{approval.description}</p><div><Button disabled={genericDisabled} onClick={() => act('approval', '/api/computer/approval', { id: approval.id, approved: false })}>Decline</Button><Button primary disabled={genericDisabled} onClick={() => act('approval', '/api/computer/approval', { id: approval.id, approved: true })}>Approve action</Button></div></Card>}

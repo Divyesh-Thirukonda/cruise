@@ -17,7 +17,7 @@ To keep the skill for later, optionally install it using your agent's supported 
 
 The included `.codex-plugin/plugin.json`, `agents/openai.yaml` and `install.py` are an optional Codex-specific adapter, not a universal plugin installer. Other agents should use the portable skill above or their own supported installation method.
 
-For this adapter, ask Codex to inspect the package and run `python3 install.py --install`. It copies only this package into `~/.codex/plugins/modulate-setup/0.1.1` and adds it to `~/.agents/plugins/marketplace.json`, preserving other entries. It does not enable the plugin or modify permissions. Restart Codex, select **Modulate Setup** from the local Plugins source, and install/enable it. Then use `$modulate-setup`.
+For this adapter, ask Codex to inspect the package and run `python3 install.py --install`. It copies only this package into `~/.codex/plugins/modulate-setup/0.1.2` and adds it to `~/.agents/plugins/marketplace.json`, preserving other entries. It does not enable the plugin or modify permissions. Restart Codex, select **Modulate Setup** from the local Plugins source, and install/enable it. Then use `$modulate-setup`.
 
 Running `python3 install.py` without `--install` prints the planned changes only. A different existing plugin at that path or a conflicting catalog entry, including an older version's registration, is left untouched for review. The script prints the catalog backup path when it changes an existing catalog. Use Codex's normal uninstall/disable controls to remove access; the source files remain local.
 

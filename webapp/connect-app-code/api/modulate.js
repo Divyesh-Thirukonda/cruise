@@ -147,7 +147,7 @@ async function handler(req, res) {
     }
     return res.status(200).json(data);
   } catch (error) {
-    return fail(res, error, 'The companion is offline. Keep Modulate Studio and its connection running on your Mac.');
+    return fail(res, error, 'Modulate Studio isn’t reachable on your Mac. First time? Use “Set up your Mac” to install and start it. Already set up? Ask your agent to restart Studio and its connection.');
   }
 }
 module.exports = handler;

@@ -119,8 +119,6 @@ class SetupScreen:
     @staticmethod
     def _action(host):
         status = host.get("setup_status") or {}
-        if status.get("remote_enabled") is True and not status.get("browser_count"):
-            return "create_browser_code"
         return "start_pairing" if host.get("paired") is False else "create_browser_code" if status.get("remote_enabled") is True else "next"
 
     def _local_card(self, reason, host, enrolled, fresh):
@@ -141,7 +139,7 @@ class SetupScreen:
                 lines = [CONNECT_HOST, "/connect", "on your phone or Mac.", "A shows a one-use code."]
             elif action == "start_pairing":
                 lines = ["Browser connected." if (host.get("setup_status") or {}).get("browser_count") else "Mac companion found.",
-                         "A starts Mac pairing.", "Confirm on the next screen."]
+                         "Open Studio on your Mac.", "A shows a comparison code.", "Compare before approving."]
             else:
                 lines = ["Mac pairing is ready.", "Local Studio: on your Mac", "127.0.0.1:8787"]
         return {"kind": "guide", "title": title, "lines": lines, "action": action, "connect_url": CONNECT_URL}

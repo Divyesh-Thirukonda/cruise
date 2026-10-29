@@ -47,9 +47,15 @@ class ConnectionSetup:
         elif not brief["browser_count"] and brief["remote_enabled"]:
             instructions = [f"Create a browser code on Modulate, then open {CONNECT_LABEL} on your phone or computer.",
                             "Enter the code shown on the device and choose its access switches."]
+        elif not brief["remote_enabled"]:
+            instructions = ["Ready on this Mac. Open local Studio at http://127.0.0.1:8787.",
+                            "Remote browser access is optional and is not configured for this installation."]
         else:
             instructions = [f"The Mac is paired. Use {CONNECT_LABEL} to manage the existing device connection."]
         return {**brief, "device_connected": product.connected(), "companion_running": True,
+                "pairing_saved": bool(product.capabilities()["paired_host"]),
+                "local_ready": product.connected() and bool(session),
+                "local_studio_url": "http://127.0.0.1:8787",
                 "pairing_expires_at": session.get("expires_at") if session else None,
                 "native_permissions": {key: permissions.get(key) if type(permissions.get(key)) is bool else None
                                        for key in ("screen_recording", "accessibility")},
@@ -59,7 +65,7 @@ class ConnectionSetup:
                 "instructions": instructions,
                 "limits": ["Meta runs on the companion; an offline Pi shows local setup guidance without AI.",
                            "A browser controls this configured Mac/Pi hub, not the phone's own operating system.",
-                           "Installing the companion, network enrollment and macOS permission grants still require the user."]}
+                           "Your setup agent handles Mac software and browser steps; physical confirmation and required macOS permission dialogs need you."]}
 
     def device_offer(self):
         product = self.product
@@ -107,7 +113,10 @@ class ConnectionSetup:
                 offer.update(kind="browser_code", code=pairing["code"], expires_at=pairing["expires_at"],
                              title="Connect this browser", lines=[CONNECT_HOST, "/connect", "Enter this one-use code", "B: not now"])
             elif not brief["remote_enabled"]:
-                offer["lines"] = ["On Mac: 127.0.0.1:8787", "A: pair this Mac", "B: not now"]
+                offer["title"] = "Ready on your Mac" if brief["paired_mac"] else "Confirm Mac access"
+                offer["lines"] = ["On Mac: 127.0.0.1:8787",
+                                  "Local setup is complete." if brief["paired_mac"] else "A: show comparison code",
+                                  "B: close"]
             product.setup_offer = offer
             return {**brief, "display_requested": True, "displayed": False, "expires_at": offer["expires_at"],
                     "instruction": (f"Enter the code on Modulate's screen at {CONNECT_LABEL} and choose the access switches."

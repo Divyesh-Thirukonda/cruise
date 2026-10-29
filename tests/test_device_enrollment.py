@@ -74,6 +74,44 @@ class DeviceEnrollmentTests(unittest.TestCase):
         self.code = self.open()
         self.assertEqual(self.propose()["status"], "awaiting_confirmation")
 
+    def test_closed_expired_wrong_and_exhausted_codes_have_distinct_recovery_reasons(self):
+        with self.assertRaises(EnrollmentError) as caught:
+            self.propose(code="12345678")
+        self.assertEqual(caught.exception.reason, "setup_closed")
+        self.code = self.open()
+        wrong = "00000000" if self.code != "00000000" else "00000001"
+        for attempt in range(MAX_ATTEMPTS):
+            with self.assertRaises(EnrollmentError) as caught:
+                self.propose(code=wrong)
+            self.assertEqual(caught.exception.reason, "attempts_exhausted" if attempt == MAX_ATTEMPTS - 1 else "wrong_code")
+        with self.assertRaises(EnrollmentError) as caught:
+            self.propose()
+        self.assertEqual(caught.exception.reason, "attempts_exhausted")
+        self.code = self.open()
+        self.now += WINDOW_SECONDS
+        with self.assertRaises(EnrollmentError) as caught:
+            self.propose()
+        self.assertEqual(caught.exception.reason, "setup_expired")
+        self.server.close_window()
+        with self.assertRaises(EnrollmentError) as caught:
+            self.propose()
+        self.assertEqual(caught.exception.reason, "setup_closed")
+        self.assertFalse(self.path.exists())
+
+    def test_expired_reason_reaches_http_without_echoing_credentials(self):
+        self.code = self.open()
+        self.now += WINDOW_SECONDS
+        connection = self.connection()
+        connection.request("POST", "/enroll", json.dumps({"code": self.code, "enrollment": self.data}),
+                           {"Content-Type": "application/json"})
+        response = connection.getresponse()
+        raw = response.read()
+        self.assertEqual(response.status, 409)
+        self.assertEqual(json.loads(raw)["reason"], "setup_expired")
+        for private in (self.code, self.data["device_key"], self.pem):
+            self.assertNotIn(private.encode(), raw)
+        self.assertFalse(self.path.exists())
+
     def test_pending_requires_exact_fresh_confirmation_then_private_files_and_receipt(self):
         self.code = self.open()
         proposal = self.propose()
@@ -111,7 +149,20 @@ class DeviceEnrollmentTests(unittest.TestCase):
         proposal = self.propose()
         self.server.close_window()
         self.assertEqual(self.server.status(self.receipt(proposal), self.peer)["status"], "rejected")
+        self.assertEqual(self.server.status(self.receipt(proposal), self.peer)["reason"], "setup_closed")
         self.assertFalse(self.server.confirm(proposal["id"]))
+        self.assertFalse(self.path.exists())
+
+    def test_attempt_limit_reason_survives_in_pending_receipt(self):
+        self.code = self.open()
+        proposal = self.propose()
+        wrong = "0" * 8 if self.code != "0" * 8 else "1" * 8
+        for _ in range(MAX_ATTEMPTS):
+            with self.assertRaises(EnrollmentError):
+                self.propose(code=wrong)
+        receipt = self.server.status(self.receipt(proposal), self.peer)
+        self.assertEqual(receipt["status"], "rejected")
+        self.assertEqual(receipt["reason"], "attempts_exhausted")
         self.assertFalse(self.path.exists())
 
     def test_reopen_invalidates_old_pending_request_and_code(self):
@@ -202,6 +253,7 @@ class DeviceEnrollmentTests(unittest.TestCase):
         self.assertFalse(self.path.exists())
         self.assertEqual((self.root / "saved-app.json").read_bytes(), b"keep")
         self.assertEqual(self.server.status(self.receipt(proposal), self.peer)["status"], "rejected")
+        self.assertEqual(self.server.status(self.receipt(proposal), self.peer)["reason"], "save_failed")
 
     def test_pending_request_cannot_be_swapped_by_a_second_proposal(self):
         self.code = self.open()

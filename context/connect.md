@@ -95,7 +95,9 @@ with the proper host/device addresses and the retained state/ledger, run
 chat or logs. Compare the displayed Mac/request on both screens, then press
 small **A** again on the device to save the link; **B** declines it. The runtime
 loads the enrollment without a restart. This is followed by the existing,
-separate native Mac-access confirmation and then a browser connection code.
+separate native Mac-access confirmation. Local setup is complete once Studio sees
+the gadget online and native Mac access is active. Browser access is optional;
+only request a browser code for a configured remote gateway the user wants.
 
 The Mac verifies the physical certificate pin before sending any enrollment
 credential. The device accepts only a bounded origin/public certificate/device
@@ -114,10 +116,12 @@ tests of this path are separate from physical setup evidence.
 
 The maintained Pi runtime displays setup locally if enrollment is missing/invalid, the companion cannot be reached after an eight-second startup grace, or the reachable Mac is not paired. This card needs no model/API connection. A healthy paired boot goes straight to the retained app. A missing browser dashboard alone does not interrupt working Mac/voice controls.
 
-- Small PiTFT **A** advances local instructions, prepares a one-use browser code when the public gateway is available, or starts native Mac pairing when a browser is already connected. The card tells you which action will happen.
+- Small PiTFT **A** advances local instructions, starts native Mac pairing when needed, then prepares a one-use browser code if the public gateway is available. The card tells you which action will happen. This native-first ordering is in the updated factory source; older installed images may offer browser access first.
 - Small PiTFT **B** dismisses setup and preserves the saved app. Dismissal stays in memory for the current process/boot. On a later restart it can remind you again; while disconnected, hold small A for one second to reopen it. A locally recognized wake phrase also reopens a dismissed reminder where wake listening is enabled.
 - **Both** screen buttons retain push-to-talk. Setup actions need a fresh release and press. Preparing native pairing does not approve it: the separate matching-code card still needs another fresh small-A press.
 - Once enrolled and able to reach the companion, say **“Hey Meta, help me connect”** or **“show setup.”** Meta chooses the `connection-setup` skill and trusted `connection_setup` tools to inspect state and prepare the next step. Computer use is not required for these tools. The agent cannot operate the Mac before native pairing or grant its own macOS permissions.
+
+Native comparison codes appear automatically in local Studio even when pairing starts on the gadget. The read-only `/api/pairing` route requires the local Studio cookie and CSRF token; codes stay out of ordinary state, agent context and remote data. Opening the dialog preserves the pending code, and expiry or completion clears it.
 
 Browser codes appear only in authenticated device setup offers, never the model's results, normal dashboard state or spoken reply. They expire after five minutes and disappear when consumed, replaced or revoked. A fresh matching Pi display telemetry report can confirm that an offered guide is visible; queued work is not reported as physical display success.
 
@@ -161,3 +165,17 @@ Set the resulting HTTPS origin as the standalone project's production `MODULATE_
 Keep the companion, tunnel, Mac and Pi running. This development tunnel has no uptime guarantee and gets a different hostname after it is recreated; update the Vercel origin and redeploy then. A stable named tunnel is the next operational step. An offline companion produces an explicit offline state rather than a simulated dashboard or successful action.
 
 Sources: [Cloudflare Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/), [Vercel environment variables](https://vercel.com/docs/environment-variables), [sensitive environment variables](https://vercel.com/docs/environment-variables/sensitive-environment-variables). Native computer/camera/audio dependencies and their limitations are documented in [architecture](architecture.md).
+
+## Agent-led setup recovery
+
+The portable 0.3.0 skill checks fresh helper/Studio status before a handoff or
+retry. It operates authorized Mac forms instead of repeatedly handing them back
+to the customer, and stops stale retries once the user advances the flow. Private
+identity/code entry remains the default; delegated entry follows the user and
+tool permissions, without claiming it is absent from tool transcripts.
+
+The helper explains specific bounded error reasons and highlights mistyped
+identity positions without supplying or trusting a network replacement. Older
+factory errors that cannot distinguish a closed window from expiry remain
+explicitly uncertain. Completed enrollment continues to local Studio for the
+separate Mac-code comparison; it does not promise an unconfigured public link.

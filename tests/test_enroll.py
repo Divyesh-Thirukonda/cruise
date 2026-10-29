@@ -3,6 +3,7 @@ import hashlib
 import io
 import json
 import socket
+import shutil
 from email.message import Message
 from pathlib import Path
 import subprocess
@@ -81,6 +82,53 @@ class PinnedEnrollmentTests(unittest.TestCase):
                 enroll.pinned_post(DEVICE, "0" * 20, "/enroll", body)
         self.assertEqual(connection.events, ["connect", "close"])
         connection.response.read.assert_not_called()
+
+    def test_mistyped_identity_reports_positions_without_network_identity_or_sending(self):
+        mistyped = PIN[:17] + ("0" if PIN[17] != "0" else "1") + PIN[18:]
+        connection = PeerConnection()
+        with patch.object(enroll.http.client, "HTTPSConnection", return_value=connection):
+            with self.assertRaises(enroll.EnrollmentError) as caught:
+                enroll.pinned_post(DEVICE, mistyped, "/enroll", {"code": CODE})
+        result = caught.exception.result()
+        self.assertEqual(result["error_code"], "identity_mismatch")
+        self.assertEqual(result["mismatch_positions"], [{"group": 2, "character": 8}])
+        self.assertEqual(result["next_action"], "check_identity")
+        self.assertNotIn(PIN, json.dumps(result))
+        self.assertNotIn(CODE, json.dumps(result))
+        self.assertEqual(connection.events, ["connect", "close"])
+
+    def test_known_device_reason_gets_specific_action_without_reflecting_remote_text(self):
+        for reason, (_, action) in enroll.DEVICE_ERRORS.items():
+            with self.subTest(reason=reason):
+                connection = PeerConnection(reply={"reason": reason, "error": "PRIVATE REMOTE TEXT"}, status=409)
+                with patch.object(enroll.http.client, "HTTPSConnection", return_value=connection):
+                    with self.assertRaises(enroll.EnrollmentError) as caught:
+                        enroll.pinned_post(DEVICE, PIN, "/enroll", {"code": CODE})
+                result = caught.exception.result()
+                self.assertEqual(result["error_code"], reason)
+                self.assertEqual(result["next_action"], action)
+                self.assertNotIn("PRIVATE REMOTE TEXT", json.dumps(result))
+
+    def test_legacy_closed_window_is_not_claimed_to_be_expired_or_a_typo(self):
+        connection = PeerConnection(reply={"error": "Open setup on the device first"}, status=409)
+        with patch.object(enroll.http.client, "HTTPSConnection", return_value=connection):
+            with self.assertRaises(enroll.EnrollmentError) as caught:
+                enroll.pinned_post(DEVICE, PIN, "/enroll", {"code": CODE})
+        self.assertEqual(caught.exception.code, "setup_window_unavailable")
+        self.assertIn("closed or expired", str(caught.exception))
+
+    def test_unknown_or_malformed_reason_is_not_reflected_or_used_as_instructions(self):
+        for reply in ({"error": "PRIVATE REMOTE TEXT"}, {"reason": ["setup_expired"]},
+                      {"reason": "shell_command", "error": "Open setup on the device first"}):
+            with self.subTest(reply=reply):
+                connection = PeerConnection(reply=reply, status=403)
+                with patch.object(enroll.http.client, "HTTPSConnection", return_value=connection):
+                    with self.assertRaises(enroll.EnrollmentError) as caught:
+                        enroll.pinned_post(DEVICE, PIN, "/enroll", {"code": CODE})
+                result = caught.exception.result()
+                self.assertEqual(result["error_code"], "setup_declined")
+                self.assertNotIn("PRIVATE REMOTE TEXT", json.dumps(result))
+                self.assertNotIn("shell_command", json.dumps(result))
 
     def test_matching_identity_sends_only_requested_json_after_handshake(self):
         connection = PeerConnection()
@@ -278,6 +326,52 @@ class EnrollmentReceiptTests(unittest.TestCase):
         self.assertEqual(job.snapshot()["status"], "complete")
         self.assertNotIn(CODE, json.dumps(observed + [job.snapshot()]))
 
+    def test_completed_device_link_points_to_local_mac_access_without_promising_remote_code(self):
+        job, _ = self.run_job([{"id": IDENTIFIER, "status": "complete"}])
+        result = job.snapshot()
+        self.assertEqual(result["stage"], "mac_access")
+        self.assertEqual(result["next_action"], "open_studio")
+        self.assertEqual(result["studio_url"], "http://127.0.0.1:8787/")
+        self.assertIn("optional", result["message"])
+        self.assertNotIn("create your website", result["message"])
+
+    def test_structured_errors_distinguish_expiry_unknown_rejection_and_save_failure(self):
+        for reply, expected in (({"status": "expired"}, "setup_expired"),
+                                ({"status": "rejected"}, "setup_rejected"),
+                                ({"status": "rejected", "reason": "save_failed"}, "save_failed")):
+            with self.subTest(expected=expected):
+                job, _ = self.run_job([{"id": IDENTIFIER, **reply}])
+                self.assertEqual(job.snapshot()["status"], "error")
+                self.assertEqual(job.snapshot()["error_code"], expected)
+                self.assertNotIn(CODE, json.dumps(job.snapshot()))
+
+    def test_legacy_or_unknown_rejection_never_invents_a_physical_decline(self):
+        for extra in ({}, {"reason": "PRIVATE UNKNOWN REASON"}, {"reason": ["save_failed"]}):
+            with self.subTest(extra=extra):
+                job, _ = self.run_job([{"id": IDENTIFIER, "status": "rejected", **extra}])
+                result = job.snapshot()
+                self.assertEqual(result["error_code"], "setup_rejected")
+                self.assertIn("did not report a specific reason", result["message"])
+                self.assertNotIn("declined", result["message"])
+                self.assertNotIn("PRIVATE", result["message"])
+
+    def test_known_rejection_reason_retains_its_actual_next_action(self):
+        job, _ = self.run_job([{"id": IDENTIFIER, "status": "rejected", "reason": "attempts_exhausted"}])
+        result = job.snapshot()
+        self.assertEqual(result["error_code"], "attempts_exhausted")
+        self.assertEqual(result["next_action"], "new_setup_code")
+
+    def test_snapshots_change_freshness_after_state_transitions(self):
+        with patch.object(enroll.time, "monotonic", side_effect=[10, 11, 12]):
+            job = enroll.EnrollmentJob(DEVICE, "/unused")
+            initial = job.snapshot()
+            job.update(status="connecting")
+            connecting = job.snapshot()
+            job.update(status="error", error_code="device_unreachable")
+            failed = job.snapshot()
+        self.assertEqual([initial["updated_at"], connecting["updated_at"], failed["updated_at"]], [10, 11, 12])
+        self.assertEqual(initial["status"], "ready")
+
     def test_wrong_or_missing_receipt_id_cannot_claim_completion(self):
         for reply in ({"id": "2" * 32, "status": "complete"}, {"status": "complete"}):
             with self.subTest(reply=reply):
@@ -329,6 +423,14 @@ class LocalEnrollmentPageTests(unittest.TestCase):
         self.assertEqual(status, 202)
         self.job.start.assert_called_once_with(PIN, CODE)
 
+    def test_repeated_submission_returns_structured_current_step_error(self):
+        self.job.start.side_effect = enroll.EnrollmentError("Check the pending request.", "setup_in_progress", "check_device")
+        status, body = self.post()
+        self.assertEqual(status, 400)
+        self.assertEqual(body["error_code"], "setup_in_progress")
+        self.assertEqual(body["next_action"], "check_device")
+        self.assertNotIn(CODE, json.dumps(body))
+
     def test_host_origin_csrf_and_cookie_all_required(self):
         variants = ({"Host": "evil.example:8791"}, {"Origin": "https://evil.example"},
                     {"Origin": None}, {"X-CSRF-Token": "wrong"}, {"X-CSRF-Token": None},
@@ -344,6 +446,38 @@ class LocalEnrollmentPageTests(unittest.TestCase):
         self.assertEqual(self.post(body=b"x" * 1024)[0], 400)
         self.assertEqual(self.post(headers={"Transfer-Encoding": "chunked"})[0], 400)
         self.job.start.assert_not_called()
+
+
+class LocalEnrollmentBrowserStateTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("node"), "Node is needed for the helper page state test")
+    def test_old_poll_cannot_erase_error_or_reopen_completed_form(self):
+        # Exercise the shipped script with a minimal DOM, not a browser or device.
+        script = enroll.PAGE.split("<script>", 1)[1].split("</script>", 1)[0].replace("__CSRF__", '"test-csrf"')
+        harness = r"""
+const vm=require('node:vm'), assert=require('node:assert/strict'), fs=require('node:fs');
+const elements=new Map();
+function element(id){if(!elements.has(id))elements.set(id,{value:id==='code'?'01234567':'',hidden:false,disabled:false,textContent:'',attrs:{},setAttribute(k,v){this.attrs[k]=v;},removeAttribute(k){delete this.attrs[k];}});return elements.get(id);}
+let cleared=false;
+const context=vm.createContext({document:{getElementById:element},setInterval:()=>1,clearInterval:()=>{cleared=true;},fetch:async()=>({ok:true,json:async()=>({status:'ready',updated_at:1})})});
+vm.runInContext(fs.readFileSync(0,'utf8'),context);
+vm.runInContext("render({status:'error',message:'Check group 2 character 8',updated_at:20})",context);
+assert.equal(element('code').value,'01234567'); // Pin failure sent nothing; code can still be used.
+vm.runInContext("render({status:'ready',updated_at:19})",context);
+assert.equal(element('status').textContent,'Check group 2 character 8');
+vm.runInContext("render({status:'awaiting_confirmation',message:'Compare before A',updated_at:21})",context);
+assert.equal(element('code').value,'');
+assert.equal(element('form').hidden,true);
+assert.equal(element('step-confirm').attrs['aria-current'],'step');
+vm.runInContext("render({status:'complete',message:'Device linked',updated_at:22})",context);
+assert.equal(element('complete').hidden,false);
+assert.equal(element('step-mac').attrs['aria-current'],'step');
+assert.equal(cleared,true);
+vm.runInContext("render({status:'error',message:'Old retry',updated_at:21})",context);
+assert.equal(element('status').textContent,'Device linked');
+assert.equal(element('form').hidden,true);
+"""
+        subprocess.run([shutil.which("node"), "-e", harness], input=script, text=True,
+                       capture_output=True, check=True, timeout=10)
 
 
 if __name__ == "__main__":

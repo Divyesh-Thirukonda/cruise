@@ -204,3 +204,20 @@ The device reloads enrollment through PendingCompanion; the existing separate
 native Mac pairing and browser-session protocols still apply. A paired boot
 does not open this bootstrap listener. A legacy image without this service
 requires a factory update, not an invented customer remote-shell fallback.
+
+### Local comparison-code visibility and enrollment recovery
+
+Pending native Mac pairing has a separate local-only `GET /api/pairing` route
+protected by the existing Studio cookie, CSRF token, Host/Origin checks and
+cross-site request checks. Reading it never creates or rotates a code. The
+ordinary state, capabilities, remote gateway and model context omit this code.
+Studio polls it alongside state so gadget-initiated requests are visible before
+the human compares both screens and approves. Saved pairing and fresh online
+telemetry are separate indicators.
+
+The enrollment helper exposes bounded stage/action/error enums and monotonic
+updates so stale responses cannot reopen a completed step. Device error reasons
+are allowlisted; legacy ambiguous errors are not diagnosed as expiry. Identity
+mismatch locations are hints for physical inspection, never replacement pins.
+The 0.3.0 setup probe prints only allowlisted status fields from fixed loopback
+endpoints, with redirects/proxies disabled and bounded response sizes.

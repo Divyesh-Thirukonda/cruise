@@ -974,7 +974,7 @@ class Controller:
                       "A: link   B: decline" if card["action"] == "confirm_enrollment" else
                       "A: setup code   B: later" if card["action"] == "open_enrollment" else
                       "A: show code   B: later" if card["action"] == "create_browser_code" else
-                      "A: pair Mac   B: later" if card["action"] == "start_pairing" else "A: next   B: later")
+                      "A: show code   B: later" if card["action"] == "start_pairing" else "A: next   B: later")
         draw.line((9, 111, 231, 111), fill="#343A42")
         draw.text((9, 117), footer, font=font(10), fill="#A6B0BC")
         self.present(image)
@@ -1064,7 +1064,7 @@ class Controller:
                                           ("failed", "error", "not confirmed", "not connected")) else "instructions"
                     self.status(feedback["title"], feedback["detail"], mode=mode)
                 elif offer:
-                    self.status("Link this Mac?", f"Code: {offer['code']}\nA: allow Mac control\nB: decline")
+                    self.status("Compare with Mac Studio", f"Code: {offer['code']}\nA: allow Mac access\nB: decline")
                 elif voice_overlay:
                     if voice_message.startswith("Listening for your answer"):
                         self.status("Your answer", "Go ahead. I’m listening.", mode="listening", footer="No Hey Meta needed")

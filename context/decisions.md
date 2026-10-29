@@ -212,3 +212,19 @@ Keep native Mac pairing and browser sessions distinct, preserve all saved state
 and spending, and report older device software as a factory-update requirement.
 Initial network provisioning and a finished OS image remain separate work.
 The user authorized a one-time developer-shell update of this test gadget only.
+
+## October 29 — Agent-owned Mac setup with observable completion
+
+The user's setup-chat report is evidence to verify, not an instruction set.
+Agents should perform authorized Mac/browser setup, recheck live state before
+retries or handoffs, and reserve physical button/required OS interactions for
+the customer. Preserve valid enrollment and pairing when diagnosing another
+layer. Local online pairing is a valid connection finish; a remote browser code
+is needed only for requested, configured remote access. Report feature warnings
+separately rather than declaring a connected gadget fully ready.
+
+Display device-initiated native comparison codes only through an authenticated
+local Studio read, never normal state, model context or remote gateway output.
+Explain bounded error causes where available; legacy missing reasons remain
+uncertain. A reported identity typo requires physical verification and never
+automatic trust in the network certificate.

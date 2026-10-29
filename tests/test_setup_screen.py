@@ -70,16 +70,21 @@ class SetupScreenTests(unittest.TestCase):
         self.screen.buttons(card, False, False, False)
         self.assertIsNone(self.screen.buttons(card, True, False, True))
         self.screen.buttons(card, False, False, True)
-        self.assertEqual(self.screen.buttons(card, True, False, True), "create_browser_code")
+        self.assertEqual(self.screen.buttons(card, True, False, True), "start_pairing")
         self.assertIsNone(self.screen.buttons(card, True, False, True))
 
     def test_native_pairing_and_browser_pairing_are_distinct_next_actions(self):
         self.assertEqual(self.update(host={"paired": False, "setup_status": {
-            "remote_enabled": True, "browser_count": 0}})["action"], "create_browser_code")
+            "remote_enabled": True, "browser_count": 0}})["action"], "start_pairing")
         self.assertEqual(self.update(host={"paired": False, "setup_status": {
             "remote_enabled": True, "browser_count": 1}})["action"], "start_pairing")
         self.assertEqual(self.update(host={"paired": False, "setup_status": {
             "remote_enabled": False, "browser_count": 0}})["action"], "start_pairing")
+        self.screen.force = True
+        self.assertEqual(self.update(host={"paired": True, "setup_status": {
+            "remote_enabled": True, "browser_count": 0}})["action"], "create_browser_code")
+        self.assertEqual(self.update(host={"paired": True, "setup_status": {
+            "remote_enabled": False, "browser_count": 0}})["action"], "next")
 
     def test_dismissed_browser_code_does_not_return_until_a_different_offer(self):
         offer = {"id": "a" * 32, "kind": "browser_code", "title": "Connect a browser",
@@ -233,7 +238,7 @@ class SetupControllerTests(unittest.TestCase):
         self.controller._handle_buttons(neutral_input(), 11)
         self.buttons[0].current = False
         self.controller._handle_buttons(neutral_input(), 12)
-        self.assertEqual(self.controller.setup_actions.get_nowait(), "create_browser_code")
+        self.assertEqual(self.controller.setup_actions.get_nowait(), "start_pairing")
         self.assertTrue(self.controller.actions.empty())
         self.VoiceListener.request_ptt.assert_not_called()
 
@@ -252,7 +257,7 @@ class SetupControllerTests(unittest.TestCase):
         self.controller._handle_buttons(neutral_input(), 13)
         self.buttons[0].current = False
         self.controller._handle_buttons(neutral_input(), 14)
-        self.assertEqual(self.controller.setup_actions.get_nowait(), "create_browser_code")
+        self.assertEqual(self.controller.setup_actions.get_nowait(), "start_pairing")
 
     def test_setup_b_is_local_dismissal_and_wake_resurfaces_without_queueing(self):
         self.show_unpaired()

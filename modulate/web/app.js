@@ -5,7 +5,7 @@
   const ui = {
     state: null, token: null, online: false, submitting: false, mutating: new Set(),
     previewKey: null, previewLoaded: false, previewError: false, eventKey: null,
-    inspectSource: "active", inspectView: "code", pairing: null, noticeTimer: null,
+    inspectSource: "active", inspectView: "code", pairing: null, pairingSeen: null, noticeTimer: null,
     draftId: null, draftFocus: null, responseId: null, dismissedResponseId: null, approvalId: null,
     libraryTab: "all", libraryKey: null, libraryPurge: null, libraryPurgeDismissed: null,
   };
@@ -645,13 +645,20 @@
 
   function renderHost() {
     const paired = ui.state?.paired === true;
+    const active = ui.online && paired && ui.state?.device?.connected === true;
     $("paired-chip").hidden = !paired;
+    text("paired-chip", active ? "MAC LINK ACTIVE" : "PAIRING SAVED");
     $("pairing-open").hidden = paired;
     $("revoke").hidden = !paired;
-    text("pairing-status", paired ? "Device linked · access can be revoked." : "Pair to give your controls a new job.");
+    text("pairing-status", !ui.online ? "Studio offline · connection status unavailable." : active ?
+      "Device online · Mac link active. Access can be revoked." : paired ?
+      "Pairing saved · device offline. Mac control is unavailable until it reconnects." :
+      ui.pairing ? "Compare the code on this Mac and your device before approving access." :
+      "Pair to give your controls a new job.");
+    text("pairing-open", ui.pairing ? "View comparison code" : "Pair a device +");
     const volume = ui.state?.volume;
     const validVolume = typeof volume?.volume === "number" && Number.isFinite(volume.volume) && volume.volume >= 0 && volume.volume <= 100;
-    $("volume-display").hidden = !validVolume;
+    $("volume-display").hidden = !validVolume || !active;
     if (validVolume) {
       text("volume-value", volume.muted ? `Muted · ${Math.round(volume.volume)}%` : `${Math.round(volume.volume)}%`);
       $("volume-fill").style.width = `${volume.volume}%`;
@@ -659,10 +666,7 @@
       $("volume-meter").setAttribute("aria-valuenow", String(volume.volume));
       $("volume-meter").setAttribute("aria-valuetext", volume.muted ? `Muted, volume ${volume.volume} percent` : `${volume.volume} percent`);
     }
-    if (paired && $("pairing-dialog").open) {
-      text("pairing-expiry", "Paired successfully. You can close this window.");
-      $("pairing-code").hidden = true;
-    }
+    renderPairing();
   }
 
   function renderFooter() {
@@ -734,12 +738,17 @@
     if (refreshing) return refreshing;
     refreshing = (async () => {
       try {
-        const state = await fetchJSON("/api/state");
+        const token = await csrf();
+        const [state, pairing] = await Promise.all([
+          fetchJSON("/api/state"),
+          fetchJSON("/api/pairing", {headers: {"X-CSRF-Token": token}}),
+        ]);
         if (!state || typeof state !== "object" || Array.isArray(state)) throw new Error("Invalid studio state.");
         ui.state = state;
+        ui.pairing = pairing?.pending || null;
         connection(true);
         render();
-      } catch (_) { connection(false); renderFooter(); }
+      } catch (_) { connection(false); renderHost(); renderFooter(); }
       finally { refreshing = null; }
     })();
     return refreshing;
@@ -751,15 +760,53 @@
   }
 
   function pairingCountdown() {
-    if (!ui.pairing || !$("pairing-dialog").open || ui.state?.paired) return;
+    if (!ui.online || !ui.pairing || !$("pairing-dialog").open || ui.state?.paired) return;
     const expires = dateValue(ui.pairing.expires_at);
     if (!Number.isFinite(expires)) {
-      text("pairing-expiry", "One-time code. Confirm on the device with screen button A.");
+      text("pairing-expiry", "Check both screens, then press A on the device only if the codes match.");
       return;
     }
     const seconds = Math.max(0, Math.ceil((expires - Date.now()) / 1000));
     text("pairing-expiry", seconds ? `Expires in ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}` : "This code has expired. Create a new one below.");
     if (!seconds) text("pairing-code", "EXPIRED");
+  }
+
+  function renderPairing() {
+    const dialog = $("pairing-dialog");
+    const paired = ui.state?.paired === true;
+    const pending = ui.pairing;
+    const valid = ui.online && !paired && typeof pending?.code === "string" &&
+      /^\d{8}$/.test(pending.code) && dateValue(pending.expires_at) > Date.now();
+    const identity = valid ? `${pending.code}:${pending.expires_at}` : null;
+    if (identity && identity !== ui.pairingSeen) {
+      ui.pairingSeen = identity;
+      if (!dialog.open) dialog.showModal();
+    }
+    $("pairing-code").hidden = !valid;
+    $("pairing-host").hidden = !valid || typeof pending.host_url !== "string";
+    $("pairing-refresh").hidden = paired;
+    if (valid) {
+      text("pairing-code", pending.code);
+      if (typeof pending.host_url === "string") text("pairing-host-url", pending.host_url);
+      pairingCountdown();
+    } else {
+      // Remove stale credentials from the DOM as well as hiding them.
+      text("pairing-code", "");
+      text("pairing-host-url", "");
+      text("pairing-expiry", !ui.online ? "Studio disconnected. Wait for fresh connection status before approving." :
+        paired && ui.state?.device?.connected ? "Mac link active. Setup is complete on this computer." : paired ?
+        "Pairing saved. Waiting for your device to reconnect before Mac access is active." :
+        "No active comparison code. Create a new one, then compare both screens.");
+    }
+  }
+
+  function openPairing() {
+    if (ui.pairing && dateValue(ui.pairing.expires_at) > Date.now()) {
+      if (!$("pairing-dialog").open) $("pairing-dialog").showModal();
+      renderPairing();
+      return;
+    }
+    return createPairing();
   }
 
   async function createPairing() {
@@ -776,13 +823,9 @@
       text("pairing-expiry", "Could not create a code. Close this window for error details.");
       return;
     }
-    ui.pairing = result;
-    text("pairing-code", result.code);
-    if (typeof result.host_url === "string") {
-      text("pairing-host-url", result.host_url);
-      $("pairing-host").hidden = false;
-    }
-    pairingCountdown();
+    // action() already refreshed the authoritative pending request. Do not
+    // resurrect its POST response if the user approved or it expired meanwhile.
+    renderPairing();
   }
 
   $("request").addEventListener("input", renderButtons);
@@ -847,7 +890,7 @@
   $("rollback").addEventListener("click", () => action("rollback", "/api/rollback", {}, "Previous version restored."));
   $("revoke").addEventListener("click", () => action("revoke", "/api/revoke", {}, "Device access revoked."));
   $("wake-toggle").addEventListener("click", () => action("wake", "/api/wake", {enabled: ui.state?.wake !== true}));
-  $("pairing-open").addEventListener("click", createPairing);
+  $("pairing-open").addEventListener("click", openPairing);
   $("pairing-refresh").addEventListener("click", createPairing);
   $("remote-pair").addEventListener("click", async () => {
     const result = await action("remote-pair", "/api/remote/pairing", {});

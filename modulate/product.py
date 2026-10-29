@@ -1071,6 +1071,18 @@ class Product(AssistantIO):
             self.pairing = self.bridge.create_pairing()
             return copy.deepcopy(self.pairing)
 
+    def local_pairing(self):
+        """Read the existing comparison code for authenticated, local Studio only.
+
+        Device-initiated pairing uses the same pending request. Do not put this
+        value in state(), capabilities, agent context or the remote gateway.
+        """
+        with self.lock:
+            if (not self.pairing or time.time() >= self.pairing["expires_at"]
+                    or self.capabilities()["paired_host"]):
+                return None
+            return copy.deepcopy(self.pairing)
+
     def revoke(self):
         with self.lock:
             self.intent_memory.clear()

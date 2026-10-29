@@ -180,6 +180,18 @@ class Product(AssistantIO):
         self.hardware.confirm(identifier, step)
         return self.request("Continue the current hardware repair using my confirmed physical step.")
 
+    def hardware_cancel(self):
+        with self.changed:
+            if self.running:
+                return self.cancel()
+            result = self.hardware.call("cancel")
+            self.clarification = None
+            self.conversation = self.current_request = None
+            self.response = None
+            self._stop_speech()
+            self.changed.notify_all()
+            return result
+
     def clear_context(self):
         with self.lock:
             if self.running:

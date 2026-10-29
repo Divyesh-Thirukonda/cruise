@@ -521,6 +521,11 @@
     warnings.forEach((warning) => { const item = document.createElement("li"); item.textContent = String(warning); list.append(item); });
     $("hardware-warnings").replaceChildren(list);
     const workflow = ui.state?.hardware?.workflow;
+    const report = ui.state?.hardware?.report;
+    $("hardware-scan").hidden = !report;
+    if (report) text("hardware-scan", report.bus_available
+      ? `Last bus scan: ${report.addresses.map((address) => `0x${address.toString(16).padStart(2, "0")}`).join(" · ") || "No addresses responded"}`
+      : "Last bus scan could not read the I2C bus.");
     const repairVisible = workflow && !["complete", "completed", "cancelled"].includes(workflow.phase);
     $("hardware-repair").hidden = !repairVisible;
     const ready = ui.online && device.connected === true && !ui.state?.agent?.running;
@@ -530,7 +535,7 @@
       text("hardware-repair-instructions", Array.isArray(workflow.instructions) ? workflow.instructions.join("\n") : workflow.instructions || "Continue the hardware setup with Modulate.");
       text("hardware-repair-phrase", workflow.required_phrase ? `When finished, say “Hey Meta, ${workflow.required_phrase},” or confirm below.` : "");
       $("hardware-confirm").hidden = !workflow.confirmation_step;
-      $("hardware-confirm").disabled = !ready || ui.mutating.has("hardware-confirm");
+      $("hardware-confirm").disabled = !ready || !workflow.reboot_observed || workflow.confirmation_received || ui.mutating.has("hardware-confirm");
       $("hardware-cancel").disabled = !ui.online || ui.mutating.has("hardware-cancel");
     }
     $("wake-toggle").setAttribute("aria-checked", String(ui.state?.wake === true));

@@ -15,7 +15,7 @@ import time
 from types import SimpleNamespace
 import unittest
 import uuid
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from modulate.agent import AgentError, TOOLS
 from modulate.controls import neutral_input
@@ -278,6 +278,51 @@ class HardwareIntegrationTests(unittest.TestCase):
             self.assertEqual(self.product.hardware.path.read_bytes(), before)
             self.assertEqual(self.product.hardware.inspect()["workflow"]["id"], workflow["id"])
             self.assertEqual(self.product.hardware.inspect()["workflow"]["phase"], "awaiting_isolation")
+
+    def test_ui_cancel_clears_waiting_question_and_speech_without_stopping_idle_mac_audio(self):
+        self.begin()
+        self.product.conversation = {"original": "Set up the synthetic new button", "history": [],
+                                     "questions": 0, "recoveries": 0}
+        self.product.current_request = "Set up the synthetic new button"
+        self.product._question("Say isolated button ready when the physical step is complete.")
+        old_question = self.product.clarification["id"]
+        self.product.response = {"id": "c" * 32, "text": "Synthetic wiring question"}
+        self.product.speech_cancel = threading.Event()
+        self.product.speech_pending = {"id": "d" * 32, "text": "Synthetic pending speech"}
+        self.product.speech_message = {"id": "e" * 32, "text": "Synthetic delivered speech"}
+        self.product.speech_audio = {"id": "e" * 32, "pcm": b"synthetic-test-audio"}
+        old_stop_id = self.product.speech_stop_id
+        self.product.system_audio = Mock()
+        self.product.system_audio.status.return_value = {"running": True, "state": "streaming", "session": "f" * 32}
+        self.product.audio_route = Mock()
+        self.product.audio_route.status.return_value = {"active": True}
+        self.product.audio_pair = "a" * 32
+        port = self.server()
+        headers = self.browser_headers(port)
+
+        for missing in ("Origin", "Cookie", "X-CSRF-Token"):
+            partial = {key: value for key, value in headers.items() if key != missing}
+            self.assertEqual(self.post(port, "/api/hardware/cancel", {}, partial)[0], 403)
+            self.assertEqual(self.product.hardware.inspect()["workflow"]["phase"], "awaiting_isolation")
+            self.assertEqual(self.product.clarification["id"], old_question)
+            self.assertFalse(self.product.speech_cancel.is_set())
+
+        status, result = self.post(port, "/api/hardware/cancel", {}, headers)
+        self.assertEqual(status, 200)
+        self.assertEqual(result["workflow"]["phase"], "cancelled")
+        self.assertEqual(HardwareDebug(self.product.hardware.path).inspect()["workflow"]["phase"], "cancelled")
+        self.assertIsNone(self.product._clarification_state())
+        for field in ("conversation", "current_request", "response", "speech_pending", "speech_message", "speech_audio"):
+            self.assertIsNone(getattr(self.product, field), field)
+        self.assertTrue(self.product.speech_cancel.is_set())
+        self.assertGreater(self.product.speech_stop_id, old_stop_id)
+        self.assertFalse(self.product.agent.cancelled.is_set())
+        self.product.system_audio.stop.assert_not_called()
+        self.product.audio_route.stop.assert_not_called()
+        self.assertEqual(self.product.audio_pair, "a" * 32)
+        self.assertTrue(self.product.audio_status()["running"])
+        with self.assertRaisesRegex(AgentError, "conversation has ended"):
+            self.product.request("isolated button ready", followup_id=old_question)
 
 
 class HardwareControllerIntegrationTests(unittest.TestCase):

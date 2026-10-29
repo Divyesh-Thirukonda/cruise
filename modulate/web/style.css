@@ -15,5 +15,7 @@
 @media(max-width:850px){.computer-panel{margin-top:0;grid-column:1 / -1}}@media(max-width:560px){.computer-panel,.response-panel{padding:17px 16px}.response-panel{margin-top:15px}.computer-live-notice{flex-wrap:wrap;gap:8px 10px}.computer-live-notice>strong{font-size:12px}.computer-live-notice>.button{margin-left:0;width:100%}}
 .computer-duration{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:11px;color:var(--muted);margin:12px 0}.computer-duration select{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 10px}.computer-duration select:focus-visible{outline:2px solid var(--mint);outline-offset:3px}
 /* Physical setup steps remain readable while the Pi is powered down. */
-.hardware-repair {margin-top: 16px; padding: 16px; border: 1px solid currentColor; border-radius: 12px;}
+.hardware-diagnostics {padding: 0 18px 16px;}
+#hardware-scan {margin-top: 8px; line-height: 1.5;}
+.hardware-repair {margin-top: 16px; padding: 16px; border: 1px solid var(--border); border-radius: 12px;}
 .hardware-repair p {white-space: pre-line; line-height: 1.5;}

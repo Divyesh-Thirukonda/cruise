@@ -1,6 +1,6 @@
 # Modulate hardware debugger
 
-Contract prepared October 29, 2026. Runtime integration, deployment and physical repair evidence are separate checkpoints to record after testing. This guide does not establish that a new board was repaired. The previously verified green `0x6E` / red `0x6F` assembly remains the baseline to preserve; see the [hardware inventory](hardware.md).
+Implemented and installed October 29, 2026. Live Meta diagnosis, guided setup preparation and cancellation passed against the physical Pi. Full address repair and fault recovery were tested with a simulated bus; no new board was physically rewired or repaired in this trial. See [test and deployment evidence](evidence/hardware-debugger.json). The previously verified green `0x6E` / red `0x6F` assembly remains the baseline to preserve; see the [hardware inventory](hardware.md).
 
 The debugger lets the user ask Modulate about missing inputs, a suspected I2C problem, a wiring step or voice/speaker/display status. Once deployed, supported work uses the product's voice or Studio interface without needing Codex or a terminal. The model chooses the [hardware-debugger skill](../modulate/skills/hardware-debugger/SKILL.md) and trusted tools; it does not generate a privileged driver.
 
@@ -37,3 +37,9 @@ Successful repair requires identity/address readback after the isolated power cy
 A third button can have a unique address without becoming a third game input. The current runtime exposes `button_a` and `button_b`; new logical input support is separate work. Cancellation stops the workflow, but an already-written address must not be assumed undone. Inspect the saved phase/address before resuming. Unknown identity, unexpected firmware, missing physical confirmation or failed readback should produce a concrete explanation and stop before another speculative write.
 
 Record deployment/tests, actual scan/identity observations, each user-confirmed physical step and final input behavior separately. Synthetic tests can establish refusal/recovery behavior; they cannot prove how the user wired the board. No raw conversation, audio, credential or private screenshot belongs in public repair evidence.
+
+## Validation checkpoint
+
+Installed `982cff6` on the Pi after archive SHA256 verification. All 238 focused Pi tests passed without skips; the host suite ran 778 tests with 11 platform skips, followed by 79 focused checks after final Studio-cancellation and speech refinements. Live diagnostics identified joystick 0x20, encoder 0x36 and buttons 0x6E/0x6F with firmware 259. Meta selected hardware-debugger, prepared an additional-button setup at unused 0x6D, requested physical isolation and stopped. Cancellation retained the original addresses and app; no address write was performed. The final healthy check returned one short sentence.
+
+Fresh camera telemetry, wake listening, pairing, Pi volume 70% and the original active revision were retained after host/Pi updates. Trial memory was removed while preserving the real speaker preference. The total ledger was 462 calls / $9.706706 held or used under the existing $50 ceiling; it includes an unconfirmed follow-up while waiting. This does not establish broad hardware or voice-recognition reliability.

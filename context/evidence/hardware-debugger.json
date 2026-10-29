@@ -1,0 +1,169 @@
+{
+  "date": "2026-10-29",
+  "timezone": "America/New_York",
+  "implementation_commit": "982cff6",
+  "archive_sha256": "57a00fa1863ee859a785d4658a3cd5eff81030b2df17bf0c9aabf7baa8776bb3",
+  "checks": {
+    "host_suite": {
+      "run": 778,
+      "skipped": 11,
+      "passed": true
+    },
+    "final_host_focused": {
+      "run": 79,
+      "skipped": 0,
+      "passed": true
+    },
+    "pi_suite": {
+      "run": 238,
+      "skipped": 0,
+      "seconds": 4.628,
+      "passed": true
+    }
+  },
+  "live_cases": [
+    {
+      "case": "healthy",
+      "input_mode": "typed_studio_live",
+      "seconds": 5.369,
+      "selected_skills": [
+        "hardware-debugger"
+      ],
+      "tools": [
+        "load_skill",
+        "hardware_debug"
+      ],
+      "addresses": [
+        "0x20",
+        "0x36",
+        "0x6e",
+        "0x6f"
+      ],
+      "button_firmware": [
+        259,
+        259
+      ],
+      "phase": null,
+      "candidate_address": null,
+      "physical_confirmation_received": false,
+      "original_app_retained": true,
+      "model_calls": 3,
+      "held_or_used_dollars": 0.026528
+    },
+    {
+      "case": "prepare",
+      "input_mode": "typed_studio_live",
+      "seconds": 6.46,
+      "selected_skills": [
+        "hardware-debugger"
+      ],
+      "tools": [
+        "load_skill",
+        "hardware_debug",
+        "ask_user"
+      ],
+      "addresses": [
+        "0x20",
+        "0x36",
+        "0x6e",
+        "0x6f"
+      ],
+      "button_firmware": [
+        259,
+        259
+      ],
+      "phase": "awaiting_isolation",
+      "candidate_address": "0x6d",
+      "physical_confirmation_received": false,
+      "original_app_retained": true,
+      "model_calls": 3,
+      "held_or_used_dollars": 0.028729
+    },
+    {
+      "case": "cancel",
+      "input_mode": "typed_studio_live",
+      "seconds": 2.606,
+      "selected_skills": [
+        "hardware-debugger"
+      ],
+      "tools": [
+        "load_skill",
+        "hardware_debug"
+      ],
+      "addresses": [
+        "0x20",
+        "0x36",
+        "0x6e",
+        "0x6f"
+      ],
+      "button_firmware": [
+        259,
+        259
+      ],
+      "phase": "cancelled",
+      "candidate_address": "0x6d",
+      "physical_confirmation_received": false,
+      "original_app_retained": true,
+      "model_calls": 3,
+      "held_or_used_dollars": 0.028691
+    },
+    {
+      "case": "concise",
+      "input_mode": "typed_studio_live",
+      "seconds": 3.064,
+      "selected_skills": [
+        "hardware-debugger"
+      ],
+      "tools": [
+        "load_skill",
+        "hardware_debug"
+      ],
+      "addresses": [
+        "0x20",
+        "0x36",
+        "0x6e",
+        "0x6f"
+      ],
+      "button_firmware": [
+        259,
+        259
+      ],
+      "phase": "cancelled",
+      "candidate_address": "0x6d",
+      "physical_confirmation_received": false,
+      "original_app_retained": true,
+      "model_calls": 3,
+      "held_or_used_dollars": 0.028753
+    }
+  ],
+  "scope": "Typed Meta requests against physical Pi diagnostics; no new physical wiring or EEPROM write was performed. Full repair, interruption and reconnect cases used a simulated bus.",
+  "preserved": {
+    "app_revision": "00157bb8ac8540913bd8734b62ab860533d9c3c4b751fa8454ccefa654573831",
+    "camera_fresh": true,
+    "controls": [
+      "joystick",
+      "encoder",
+      "encoder_pressed",
+      "button_a",
+      "button_b"
+    ],
+    "speaker_volume": 70,
+    "speaker_muted": false,
+    "pairing": true,
+    "wake_state": "wake_listening",
+    "real_context_records": 1
+  },
+  "final_budget": {
+    "limit_dollars": 50.0,
+    "charged_or_reserved_dollars": 9.706706,
+    "calls": 462,
+    "halted": false
+  },
+  "notes": [
+    "An unconfirmed follow-up during the waiting phase asked again and made no write; window total includes that extra call.",
+    "The first healthy reply was too long; skill guidance was refined and the final live reply was one short sentence.",
+    "The additional-button setup selected 0x6d while preserving known 0x6e and 0x6f. It was cancelled before physical steps.",
+    "No scan can count identical responders sharing an address or prove physical isolation. User confirmation remains necessary.",
+    "Unknown modules and automatically adding a third logical game input are not supported repair claims."
+  ]
+}

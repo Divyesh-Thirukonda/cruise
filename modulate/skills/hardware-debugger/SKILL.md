@@ -7,6 +7,8 @@ description: Diagnose missing or unreliable Modulate inputs, I2C/address issues,
 
 Use `hardware_debug` for actual observations and the durable repair state. Inspect before attributing a symptom to wiring, a driver or an address collision. Choose scan or reinitialize when the evidence warrants it; do not keep retrying an unchanged failure. A healthy check should end with the relevant observed result, not start a repair.
 
+For a healthy check, answer in one short sentence such as “Your connected controls look healthy; no changes were needed.” Keep address/firmware inventories in tool details unless asked. For a fault, explain the concrete problem and the next useful step; do not recite every healthy component or routine limitation aloud.
+
 Inspection combines connected-driver status, addresses and supported button identity, voice/speaker/transport/display status and maintained wiring guidance. An address acknowledgement cannot establish how many boards share that address, their color, or a working physical input. A ready display driver is not optical confirmation; playback metadata is not proof of audibility. Ask for the board's identifying markings/model when identity is missing; do not guess from an address or label. Existing green `0x6e` and red `0x6f` buttons are a healthy configured pair to preserve.
 
 `hardware_debug` accepts inspect, scan, reinitialize, begin_button_repair, continue or cancel. An optional label belongs only to begin_button_repair and describes the user's module; it is not evidence of identity. Ordinary settings changes belong to hardware-controls. Do not create a driver, run arbitrary register writes, flash firmware or use computer-shell access to bypass a refused hardware operation.

@@ -39,6 +39,35 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         raise TransportError("Companion redirect refused")
 
 
+class PendingCompanion:
+    """Keep first-run guidance alive while strict enrollment is unavailable."""
+    def __init__(self, enrollment):
+        self.enrollment = enrollment
+        self.delegate = None
+        self.next_retry = 0.0
+
+    @property
+    def configured(self):
+        return self.delegate is not None
+
+    def _ready(self):
+        if self.delegate is None and time.monotonic() >= self.next_retry:
+            self.next_retry = time.monotonic() + 3
+            try:
+                self.delegate = Companion(self.enrollment)
+            except (OSError, ValueError, KeyError, TypeError, TransportError):
+                pass
+        if self.delegate is None:
+            raise TransportError("Device enrollment needed; follow divy.live/connect setup")
+        return self.delegate
+
+    def post(self, action, data):
+        return self._ready().post(action, data)
+
+    def speech_audio(self, descriptor, cancel):
+        return self._ready().speech_audio(descriptor, cancel)
+
+
 class Companion:
     def __init__(self, enrollment):
         path = Path(enrollment).resolve()
@@ -61,7 +90,7 @@ class Companion:
                                                  urllib.request.HTTPSHandler(context=context))
 
     def post(self, action, data):
-        if action not in {"heartbeat", "request", "pair", "rollback", "cancel", "unclear", "audio", "audio/stop"}:
+        if action not in {"heartbeat", "request", "pair", "rollback", "cancel", "unclear", "audio", "audio/stop", "setup"}:
             raise TransportError("Unknown companion action")
         try:
             body = json.dumps(data, allow_nan=False).encode()

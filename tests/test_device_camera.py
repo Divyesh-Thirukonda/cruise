@@ -167,7 +167,7 @@ class DeviceCameraTests(unittest.TestCase):
         controller.camera_identity = (self.current["revision"], "b" * 32, 1)
         controller.camera_received_at = self.now
         controller.camera_frames_received = 1
-        for name in ("cancellations", "requests", "actions", "responses"):
+        for name in ("cancellations", "requests", "actions", "responses", "setup_actions"):
             setattr(controller, name, queue.Queue())
         controller.session = "c" * 32
         controller.sequence = controller.encoder_pending = 0

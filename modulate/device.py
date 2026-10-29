@@ -21,7 +21,7 @@ from PIL import Image, ImageDraw
 
 from .controls import Controls, neutral_input
 from .device_activation import DeviceActivation
-from .device_transport import Companion, TransportError, save_private
+from .device_transport import Companion, PendingCompanion, TransportError, save_private
 from .hardware import Screen
 from .rendering import font
 from .speaker import Speaker
@@ -29,6 +29,7 @@ from .speaker_volume import SpeakerVolumeDevice
 from .hardware_device import HardwareDevice
 from .audio_receiver import AudioReceiver
 from .voice import VoiceListener
+from .setup_screen import SetupScreen
 
 
 class Controller:
@@ -36,7 +37,14 @@ class Controller:
         self.booted_at = time.time()
         self.directory = Path(directory)
         self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
-        self.companion = Companion(enrollment)
+        try:
+            self.companion = Companion(enrollment)
+        except (OSError, ValueError, KeyError, TypeError, TransportError):
+            self.companion = PendingCompanion(enrollment)
+        self.setup_screen = SetupScreen(time.monotonic())
+        self.setup_actions = queue.Queue(maxsize=1)
+        self.setup_in_flight = False
+        self.setup_reopen_start = None
         self.lock = threading.RLock()
         self.stop = threading.Event()
         self.responses = queue.Queue(maxsize=8)
@@ -148,6 +156,8 @@ class Controller:
         with self.lock:
             self.voice_state = status
             self.voice_history.append({"at": time.time(), **status})
+            if status.get("state") == "listening" and status.get("message", "").startswith("Wake phrase heard"):
+                self.setup_screen.wake()
             if status.get("state") == "idle" and status.get("message", "").startswith("Please say a complete"):
                 self._feedback("Say a little more", 'Say "Hey Meta"\nthen the full request')
 
@@ -287,6 +297,7 @@ class Controller:
                 self._feedback("Working", "Please wait for this build")
                 return False
             if time.monotonic() - self.last_response > 4:
+                self.setup_screen.wake()
                 self._feedback("Not connected", "Check the Mac connection\nRequest was not queued")
                 return False
             try:
@@ -504,6 +515,18 @@ class Controller:
                     with self.lock:
                         self.request_in_flight = False
             try:
+                setup_action = self.setup_actions.get_nowait()
+            except queue.Empty:
+                setup_action = None
+            if setup_action:
+                try:
+                    self.companion.post("setup", {"action": setup_action})
+                except TransportError:
+                    self._feedback("Setup not confirmed", "Check the Mac companion.\nTry the setup step again.")
+                    raise
+                finally:
+                    self.setup_in_flight = False
+            try:
                 action = self.actions.get_nowait()
             except queue.Empty:
                 action = None
@@ -516,6 +539,14 @@ class Controller:
                     with self.lock:
                         self.pairing_in_flight = False
         except (TransportError, OSError, ValueError) as error:
+            # A physical setup action belongs to this connection attempt; never
+            # replay it later after an uncertain delivery or lost heartbeat.
+            while True:
+                try:
+                    self.setup_actions.get_nowait()
+                except queue.Empty:
+                    break
+            self.setup_in_flight = False
             if hasattr(self, "hardware_debugger"):
                 self.hardware_debugger.offer(None)
             if hasattr(self, "speaker_volume"):
@@ -534,7 +565,8 @@ class Controller:
 
     def _offer(self):
         offer = self.host.get("pairing")
-        if (type(offer) is dict and type(offer.get("code")) is str
+        if (time.monotonic() - self.last_response < 4
+                and type(offer) is dict and type(offer.get("code")) is str
                 and offer["code"] != self.dismissed_pairing
                 and type(offer.get("expires_at")) in (int, float)
                 and time.time() < offer["expires_at"]):
@@ -549,6 +581,13 @@ class Controller:
             return not a, not b, True
         except (IndexError, AttributeError, OSError, RuntimeError, ValueError):
             return False, False, False
+
+    def _setup_card(self):
+        with self.lock:
+            return self.setup_screen.update(
+                enrolled=not isinstance(self.companion, PendingCompanion) or self.companion.configured,
+                fresh=time.monotonic() - self.last_response < 4, host=self.host,
+                now=time.monotonic(), wall=time.time())
 
     def _handle_buttons(self, sample, started):
         sample = dict(sample)
@@ -585,6 +624,29 @@ class Controller:
             sample.update(button_a=False, button_b=False)
             return sample
         self.pair_offer, self.pair_buttons_released = None, False
+        card = self._setup_card()
+        if a and b:
+            self.setup_screen.buttons_released = False
+        if card and self.display_state.get("kind") == "setup" and not (a and b):
+            action = self.setup_screen.buttons(card, a, b, valid)
+            if action in {"create_browser_code", "start_pairing"} and not self.setup_in_flight:
+                try:
+                    self.setup_actions.put_nowait(action)
+                    self.setup_in_flight = True
+                except queue.Full:
+                    pass
+            sample.update(button_a=False, button_b=False, encoder_delta=0)
+            self.chord_start, self.chord_fired = None, False
+            return sample
+        # A held screen button reopens a dismissed connection guide without
+        # reusing a large game button or silently approving native Mac access.
+        if self.setup_screen.reason and self.setup_screen.dismissed and valid and a and not b:
+            if self.setup_reopen_start is None:
+                self.setup_reopen_start = started
+            if started - self.setup_reopen_start >= 1:
+                self.setup_screen.wake()
+        else:
+            self.setup_reopen_start = None
         if valid and a and b:
             if self.chord_start is None:
                 self.chord_start = started
@@ -739,6 +801,31 @@ class Controller:
         self._displayed("processing", title)
         self.status_key = key
 
+    def draw_setup(self, card):
+        key = ("setup", card.get("id"), card["title"], tuple(card["lines"]), card.get("code"), self.setup_in_flight)
+        if key == self.status_key:
+            return
+        image = Image.new("RGB", (240, 135), "#101113")
+        draw = ImageDraw.Draw(image)
+        draw.text((9, 6), "MODULATE / SETUP", font=font(10), fill="#469DFF")
+        draw.text((9, 24), card["title"][:25], font=font(15), fill="white")
+        if card["kind"] == "browser_code":
+            draw.text((9, 46), "divy.live/connect", font=font(12), fill="#CCD5E0")
+            draw.text((9, 65), card["code"], font=font(28), fill="#74B8FF")
+            footer = "A: next step   B: hide code"
+        else:
+            for index, line in enumerate(card["lines"][:4]):
+                draw.text((9, 48 + index * 14), line[:33], font=font(11), fill="#CCD5E0")
+            footer = ("Working...   B: later" if self.setup_in_flight else
+                      "A: show code   B: later" if card["action"] == "create_browser_code" else
+                      "A: pair Mac   B: later" if card["action"] == "start_pairing" else "A: next   B: later")
+        draw.line((9, 111, 231, 111), fill="#343A42")
+        draw.text((9, 117), footer, font=font(10), fill="#A6B0BC")
+        self.present(image)
+        with self.lock:
+            self.display_state = {"kind": "setup", "title": card["title"], "offer_id": card.get("id")}
+        self.status_key = key
+
     def run(self):
         self.speaker.start()
         self.speaker_volume.start()
@@ -774,7 +861,8 @@ class Controller:
                 hardware_wait = (hardware if type(hardware) is dict and hardware.get("phase") not in
                                  {"complete", "completed", "cancelled", "failed"} else None)
                 suspended = self.runtime.snapshot().get("suspended") is True
-                overlay = streaming or speaking or busy or feedback is not None or self._offer() is not None or voice_overlay or bool(question) or hardware_wait or suspended
+                setup_card = self._setup_card()
+                overlay = streaming or speaking or busy or feedback is not None or self._offer() is not None or voice_overlay or bool(question) or hardware_wait or suspended or setup_card is not None
                 if overlay:
                     sample["encoder_delta"] = 0
                 # A modal pairing/voice card temporarily pauses the game rather
@@ -824,6 +912,8 @@ class Controller:
                 elif suspended:
                     self.status("App saved", "A required control is missing\nSay Hey Meta:\nCheck my hardware")
                     self._displayed("hardware_missing", "App saved")
+                elif setup_card:
+                    self.draw_setup(setup_card)
                 elif self.host.get("agent_running") and not current.get("kind"):
                     self.status("Reinventing...", "Meta is building and testing\nFollow progress in Studio")
                 elif current.get("kind") == "control":
@@ -856,13 +946,14 @@ class Controller:
 def main():
     parser = argparse.ArgumentParser(description="Physical Modulate controller")
     parser.add_argument("--state-dir", default="/home/pi/modulate-product/state")
-    parser.add_argument("--enrollment", required=True)
+    parser.add_argument("--enrollment", help="Private enrollment file; defaults to the device state directory")
     parser.add_argument("--microphone", type=int)
     parser.add_argument("--pair-code", help="Pair with the one-time code shown by the Mac studio, then exit")
     args = parser.parse_args()
     os.umask(0o077)
     directory = Path(args.state_dir)
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+    args.enrollment = args.enrollment or str(directory / "device-enrollment.json")
     if args.pair_code:
         result = Companion(args.enrollment).post("pair", {"code": args.pair_code, "name": "Modulate Pi 5"})
         save_private(directory / "pairing.json", result)

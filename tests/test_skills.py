@@ -12,7 +12,9 @@ from modulate import skills
 class RuntimeSkillTests(unittest.TestCase):
     def test_catalog_exposes_only_discovery_metadata_and_returns_fresh_values(self):
         first = skills.catalog()
-        self.assertEqual(len(first), 5)
+        self.assertEqual({entry["id"] for entry in first}, {
+            "computer-use", "device-apps", "games", "hardware-controls", "hardware-debugger", "connection-setup",
+        })
         self.assertEqual(len({entry["id"] for entry in first}), len(first))
         for entry in first:
             self.assertEqual(set(entry), {"id", "description"})
@@ -59,7 +61,7 @@ class RuntimeSkillTests(unittest.TestCase):
     def test_catalog_does_not_read_instruction_bodies(self):
         # An invalid UTF-8, oversize body must not be decoded/read by discovery.
         self._tree(lambda identifier: self._document(identifier, b"\xff" * (skills.MAX_SKILL_BYTES + 1)))
-        self.assertEqual(len(skills.catalog()), 5)
+        self.assertEqual(len(skills.catalog()), 6)
         with self.assertRaises(skills.SkillError):
             skills.load_skill("games")
 
@@ -67,6 +69,7 @@ class RuntimeSkillTests(unittest.TestCase):
         root = self._tree(self._document)
         (root / "computer-use" / "SKILL.md").unlink()
         self.assertTrue(skills.load_skill("games")["instructions"])
+        self.assertTrue(skills.load_skill("connection-setup")["instructions"])
         with self.assertRaises(skills.SkillError):
             skills.load_skill("computer-use")
 

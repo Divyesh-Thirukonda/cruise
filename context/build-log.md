@@ -163,3 +163,8 @@ Repair `12e26b7` moves camera-freshness lookup before taking the controller lock
 - A final 17-call live Meta trial completed 2+2 = 4 in Calculator; an independent accessibility read confirmed expression/result. No clarification was asked; Funky Mirror Cam remained active. Earlier failed trials are preserved in the [sanitized evidence](evidence/paired-mac-camera.json).
 - Code `41f91e5`: 579 host tests passed with 11 platform skips. Budget: 256 calls / $6.125349 held or used, ceiling unchanged at $50. No new credentials or SSH keys were created; the unused Homebrew brightness probe utility was removed.
 - Final host/Pi deployment `41f91e5` verified by archive SHA256; all 185 final Pi checks passed without skips in 6.547 s. Service active; paired access and fresh Funky Mirror Cam frames restored without a model call.
+
+### Shorter completion replies
+
+- Changed the live Meta instructions to confirm successful actions in one brief sentence, normally 5–15 words, with only an essential control hint. Removed the automatic control rundown and 700-character guidance. Requested readouts, explanations, clarifications, failures and specialist handoffs are preserved without mechanical truncation.
+- All 38 existing agent tests passed. Restarted the host companion with pairing, active camera program and the $50 ledger retained; no Pi runtime change was required. A two-call live metadata-only camera check replied: “Your Mac camera is connected and streaming to the mini screen.” This 11-word reply was queued for speech; audibility was not separately checked. Fresh Pi camera telemetry remained present. Ledger snapshot: 258 calls / $6.134650 held or used.

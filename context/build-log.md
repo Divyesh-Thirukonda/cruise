@@ -624,3 +624,25 @@ package checks passed; all 39 API and 24 client tests and the Next.js production
 build passed. IPv6 protocol tests use local TLS with simulated physical input.
 Synthetic 240-by-135 setup/confirmation renders were inspected. Live factory
 installation and customer confirmation remain separate evidence below.
+
+## October 29 — Preloaded setup factory installation verified
+
+Installed runtime revision `77544fc` on the existing Pi using the explicitly
+authorized one-time developer shell. Fixed public source files were SHA-256
+verified before replacement, with previous files retained privately. All 96
+focused tests passed on the actual Pi (14.838 seconds), including the Linux
+certificate regression and IPv6 protocol checks. After restart the device
+service reported active/running, zero restarts and zero exit status.
+
+A Mac-to-Pi IPv6 TLS probe reached the new listener and received the expected
+404 from its unauthenticated root route; it sent no credentials and did not test
+physical pin matching. Device enrollment, native pairing and active-app files
+remain absent. Mac Studio and its setup helper remain stopped, ready for the
+user's new setup chat. No model calls or SSH grants were made.
+
+Production `modulate-connect` is READY at `77544fc`; the setup page now explicitly
+assumes a preloaded gadget and Mac-only agent work. The public plugin bytes
+match the current source package. [Sanitized evidence](evidence/preloaded-enrollment.json)
+keeps local/simulated checks separate from physical enrollment. A full customer
+onboarding trial was deliberately left to the user rather than consuming the
+fresh reset; physical setup-screen confirmation is pending.

@@ -12,5 +12,20 @@
     "device-enrollment.json": true
   },
   "new_physical_pairing_trial": false,
-  "new_browser_claim_performed": false
+  "new_browser_claim_performed": false,
+  "production": {
+    "url": "https://modulate-connect.vercel.app/connect",
+    "commit": "5d61266",
+    "status": "READY",
+    "public_session_http": 200,
+    "public_companion_online": true,
+    "unauthenticated_browser_remains_unpaired": true,
+    "setup_return_route_verified": "/connect",
+    "downloads_match_source": {
+      "modulate-setup.zip": true,
+      "modulate-setup-prompt.txt": true,
+      "modulate-setup.sha256": true
+    },
+    "local_customer_page_verified": true
+  }
 }

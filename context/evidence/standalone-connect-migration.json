@@ -65,7 +65,18 @@
     "retired_modulate_paths": "Return the restored portfolio SPA HTML, not the Modulate JSON/provider functions",
     "tests": 10,
     "build": "passed; existing source-map warnings",
-    "old_environment_cleanup": "awaiting user confirmation"
+    "old_environment_cleanup": {
+      "status": "completed after explicit user approval",
+      "deleted_count": 6,
+      "remaining_modulate_variables": 0,
+      "unrelated_variables_unchanged": 3,
+      "standalone_variables_preserved": 6,
+      "provider_credentials_revoked": false,
+      "cleanup_deployment": "dpl_9z9Yjyd7Ng4KB68KiqyGpk5nVw5K",
+      "cleanup_deployment_status": "READY",
+      "divy_live_alias_verified": true,
+      "root_title": "Divyesh Portfolio"
+    }
   },
   "limitations": [
     "Typed provider probe, not a new physical voice test.",

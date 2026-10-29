@@ -98,6 +98,15 @@ The voice worker starts muted, but the product requests wake listening automatic
 
 **Wake repair installed:** commit `dc5c213ec0113adb6435cfd1b21647131a4d72fa` replaces the fixed RMS threshold with Silero VAD bundled in pinned `faster-whisper==1.2.1`; no additional model download is needed. A negative ambient wake probe can retry after subsequent speech instead of blocking a later wake phrase until a full three-second quiet interval. Results stay bound to their originating buffer. Speaker-unavailable retries no longer invalidate capture, and status callbacks are ordered. The user confirmed bare “Hey Meta” produced Listening, then confirmed the requested short joke was audible and a second “Hey Meta” worked afterward. Telemetry independently showed speaking → delivered → wake_listening → listening. Audio remains in bounded memory. A later ambient segment still reached the 25-second discard limit; these successful trials do not establish noisy-room or false-trigger reliability.
 
+**Quiet-onset update installed:** `272c938` lowers Silero onset/end thresholds from
+.50/.35 to .35/.20 and retains 600 ms instead of 250 ms before detected speech.
+The explicit anchored wake phrase and Whisper's joint silence/low-confidence
+rejection remain. The capture fix preserves a synthetic 350 ms delayed onset;
+it does not make Whisper a dedicated wake-word model. The USB microphone was
+enabled at 75% with automatic gain control and was not adjusted. All 217 focused
+Pi checks passed without skips. A fresh physical wake trial is still required
+to assess this change in the user's room.
+
 Validation: **164 focused Pi tests passed without skips in 3.260 s**. The host ran **435 tests with 11 skips** (eight lacking NumPy and three lacking PyAV); the eight SpeechActivity tests separately passed under a host Python with NumPy. On the actual Pi, the bundled ONNX adapter labeled **0 of 1,000 synthetic zero-PCM 25 ms blocks** as speech in **0.229 s**, excluding model construction. This checks compatibility and execution time, not live audio or wake accuracy. The latest user program, revision `2d24f9ab84e5cd66881f2f6972fc1c29cbf361520173a81278af84b872b510da`, survived restart. The host was not restarted, preserving its current Chrome grant.
 
 The USB microphone supports native 44.1/48 kHz capture but rejected the product's direct 16 kHz stream. The deployed worker captures 48,000 Hz mono int16 in 1,200-sample/25 ms blocks and uses PyAV 12.3.0 to resample to 16,000 Hz, 400-sample blocks for VAD/Whisper. Initial PTT/wake attempts then hit stream overflows. A 0.25-second capture-latency setting and retry/buffering fixes preceded the successful spoken trials below; retain those failures in the evidence. All 34 focused voice tests passed on the Pi with actual PyAV, including synthetic audio and duration/filtering checks. The companion displays actual device voice state/errors. The earlier number prototype used ALSA conversion and retains separate evidence.

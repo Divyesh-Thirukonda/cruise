@@ -1,0 +1,205 @@
+{
+  "date": "2026-10-29",
+  "source_commit": "272c938",
+  "input_mode": "typed local Studio API with live Meta model and physical Pi",
+  "host_tests": {
+    "count": 941,
+    "dependency_skips": 13
+  },
+  "pi_tests": {
+    "count": 217,
+    "seconds": 13.656,
+    "skips": 0
+  },
+  "archive_sha256": "8ae15a1f8f3c4db2cce5d55b6f38b61ec0337e63895a29266d55da6fcf8bf68f",
+  "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462",
+  "initial_budget": {
+    "calls": 506,
+    "charged_or_reserved_dollars": 10.303666
+  },
+  "trials": [
+    {
+      "request": "Reverse the knob here.",
+      "library_open": true,
+      "before": "forward",
+      "after": "reversed",
+      "status": "completed",
+      "selected_skills": [
+        "app-library"
+      ],
+      "budget": {
+        "limit_dollars": 50.0,
+        "charged_or_reserved_dollars": 10.338168,
+        "calls": 509,
+        "halted": false
+      },
+      "tools": [
+        "load_skill",
+        "app_library"
+      ],
+      "no_clarification_or_package_write": true,
+      "active_revision_unchanged": true
+    },
+    {
+      "request": "Undo that.",
+      "library_open": true,
+      "before": "reversed",
+      "after": "forward",
+      "status": "completed",
+      "selected_skills": [
+        "app-library"
+      ],
+      "active_revision_unchanged": true,
+      "budget": {
+        "limit_dollars": 50.0,
+        "charged_or_reserved_dollars": 10.373154,
+        "calls": 512,
+        "halted": false
+      },
+      "tools": [
+        "load_skill",
+        "app_library"
+      ],
+      "no_clarification_or_package_write": true
+    }
+  ],
+  "physical_wake_trial": "pending",
+  "physical_menu_trial": "pending",
+  "post_install_samples": [
+    {
+      "connected": true,
+      "voice": "wake_listening",
+      "display": "setup",
+      "agent_running": false,
+      "library_open": true,
+      "encoder_direction": "forward",
+      "active_revision_unchanged": true
+    },
+    {
+      "connected": true,
+      "voice": "wake_listening",
+      "display": "setup",
+      "agent_running": false,
+      "library_open": true,
+      "encoder_direction": "forward",
+      "active_revision_unchanged": true
+    },
+    {
+      "connected": true,
+      "voice": "wake_listening",
+      "display": "setup",
+      "agent_running": false,
+      "library_open": true,
+      "encoder_direction": "forward",
+      "active_revision_unchanged": true
+    },
+    {
+      "connected": true,
+      "voice": "wake_listening",
+      "display": "setup",
+      "agent_running": false,
+      "library_open": true,
+      "encoder_direction": "forward",
+      "active_revision_unchanged": true
+    },
+    {
+      "connected": true,
+      "voice": "wake_listening",
+      "display": "setup",
+      "agent_running": false,
+      "library_open": true,
+      "encoder_direction": "forward",
+      "active_revision_unchanged": true
+    },
+    {
+      "connected": true,
+      "voice": "wake_listening",
+      "display": "setup",
+      "agent_running": false,
+      "library_open": true,
+      "encoder_direction": "forward",
+      "active_revision_unchanged": true
+    },
+    {
+      "connected": true,
+      "voice": "wake_listening",
+      "display": "setup",
+      "agent_running": false,
+      "library_open": true,
+      "encoder_direction": "forward",
+      "active_revision_unchanged": true
+    },
+    {
+      "connected": true,
+      "voice": "wake_listening",
+      "display": "setup",
+      "agent_running": false,
+      "library_open": true,
+      "encoder_direction": "forward",
+      "active_revision_unchanged": true
+    },
+    {
+      "connected": true,
+      "voice": "wake_listening",
+      "display": "setup",
+      "agent_running": false,
+      "library_open": true,
+      "encoder_direction": "forward",
+      "active_revision_unchanged": true
+    },
+    {
+      "connected": true,
+      "voice": "wake_listening",
+      "display": "setup",
+      "agent_running": false,
+      "library_open": true,
+      "encoder_direction": "forward",
+      "active_revision_unchanged": true
+    },
+    {
+      "connected": true,
+      "voice": "wake_listening",
+      "display": "setup",
+      "agent_running": false,
+      "library_open": true,
+      "encoder_direction": "forward",
+      "active_revision_unchanged": true
+    },
+    {
+      "connected": true,
+      "voice": "wake_listening",
+      "display": "setup",
+      "agent_running": false,
+      "library_open": true,
+      "encoder_direction": "forward",
+      "active_revision_unchanged": true
+    },
+    {
+      "connected": true,
+      "voice": "wake_listening",
+      "display": "setup",
+      "agent_running": false,
+      "library_open": true,
+      "encoder_direction": "forward",
+      "active_revision_unchanged": true
+    },
+    {
+      "connected": true,
+      "voice": "wake_listening",
+      "display": "setup",
+      "agent_running": false,
+      "library_open": true,
+      "encoder_direction": "forward",
+      "active_revision_unchanged": true
+    },
+    {
+      "connected": true,
+      "voice": "wake_listening",
+      "display": "setup",
+      "agent_running": false,
+      "library_open": true,
+      "encoder_direction": "forward",
+      "active_revision_unchanged": true
+    }
+  ]
+}

@@ -356,3 +356,26 @@ build. The static UI preview does not run server functions or bypass HTTPS
 session requirements. Full integration still needs the existing configured
 companion and HTTPS hosting. Linked the folder from the main README, connection
 guide and submission checklist for reviewers.
+
+## October 29: quieter wake capture and library knob direction
+
+Implemented persistent menu-only encoder direction through the trusted app-library
+tool, with idempotent assignment, atomic private storage, current preference in
+model context and bounded before/after history for undo. Updated the app-library
+and hardware-controls runtime skills. Selection is retained and stale device
+actions invalidated; generated packages, global drivers and other control modes
+are unchanged. No new dependency or account is involved.
+
+Improved soft wake onset capture using the already bundled Silero model: .35/.20
+speech thresholds and 600 ms pre-roll. Retained anchored wake matching and made
+Whisper's existing joint silence/low-confidence rejection explicit. The USB mic
+reported capture enabled at 75% with automatic gain control; no gain adjustment
+was made. A synthetic delayed-onset regression reproduces loss of the first
+syllable with 250 ms and recovery with 600 ms. Ordinary-conversation, three-second
+pause and speaker/cancellation checks remain covered.
+
+Pre-install validation: **941 host tests, 13 dependency skips**, plus all **10
+NumPy-backed speech-activity tests** under Python 3.11. Library persistence,
+idempotence, corruption, stale inputs, menu-only direction and contextual undo are
+covered. These checks do not establish physical wake reliability. Deployment and
+physical-trial results will be recorded separately.

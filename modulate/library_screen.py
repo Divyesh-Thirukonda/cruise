@@ -42,6 +42,12 @@ def validate_view(value, wall):
     if selected is not None and selected not in seen:
         return None
     result = {key: value[key] for key in ("id", "version", "open", "tab")}
+    preferences = value.get("preferences", {"encoder_direction": "forward"})
+    if (type(preferences) is not dict or set(preferences) != {"encoder_direction"}
+            or type(preferences["encoder_direction"]) is not str
+            or preferences["encoder_direction"] not in {"forward", "reversed"}):
+        return None
+    result["preferences"] = dict(preferences)
     result.update(entries=entries, selected_id=selected)
     if _text(value.get("notice"), 160):
         result["notice"] = value["notice"]
@@ -104,6 +110,8 @@ class LibraryScreen:
                     self.index = self._entry_index() if self.mode == "list" else self.index
                     if self.mode == "actions" and self.entry() is None:
                         self.mode, self.index = "list", 0
+                    if old and old["preferences"] != incoming["preferences"]:
+                        self.interrupt()
                 confirmation = incoming.get("purge_confirmation")
                 if confirmation and confirmation["id"] != self.confirmation_id:
                     self.confirmation_id = confirmation["id"]
@@ -236,6 +244,8 @@ class LibraryScreen:
             return None
         delta = sample.get("encoder_delta", 0)
         delta = max(-10, min(10, delta)) if type(delta) is int else 0
+        if self.view["preferences"]["encoder_direction"] == "reversed":
+            delta = -delta
         y = sample.get("joystick_y", 0)
         y = y if type(y) in (int, float) and math.isfinite(y) else 0
         direction = 1 if y > 0.55 else -1 if y < -0.55 else 0

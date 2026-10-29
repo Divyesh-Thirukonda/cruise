@@ -229,10 +229,10 @@ def tool(name, description, properties=None, required=None):
 TOOLS = [
     tool("load_skill", "Read a bundled Modulate skill for the current task. Choose from the catalog in your instructions; skills guide decisions without granting extra tools or permissions.",
          {"name": {"type": "string", "enum": ["computer-use", "device-apps", "games", "hardware-controls", "hardware-debugger", "connection-setup", "app-library"]}}, ["name"]),
-    tool("app_library", "Browse or open saved apps, favorite, move to Trash, restore, or request permanent deletion. Uses immutable saved packages, rechecked before launch. Omit entry_id only for the selected library item (or current app outside the menu). purge asks a trusted human confirmation; the model cannot confirm it.",
-         {"action": {"type": "string", "enum": ["list", "open", "close", "select", "tab", "favorite", "trash", "restore", "launch", "purge", "cancel_purge"]},
+    tool("app_library", "Browse/open saved apps, manage favorites/Trash, or change launcher preferences. set_preferences saves encoder_direction for library navigation only; it never edits the active app or drivers. Use an absolute forward/reversed value based on current preferences. Saved packages are rechecked before launch. Omit entry_id for the selected item (current app outside the menu). purge requires a trusted human confirmation.",
+         {"action": {"type": "string", "enum": ["list", "open", "close", "select", "tab", "favorite", "trash", "restore", "launch", "purge", "cancel_purge", "set_preferences"]},
           "entry_id": {"type": "string"}, "tab": {"type": "string", "enum": ["all", "favorites", "trash"]},
-          "favorite": {"type": "boolean"}}, ["action"]),
+          "favorite": {"type": "boolean"}, "encoder_direction": {"type": "string", "enum": ["forward", "reversed"]}}, ["action"]),
     tool("connection_setup", "Inspect connection/OS permission metadata, show setup guidance on Modulate, prepare Mac pairing for physical small-A confirmation, or display a one-use browser code on the device. Never authorizes the Mac or grants native permissions itself; no raw codes are returned to the model.",
          {"action": {"type": "string", "enum": ["status", "show", "start_pairing", "create_browser_code"]}}, ["action"]),
     tool("hardware_debug", "Inspect device health, scan the I2C bus, retry input drivers, or guide a factory Qwiic button address repair. Actions begin_button_repair and continue persist a workflow across power cycles. Only direct user confirmation can authorize an isolated write; tools cannot supply that confirmation. label is used only when beginning a repair.",
@@ -478,6 +478,13 @@ For saved apps, past games, favorites, Trash or returning home, load app-library
 and use app_library. Successfully activated apps are saved automatically. Reopen
 an exact stored revision with launch; do not regenerate an approximation. An open
 library's selected item is the referent for "this"; otherwise it is the active app.
+For launcher/menu scrolling, use app_library set_preferences, never write_package
+or driver editing. Read library.preferences.encoder_direction and set the explicit
+forward/reversed value. When the library is open, an unqualified request to reverse
+the knob or scroll the other way applies to the library. Explicit game, volume or
+other app targets still win. This is a routine persistent preference; no extra
+confirmation or generated replacement app is needed. Undo restores the saved
+before-value from recent context, then checks current preferences.
 Routine deletion means Trash. Only an explicit request to delete forever uses
 purge, which creates a trusted human confirmation and ends this turn.
 For initial connection, a replug reminder, expired pairing or browser setup, load

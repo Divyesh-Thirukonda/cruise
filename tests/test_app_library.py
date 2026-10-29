@@ -345,6 +345,58 @@ class AppLibraryTests(unittest.TestCase):
                 self.library.purge(self.revision)
         self.assertTrue(self.library._record_path(self.revision).exists())
 
+    def test_menu_direction_defaults_for_existing_catalogue_without_rewriting_it(self):
+        self.save()
+        before = self.library.path.read_bytes()
+        self.assertEqual(self.library.preferences(), {"encoder_direction": "forward"})
+        self.assertFalse(self.library.preferences_path.exists())
+        self.assertEqual(AppLibrary(self.library.directory).preferences(), {"encoder_direction": "forward"})
+        self.assertEqual(self.library.path.read_bytes(), before)
+
+    def test_menu_direction_persists_without_modifying_saved_app_code_or_index(self):
+        self.save()
+        index = self.library.path.read_bytes()
+        package = self.library._record_path(self.revision).read_bytes()
+        result = self.library.set_encoder_direction("reversed")
+        result["encoder_direction"] = "mutated"
+        restarted = AppLibrary(self.library.directory)
+        self.assertEqual(restarted.preferences(), {"encoder_direction": "reversed"})
+        self.assertEqual(self.library.path.read_bytes(), index)
+        self.assertEqual(self.library._record_path(self.revision).read_bytes(), package)
+        self.assertEqual(self.library.preferences_path.stat().st_mode & 0o777, 0o600)
+
+    def test_menu_preference_validation_and_failed_atomic_write_preserve_previous_value(self):
+        self.library.set_encoder_direction("reversed")
+        before = self.library.preferences_path.read_bytes()
+        for value in (True, -1, "reverse", "toggle", None, {"encoder_direction": "forward"}):
+            with self.subTest(value=value), self.assertRaises(AppLibraryError):
+                self.library.set_encoder_direction(value)
+        with patch("modulate.app_library.os.replace", side_effect=OSError("synthetic write failure")):
+            with self.assertRaises(OSError):
+                self.library.set_encoder_direction("forward")
+        self.assertEqual(self.library.preferences_path.read_bytes(), before)
+        self.assertEqual(self.library.preferences(), {"encoder_direction": "reversed"})
+        self.assertEqual(list(self.library.directory.glob(".pending-*")), [])
+
+    def test_corrupt_or_linked_preferences_are_preserved_and_never_silently_reset(self):
+        self.save()
+        for value in ({"version": True, "encoder_direction": "forward"},
+                      {"version": 1, "encoder_direction": False},
+                      {"version": 1, "encoder_direction": "forward", "code": "generated code"}):
+            raw = json.dumps(value)
+            self.library.preferences_path.write_text(raw)
+            with self.subTest(value=value), self.assertRaises(AppLibraryError):
+                AppLibrary(self.library.directory)
+            self.assertEqual(self.library.preferences_path.read_text(), raw)
+            self.assertTrue(self.library._record_path(self.revision).exists())
+        self.library.preferences_path.unlink()
+        target = self.directory / "other-preferences.json"
+        target.write_text('{"version":1,"encoder_direction":"forward"}')
+        self.library.preferences_path.symlink_to(target)
+        with self.assertRaises(AppLibraryError):
+            self.library.set_encoder_direction("reversed")
+        self.assertEqual(target.read_text(), '{"version":1,"encoder_direction":"forward"}')
+
 
 if __name__ == "__main__":
     unittest.main()

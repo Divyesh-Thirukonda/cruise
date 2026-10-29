@@ -182,6 +182,56 @@ class LibraryScreenTests(unittest.TestCase):
         self.assertEqual(action["entry_id"], entries[-1]["id"])
         self.assertEqual(self.screen.render().size, (240, 135))
 
+    def test_reverse_preference_changes_only_knob_direction_and_preserves_sample(self):
+        self.update(view(version=2, selected_id="b" * 64, preferences={"encoder_direction": "reversed"}))
+        sample = {**neutral_input(), "encoder_delta": 1}
+        original = dict(sample)
+        action = self.screen.inputs(sample, now=10)
+        self.assertEqual(action["entry_id"], "a" * 64)
+        self.assertEqual(sample, original)
+        self.acknowledge(action, selected_id="a" * 64)
+        self.inputs(encoder_delta=1)  # Header remains reachable by reversed knob.
+        self.assertEqual(self.screen.index, 0)
+        self.inputs()  # Center stick before using its normal direction.
+        self.inputs(joystick_y=1, now=11)
+        self.assertEqual(self.screen.index, 1)
+        self.assertEqual(self.screen.selected_id, "a" * 64)
+
+    def test_reverse_applies_before_joystick_mix_and_also_works_in_action_menus(self):
+        self.update(view(version=2, preferences={"encoder_direction": "reversed"}))
+        self.inputs()
+        self.assertIsNone(self.inputs(encoder_delta=1, joystick_y=1))
+        self.assertEqual(self.screen.index, 1)  # Reversed knob -1, stick +1.
+        self.press()
+        self.assertEqual(self.screen.mode, "actions")
+        self.inputs(encoder_delta=1)
+        self.assertEqual(self.screen.choices()[self.screen.index][0], "back")
+        self.inputs(encoder_delta=-1)
+        self.assertEqual(self.screen.choices()[self.screen.index][0], "launch")
+
+    def test_legacy_preference_defaults_forward_and_invalid_preferences_disable_actions(self):
+        self.assertEqual(self.screen.view["preferences"], {"encoder_direction": "forward"})
+        for prefs in (None, {}, {"encoder_direction": True}, {"encoder_direction": "toggle"},
+                      {"encoder_direction": "reversed", "global": True}):
+            with self.subTest(prefs=prefs):
+                self.assertIsNone(validate_view(view(preferences=prefs), 1000))
+        self.update(view(version=2, preferences={"encoder_direction": "toggle"}))
+        self.assertFalse(self.screen.fresh)
+        self.assertIsNone(self.inputs(encoder_delta=1))
+
+    def test_preference_update_needs_new_button_press_and_stale_view_cannot_undo_it(self):
+        confirmation = {"id": "c" * 32, "entry_id": "a" * 64, "title": "Kart a", "expires_at": 1120}
+        self.update(view(version=2, purge_confirmation=confirmation))
+        self.inputs()
+        self.update(view(version=3, purge_confirmation=confirmation, preferences={"encoder_direction": "reversed"}))
+        self.assertIsNone(self.inputs(button_a=True))
+        self.update(view(version=2, preferences={"encoder_direction": "forward"}))
+        self.assertEqual(self.screen.view["preferences"], {"encoder_direction": "reversed"})
+        action = self.press()
+        self.assertEqual(action["action"], "confirm_purge")
+        self.assertEqual(action["version"], 3)
+        self.assertEqual(action["confirmation_id"], confirmation["id"])
+
 
 class LibraryControllerTests(unittest.TestCase):
     def setUp(self):

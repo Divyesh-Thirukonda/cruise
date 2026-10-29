@@ -17,7 +17,7 @@ class SpeechActivityError(RuntimeError):
 class SpeechActivity:
     """Consume 400 signed little-endian int16 samples at 16 kHz per feed.
 
-    Start speech at probability >= .5; end it below .35. Between complete
+    Start speech at probability >= .35; end it below .20. Between complete
     512-sample model windows, return the most recent decision (initially False).
     Inference adds at most 31 ms of classification delay. The caller owns its
     prebuffer and request-ending silence timer; this class only detects speech.
@@ -26,7 +26,13 @@ class SpeechActivity:
     Each instance is owned by one capture worker and is not thread-safe.
     """
 
-    def __init__(self, session=None):
+    def __init__(self, session=None, *, start_threshold=.35, end_threshold=.20):
+        # On a small desktop microphone the generic .50 onset can classify a
+        # soft greeting as silence. This is only a capture candidate threshold:
+        # the voice worker still requires an explicit recognized wake phrase.
+        if (type(start_threshold) not in (int, float) or type(end_threshold) not in (int, float)
+                or not 0 < end_threshold < start_threshold <= 1):
+            raise ValueError("Speech thresholds require 0 < end < start <= 1")
         try:
             import numpy as np
             if session is None:
@@ -38,6 +44,9 @@ class SpeechActivity:
             raise SpeechActivityError("Local speech detector unavailable; check the bundled faster-whisper model") from None
         self._np = np
         self._session = session
+        # Compare values in the ONNX output's float32 precision at boundaries.
+        self._start_threshold = float(np.float32(start_threshold))
+        self._end_threshold = float(np.float32(end_threshold))
         self.reset()
 
     def reset(self):
@@ -78,9 +87,9 @@ class SpeechActivity:
                     raise ValueError
             self._context = window[-64:].copy()
             self._h, self._c = h.copy(), c.copy()
-            if value >= .5:
+            if value >= self._start_threshold:
                 self._speaking = True
-            elif value < float(np.float32(.35)):
+            elif value < self._end_threshold:
                 self._speaking = False
             return self._speaking
         except Exception:

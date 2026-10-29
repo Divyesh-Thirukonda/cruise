@@ -69,7 +69,7 @@ class SpeechActivityTests(unittest.TestCase):
             np.testing.assert_array_equal(inputs["c"], np.full((1, 1, 128), -index, dtype=np.float32))
 
     def test_hysteresis_uses_last_decision_until_a_complete_window(self):
-        backend = FakeSession((.49, .5, .4, .35, .34, .49, .9))
+        backend = FakeSession((.34, .35, .3, .20, .19, .34, .9))
         detector = SpeechActivity(backend)
         expected = [False, True, True, True, False, False, True]
         previous = False
@@ -79,6 +79,27 @@ class SpeechActivityTests(unittest.TestCase):
             if len(backend.inputs) > before:
                 previous = expected[len(backend.inputs) - 1]
             self.assertIs(result, previous)
+
+    def test_soft_speech_candidate_is_retained_without_promoting_low_noise(self):
+        # These are synthetic model probabilities, not a real-world accuracy
+        # claim. The old generic onset loses the .4 candidate entirely.
+        softer = SpeechActivity(FakeSession((.1, .4, .3, .1)))
+        previous = SpeechActivity(FakeSession((.1, .4, .3, .1)), start_threshold=.5, end_threshold=.35)
+        current_results, previous_results = [], []
+        for _ in range(6):
+            current_results.append(softer.feed(bytes(800)))
+            previous_results.append(previous.feed(bytes(800)))
+        self.assertTrue(any(current_results))
+        self.assertFalse(any(previous_results))
+        self.assertFalse(current_results[0])
+        self.assertFalse(current_results[-1])
+
+    def test_sensitivity_configuration_cannot_disable_speech_gating(self):
+        for start, end in ((True, .2), (.35, False), (.35, 0), (.35, .35), (.2, .35),
+                           (1.1, .2), (float("nan"), .2), (.35, float("inf"))):
+            with self.subTest(start=start, end=end):
+                with self.assertRaises(ValueError):
+                    SpeechActivity(FakeSession(), start_threshold=start, end_threshold=end)
 
     def test_reset_clears_audio_context_hidden_state_and_speech_decision(self):
         backend = FakeSession()

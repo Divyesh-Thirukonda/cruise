@@ -16,6 +16,9 @@ trace; 27 apps/versions were recovered on the development hub on October 29.
 - “Delete [title] forever.” prepares a named confirmation. Answer yes or no without
   repeating the wake phrase. Permanent deletion cannot be approved by the model.
 - “Close the library.” returns to the existing app.
+- With the library open: “Hey Meta, reverse the knob here.” changes menu scrolling.
+  “Undo that” restores the previous direction from recent context; “Use the normal
+  library knob direction” explicitly restores the original setting.
 
 Inside the menu, the knob/joystick scroll, A selects and B goes back. The encoder
 press and large buttons work when present; the small screen buttons also navigate.
@@ -31,6 +34,13 @@ opens the physical menu. Existing linking is assumed complete during development
 ## Persistence and boundaries
 
 Private host storage: `<state-dir>/library/index.json` and `packages/<sha256>.json`.
+Launcher preferences live separately in `library/preferences.json`. The trusted
+`set_preferences` action accepts an absolute `encoder_direction` of `forward` or
+`reversed`; retries do not flip it again. This changes only the library's encoder
+input, preserving joystick/buttons, app bindings, source and drivers. Existing
+installations default to `forward`. The model receives the current preference and
+the saved before/after values for contextual changes and undo. A changed preference
+invalidates stale menu actions and requires fresh button input on the device.
 The Mac companion must be running for browsing or opening saved apps. This is
 persistent local hub storage, not cloud synchronization or a Supabase account.
 The current app remains available on the Pi when the companion is offline.

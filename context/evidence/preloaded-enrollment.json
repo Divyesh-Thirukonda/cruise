@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-29",
+  "revision": "77544fc950289f82b49a801a3564a82b16ed72e2",
+  "input_mode": "authorized developer factory update; customer onboarding not performed",
+  "host_suite": {
+    "completed": 1001,
+    "skipped": 13
+  },
+  "pi_suite": {
+    "completed": 96,
+    "skipped": 0,
+    "seconds": 14.838
+  },
+  "web_checks": {
+    "api": 39,
+    "client": 24,
+    "production_build": "passed"
+  },
+  "factory_update": {
+    "source_sha256_verified": true,
+    "backup_retained": true,
+    "service": "active/running",
+    "restarts": 0,
+    "exit_status": 0,
+    "enrollment_exists": false,
+    "pairing_exists": false,
+    "active_app_exists": false
+  },
+  "network_probe": {
+    "from": "Mac",
+    "to": "Pi setup service",
+    "transport": "IPv6 TLS",
+    "method": "GET",
+    "path": "/",
+    "status": 404,
+    "credentials_sent": false,
+    "physical_pin_checked": false,
+    "meaning": "listener reachable; public route rejects access, not an authenticated onboarding test"
+  },
+  "deployment": {
+    "project": "modulate-connect",
+    "state": "READY",
+    "commit": "77544fc950289f82b49a801a3564a82b16ed72e2",
+    "plugin_hash_matches_source": true
+  },
+  "live_pairing_performed": false,
+  "model_calls": 0,
+  "limitations": [
+    "User must confirm the actual physical setup screen.",
+    "No new enrollment or native/browser pairing was performed; fresh user state preserved.",
+    "Wi-Fi provisioning and multi-tenant public hosting remain separate."
+  ]
+}

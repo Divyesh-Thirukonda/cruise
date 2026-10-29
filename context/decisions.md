@@ -120,3 +120,13 @@ celebration follows a matching durable device activation, never a model claim.
 Animation is presentation only and adds no model calls. Setup, library and the
 actual generated applications remain functional. [Visual provenance and state
 mapping](muse-screens.md).
+
+## October 29 — Include connection source in the submission repo
+
+The user requested a clearly named folder containing only the connection webapp
+code previously developed/deployed in the portfolio. Place it in
+`webapp/connect-app-code`, with the complete UI, two Vercel routes, shared HTTP
+helpers, existing tests and minimal standalone build files. Record source commit
+and file hashes; leave the current portfolio deployment intact. Exclude personal
+portfolio pages/assets, credentials and runtime state. Link the folder from the
+main README so judges can inspect the complete connection implementation.

@@ -332,3 +332,27 @@ No linking tests or new grants were performed. The Meta ledger stayed at
 506 calls / $10.303666 held or used under the existing $50 ceiling. New-build
 celebration and error paths have synthetic lifecycle coverage; no separate live
 build was generated just to exercise the illustration. [Trial evidence](evidence/muse-screens.json).
+
+## October 29: connection webapp source in the submission repository
+
+Added `webapp/connect-app-code` at the user's request so the connection UI and
+backend can be reviewed alongside the Pi/companion implementation. Eleven
+connection-specific application/test files are byte-for-byte copies from
+portfolio commit `1c190a4b4c2bad49eed09ee4bee5071c62a736da`, the current
+`divy.live/connect` source. A SHA256 manifest and verification command establish
+that provenance. This is consolidation of existing hackathon contributions,
+not newly implemented connection behavior.
+
+Added a minimal React entry point and HTML shell, trimmed package/lock,
+standalone Vercel configuration and a short source/setup guide. Reused React,
+React DOM, Create React App, Lucide and Testing Library dependencies; no
+portfolio pages/assets, environment files, unrelated routes or private keys
+were included. The production portfolio and existing device connection were
+not modified or retested.
+
+Validation: clean `npm ci`, exact source comparison against the portfolio,
+**30 server tests**, **20 React/client tests**, and a successful production
+build. The static UI preview does not run server functions or bypass HTTPS
+session requirements. Full integration still needs the existing configured
+companion and HTTPS hosting. Linked the folder from the main README, connection
+guide and submission checklist for reviewers.

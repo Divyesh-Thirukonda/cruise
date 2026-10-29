@@ -21,6 +21,7 @@ from .assistant_io import AssistantIO
 from .intent_memory import IntentMemory
 from .speaker_volume import SpeakerVolume, SpeakerVolumeError
 from .hardware_debug import HardwareDebug
+from .connection_setup import ConnectionSetup
 
 
 _SESSION = re.compile(r"[0-9a-f]{32}\Z")
@@ -48,6 +49,7 @@ _TOOL_PROGRESS = {
     "computer_audio": ("planning", "Connecting computer audio"),
     "system_control": ("planning", "Adjusting the Mac"),
     "hardware_debug": ("planning", "Checking the hardware"),
+    "connection_setup": ("planning", "Preparing connection setup"),
 }
 
 
@@ -132,6 +134,8 @@ class Product(AssistantIO):
         self.intent_path = self.directory / "activation-intent.json"
         self.last_intent = json.loads(self.intent_path.read_text()) if self.intent_path.exists() else None
         self.pairing = None
+        self.setup_offer = None
+        self.connection_guide = ConnectionSetup(self)
         self._init_assistant_io(computer)
         # Permission denials survive launching the companion without its cloud
         # gateway configuration. Omitting a secret cannot restore authority.
@@ -193,6 +197,9 @@ class Product(AssistantIO):
                 "display": copy.deepcopy(self.telemetry.get("display", {})),
                 "runtime_error": self.telemetry.get("error"),
                 "app_revision": self.revision}}
+
+    def connection_setup(self, action):
+        return self.connection_guide.call(action)
 
     def hardware_confirm(self, identifier, step):
         self.require_permission("hardware")
@@ -357,6 +364,9 @@ class Product(AssistantIO):
                     "hardware_debug": {"supported": self.permission_allowed("hardware") and self.hardware.inspect().get("supported", False),
                                        "guided_button_address_repair": True},
                     "paired_host": paired,
+                    "connection_setup": {"supported": True, "needs_pairing": paired is None,
+                                         "actions": ["status", "show", "start_pairing", "create_browser_code"],
+                                         "connect_url": "https://divy.live/connect"},
                     "computer": {key: value for key, value in self.computer_status().items()
                                  if key in {"supported", "enabled", "scope"}},
                     "computer_audio": {"supported": self.permission_allowed("audio") and self.permission_allowed("speaker") and self.audio_status()["supported"],
@@ -943,6 +953,8 @@ class Product(AssistantIO):
                     "activation": pending, "active_revision": self.revision, "wake": self.wake and self.permission_allowed("voice"),
                     "agent_running": self.running, "agent_state": self.agent_state(),
                     "clarification": self._clarification_state(),
+                    "setup_status": self.connection_guide.brief(),
+                    "setup": self.connection_guide.device_offer(),
                     "volume": self.volume, "paired": bool(self.capabilities()["paired_host"]),
                     "failure_ack": ({key: failure[key] for key in ("revision", "restored_revision")} if failure is not None else None),
                     "pairing": (copy.deepcopy(self.pairing) if self.pairing and time.time() < self.pairing["expires_at"]
@@ -1087,5 +1099,6 @@ class Product(AssistantIO):
                     "events": list(self.events), "volume": self.volume,
                     "paired": bool(self.capabilities()["paired_host"]), "wake": self.wake and self.permission_allowed("voice"),
                     "remote": self.remote_access.local_status() if self.remote_access else {"enabled": False},
+                    "setup_status": self.connection_guide.status(),
                     "preview_version": self.preview_version,
                     "candidate_preview_version": self.candidate_preview_version}

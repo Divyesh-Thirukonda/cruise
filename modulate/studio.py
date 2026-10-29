@@ -197,6 +197,11 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
                         result = product.cancel(job_id)
                     elif path == "/device/pair":
                         result = product.pair(data.get("code"), str(data.get("name", "Modulate Pi"))[:80])
+                    elif path == "/device/setup":
+                        if (set(data) != {"action"} or type(data["action"]) is not str
+                                or data["action"] not in {"status", "show", "start_pairing", "create_browser_code"}):
+                            raise ValueError("Choose a valid connection setup action")
+                        result = product.connection_setup(data["action"])
                     elif path == "/device/rollback":
                         result = product.rollback()
                     else:

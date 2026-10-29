@@ -11,7 +11,7 @@ import stat
 
 
 _ROOT = Path(__file__).resolve().parent / "skills"
-_IDS = ("computer-use", "device-apps", "games", "hardware-controls", "hardware-debugger")
+_IDS = ("computer-use", "device-apps", "games", "hardware-controls", "hardware-debugger", "connection-setup")
 MAX_HEADER_BYTES = 2048
 MAX_SKILL_BYTES = 12_288
 MAX_DESCRIPTION_CHARACTERS = 320

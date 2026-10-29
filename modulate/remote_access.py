@@ -117,6 +117,15 @@ class RemoteAccess:
             self.pairing = {"hash": _hash(code), "expires_at": self.clock() + PAIR_SECONDS, "attempts": 0}
             return {"code": code, "expires_at": self.pairing["expires_at"], "url": "https://divy.live/connect"}
 
+    def pairing_active(self, code, expires_at):
+        """Check a device-only display offer without exporting the stored credential."""
+        with self.lock:
+            pairing = self.pairing
+            return bool(self.gateway_enabled and pairing and type(code) is str
+                        and pairing["expires_at"] == expires_at and expires_at > self.clock()
+                        and pairing["attempts"] < 6
+                        and secrets.compare_digest(pairing["hash"], _hash(code)))
+
     def claim(self, code, name="Connected browser", permissions=None):
         if type(name) is not str or not 1 <= len(name.strip()) <= 80 or not name.isprintable():
             raise RemoteAccessError("Name this browser in 1–80 characters")

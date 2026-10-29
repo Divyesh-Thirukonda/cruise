@@ -66,6 +66,10 @@ class FakeProduct:
         self.calls.append(("pair", code, name))
         return {"paired": True}
 
+    def connection_setup(self, action):
+        self.calls.append(("connection_setup", action))
+        return {"display_requested": True}
+
     def revoke(self):
         self.calls.append(("revoke",))
         return {"revoked": True}
@@ -191,6 +195,21 @@ class StudioTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertEqual(self.request(port, path, method="POST", body="{}", headers=headers)[0], 404)
         self.assertEqual(product.calls, [])
+
+    def test_device_setup_requires_enrollment_and_only_accepts_fixed_actions(self):
+        product, port = self.start(device=True, device_key="synthetic-device", peer="127.0.0.1")
+        headers = {"Authorization": "Bearer synthetic-device", "Content-Type": "application/json"}
+        self.assertEqual(self.request(port, "/device/setup", method="POST", body='{"action":"show"}',
+                                      headers={"Content-Type": "application/json"})[0], 403)
+        for data in ({}, {"action": []}, {"action": "shell"}, {"action": "show", "approved": True}):
+            with self.subTest(data=data):
+                self.assertEqual(self.request(port, "/device/setup", method="POST", body=json.dumps(data), headers=headers)[0], 400)
+        self.assertEqual(product.calls, [])
+        for action in ("status", "show", "start_pairing", "create_browser_code"):
+            status, _, body = self.request(port, "/device/setup", method="POST", body=json.dumps({"action": action}), headers=headers)
+            self.assertEqual(status, 200)
+            self.assertEqual(json.loads(body), {"display_requested": True})
+            self.assertEqual(product.calls[-1], ("connection_setup", action))
 
     def test_sensitive_gets_reject_bad_host_and_cross_origin(self):
         _, port = self.start(csrf="synthetic-csrf", cookie="synthetic-session")

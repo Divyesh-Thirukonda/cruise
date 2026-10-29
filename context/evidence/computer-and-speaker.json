@@ -1,0 +1,62 @@
+{
+  "recorded_date": "2026-10-28",
+  "timezone": "America/New_York",
+  "implementation_commits": ["3713dc2", "6c1d5e0", "f4e09e7"],
+  "live_local_form_trial": {
+    "input_mode": "typed request to the actual running Studio service",
+    "page": "disposable local synthetic form",
+    "provider": "meta",
+    "model": "muse-spark-1.3",
+    "job_id": "9c709269463a41efb253cac586d5e233",
+    "agent_seconds": 18.822,
+    "model_calls": 8,
+    "successful_native_actions": 4,
+    "rejected_tool_attempts": 2,
+    "result": "Typed the requested phrase, clicked Verify, and read the visible confirmation",
+    "independent_ui_verification": true,
+    "user_confirmed_spoken_final_answer": true,
+    "device_game_preserved_during_this_trial": true
+  },
+  "audio": {
+    "output": "USB Jieli UACDemoV1.0 via PipeWire/PulseAudio",
+    "volume_percent_at_test": 40,
+    "standalone_sentence_user_heard": true,
+    "studio_test_button_user_heard": true,
+    "agent_final_answer_user_heard": true,
+    "physical_stop_button_tested_by_user": false
+  },
+  "failures_and_repairs": [
+    "Initial manual audio output name was wrong; corrected output and 40 percent volume were audible",
+    "Chrome sharing badge was captured instead of the browser; filtered accessory windows",
+    "PyObjC integer subclass failed strict native window validation; normalized IDs",
+    "Pixel coordinate contract mismatched Muse Spark normalized coordinates; aligned 0 to 1000 mapping",
+    "Spoken Gmail task failed; exact original provider error was not retained by its private error path",
+    "Implemented one-time focus of the granted Chrome window for a new task, useful ephemeral failures, and bounded malformed-turn repair; live Gmail retest pending"
+  ],
+  "validation": {
+    "local_tests_run": 417,
+    "local_tests_skipped": 3,
+    "local_result": "pass",
+    "skip_reason": "Existing PyAV-dependent tests on Mac",
+    "pi_initial_focused_tests_passed": 92,
+    "pi_final_device_tests_passed": 46,
+    "pi_service": "active"
+  },
+  "checkpoint_budget": {
+    "approved_ceiling_dollars": 5,
+    "calls": 129,
+    "settled_estimated_dollars": 1.113433,
+    "unknown_usage_reservations_dollars": 2.691072,
+    "unknown_usage_calls": 2,
+    "charged_or_reserved_dollars": 3.804505,
+    "new_call_blocked_by_reservation": true
+  },
+  "privacy": "No email text, screenshots, credentials, audio, or private transcript included",
+  "limits": [
+    "Typed synthetic-page success does not establish voice email success",
+    "Focus recovery is tested with native mocks; live foreground restoration remains pending",
+    "Computer actions are confined to a temporary Chrome-window grant; no arbitrary desktop-app claim",
+    "Semantic consequential-action confirmation is prototype protection, not jailbreak resistance",
+    "User subsequently generated and refined Metro Dash; those changes were preserved"
+  ]
+}

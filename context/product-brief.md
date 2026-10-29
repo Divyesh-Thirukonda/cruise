@@ -2,7 +2,7 @@
 
 Status: October 28, 2026. Modulate replaces Cruise. The live prototype has typed and spoken generated Pi games, physical controls, paired native Mac volume, PTT/wake refinements and UI rollback. The first kart used text; Self Assembly came through voice. Wake reliability and broader fault/performance trials remain unmeasured. See [current evidence](product-runtime.md) and the separate [number prototype](number-prototype.md).
 
-The user has extended the product to general computer tasks through actual cursor/keyboard interaction and spoken responses. The Chrome-window adapter and Pi speech path are implemented. Standalone USB speech is user-confirmed and Mac permissions report granted; the full model-driven browser/spoken-reply loop remains untested.
+The user has extended the product to general computer tasks through actual cursor/keyboard interaction and spoken responses. A typed live Meta local-form task completed with independently checked browser effects and a user-heard Pi reply. The subsequent spoken Gmail attempt failed; email reading remains unvalidated. Later spoken requests created Metro Dash and refined collisions, with the revised game preserved.
 
 ## Project one-liner
 
@@ -31,7 +31,7 @@ The earlier music/video creator workflow and phone-game controller examples are 
 | “Hey Meta, make a kart-racing game.” | Generate a small game for the connected display and controls; test it and activate it on the device | Actual Meta response, generated source/package, independent check results, physical input moving the kart on the PiTFT |
 | “Make steering less sensitive and make button B boost.” | Revise the existing code or bindings using the current program and hardware context | A new revision, fresh checks, and a visible effect beyond switching a stored preset |
 | “Make this knob control my computer's volume.” | Select the paired computer's supported volume action and bind encoder movement with bounded steps | Explicit pairing, a working host bridge, observed OS volume change, and correct behavior after disconnect |
-| “Hey Meta, read my email.” | With a separate grant, use the visible Chrome browser through screenshots and cursor/keyboard actions, then speak a concise answer | Actual permission grant, visible browser interaction and user-confirmed speaker output; no Gmail API. This end-to-end path is not yet validated |
+| “Hey Meta, read my email.” | With a separate grant, use the visible Chrome browser through screenshots and cursor/keyboard actions, then speak a concise answer | Typed local-form interaction and spoken reply succeeded; the spoken Gmail attempt failed. No Gmail API is used, and email reading is not yet demonstrated |
 
 The first game uses the joystick and large green/red buttons, physically confirmed by the user. Distinct button addresses were verified after a power cycle. A 240-sample game window reached joystick X −1 and 1 and included both buttons; later volume traces captured encoder motion. The 240×135 display showed 13.4 fps in the first run; sustained performance and input-to-display timing remain to measure.
 
@@ -41,7 +41,7 @@ The intended entry point is a microphone. The attached USB microphone and local 
 
 “Hey Meta” is the chosen wake phrase, matched in local transcripts with a listening gap during inference. Native 16 kHz capture and early stream-overflow attempts failed; 48 kHz resampling plus buffering/retry fixes preceded successful PTT and hands-free refinements. The user explicitly confirmed no buttons for the wake reversal. These successes are not a reliability benchmark or official Meta assistant integration. Show actual voice/error states, provide mute/cancel and keep recordings out of saved artifacts.
 
-Replies now have a local eSpeak NG/USB playback path. The microphone pauses while speech plays; physical PiTFT B stops speech and holding both screen buttons invokes PTT. The user confirmed hearing a standalone sentence through the USB Jieli output at 40% after the initial silent attempt and a corrected manual sink name. Integrated agent replies and room echo behavior remain to test. This is separate from the untested Bluetooth audio device.
+Replies have a local eSpeak NG/USB playback path. The microphone pauses while speech plays; physical PiTFT B stops speech and holding both screen buttons invokes PTT. The user heard standalone speech, Studio's speaker test and the live local-form task's reply through USB Jieli at 40%, after an initial silent attempt and corrected manual sink name. Brief failure feedback now uses the same transient response/speech path. Physical interruption and room echo checks remain; Bluetooth audio is untested.
 
 ## What the agent actually builds
 
@@ -57,7 +57,7 @@ The local companion website is a pairing and preview surface. The user links the
 
 A webpage's media-volume control does not prove OS volume control. The selected macOS bridge uses fixed trusted OS calls; knob motion now changes native volume, corroborated by independent OS reads. Revocation and broader fault tests remain. See the [architecture](architecture.md).
 
-Computer tasks use a separate 15-minute grant for one frontmost Chrome window on the primary display. Meta sees temporary screenshots and chooses visible actions through a fixed native helper; the model cannot select arbitrary applications or write host scripts. Volume pairing does not grant this access. The user explicitly chose browser interaction over a Gmail API and authorized the native/screenshot-to-Meta trial. The current app remains intact during these tasks, and screen-derived answers use a transient display/speech path. Native permissions report granted; actual model-driven cursor operation still needs validation.
+Computer tasks use a separate 15-minute grant for one Chrome window on the primary display. Meta sees temporary screenshots and chooses visible actions through a fixed native helper; there is no arbitrary-app or host-script tool. The helper may bring the granted window forward once at the start of a task, but does not repeatedly refocus it after a failure. Volume pairing grants no cursor access. The user chose browser interaction over a Gmail API; the typed local-form trial validated actual cursor operation and an audible answer. The current app remains intact, and screen-derived answers are transient. A fresh session and proposed higher total budget await approval before retrying the failed spoken Gmail task.
 
 ## Why Meta and an inference provider matter
 
@@ -90,4 +90,4 @@ This is a target script, not existing footage. If generation takes longer, label
 
 Weights are organizer facts from the supplied guide; these evidence targets are team recommendations. Do not promise a score or prize.
 
-Keep the demonstrated game, volume and spoken-refinement loop as the core evidence. Validate the newly requested Chrome computer task and spoken response next; include them in the video only with separate live evidence. Defer arbitrary commercial games, phone-game integration, generated low-level drivers, firmware flashing, unrestricted desktop/app access and custom hardware fabrication. See the [build plan](plan.md) for dependencies and explicitly labeled fallbacks.
+Keep the demonstrated game, volume and spoken-refinement loop as the core evidence. The typed local-form task and audible reply can supply separate computer-task evidence; label the typed input and test-page scope. Retry spoken Gmail only after the pending session/budget approval and preserve the failed attempt. Defer arbitrary commercial games, phone-game integration, generated low-level drivers, firmware flashing, unrestricted desktop/app access and custom hardware fabrication. See the [build plan](plan.md).

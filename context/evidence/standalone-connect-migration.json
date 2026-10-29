@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-29",
+  "source_commit": "6aa76e8953a67f0d1c03d2d11a3420bacab94ecc",
+  "new_url": "https://modulate-connect.vercel.app/connect",
+  "vercel_project": "prj_lqalegjn23YXWnQqM5wzNaqjYMjJ",
+  "deployment": "dpl_Cqs45e89pDE8ZxgRhq4QBC1c16tp",
+  "pi_archive_sha256": "07d2cb6a576ae4be512bd943075f9b9230b7256b643f66c5f21f5c5250beecad",
+  "checks": {
+    "python": 942,
+    "python_skips": 13,
+    "web_api": 31,
+    "web_ui": 20,
+    "pi": 95,
+    "pi_seconds": 4.435
+  },
+  "before": {
+    "budget": {
+      "limit_dollars": 50.0,
+      "charged_or_reserved_dollars": 10.449384,
+      "calls": 518,
+      "halted": false
+    },
+    "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462",
+    "library_count": 28,
+    "preferences": {
+      "encoder_direction": "reversed"
+    }
+  },
+  "provider_probe": {
+    "input_mode": "typed local Studio request through fixed new Vercel provider gateway",
+    "request": "Reply with exactly Connection ready; do not change apps or settings",
+    "status": "completed",
+    "summary": "Connection ready.",
+    "budget": {
+      "limit_dollars": 50.0,
+      "charged_or_reserved_dollars": 10.459349,
+      "calls": 519,
+      "halted": false
+    },
+    "speaker": {
+      "available": true,
+      "backend": "elevenlabs/paplay",
+      "error": null,
+      "provider": "elevenlabs",
+      "state": "idle",
+      "last_delivery": "delivered"
+    },
+    "active_revision_unchanged": true,
+    "library_count_unchanged": true,
+    "preferences_unchanged": true
+  },
+  "new_site_http": {
+    "connect": 200,
+    "unpaired_session": 200,
+    "companion_online": true,
+    "unauthenticated_private_state": 401,
+    "browser_layout": "Visually inspected in the in-app browser; new hostname shows the existing connection dashboard."
+  },
+  "portfolio": {
+    "rollback_commit": "2cf8c7ed0daefbada991ad588177a2e200976895",
+    "deployment": "dpl_GUNxAfSjRWq9fxiHZJ5MeakakW6y",
+    "status": "READY",
+    "divy_live_alias_verified": true,
+    "root_title": "Divyesh Portfolio",
+    "retired_modulate_paths": "Return the restored portfolio SPA HTML, not the Modulate JSON/provider functions",
+    "tests": 10,
+    "build": "passed; existing source-map warnings",
+    "old_environment_cleanup": "awaiting user confirmation"
+  },
+  "limitations": [
+    "Typed provider probe, not a new physical voice test.",
+    "Pi playback delivery is software telemetry, not new human audibility confirmation.",
+    "New hostname has no old browser cookies; one new connection code is needed. Existing Pi/native pairing was not retested or reset.",
+    "Historical immutable deployments are not erased."
+  ]
+}

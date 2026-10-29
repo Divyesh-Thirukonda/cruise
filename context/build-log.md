@@ -418,3 +418,30 @@ tests**, **20 React/client tests**, source verification, and a successful web
 production build. Portfolio rollback was prepared separately and passed its
 **10 tests** and production build; its existing source-map warnings were retained.
 Live cutover and portfolio restoration results follow after deployment.
+
+Git push `6aa76e8` automatically produced production deployment
+`dpl_Cqs45e89pDE8ZxgRhq4QBC1c16tp`, Ready with
+`modulate-connect.vercel.app` assigned. Browser inspection confirmed the same
+dashboard at `/connect`. The session endpoint returned live companion metadata;
+private state required authentication. Updated the private companion provider URL
+and restarted with the same state/configuration. A typed “Connection ready” probe
+completed through the new Meta gateway; ElevenLabs had no error and the Pi
+reported delivery. The active revision, library count and knob preference stayed
+unchanged. This is software delivery evidence, not a new human audibility trial.
+The model ledger advanced from 518 / $10.449384 to 519 / $10.459349 calls / held-or-used
+dollars under the existing $50 ceiling.
+
+Installed `6aa76e8` on the Pi after archive SHA256
+`07d2cb6a576ae4be512bd943075f9b9230b7256b643f66c5f21f5c5250beecad` verification;
+all **95 focused Pi tests passed in 4.435 s**, then its service restarted active.
+No enrollment or native pairing was reset or retested.
+
+Portfolio commit `2cf8c7e` reverses connection PR #12 and its subsequent fixes,
+preserving unrelated work and environment ignores. It was fast-forwarded to main
+without force/reset. Production deployment `dpl_GUNxAfSjRWq9fxiHZJ5MeakakW6y`
+reached Ready; Vercel's alias read confirmed `divy.live` points to it. Root and
+retired connection paths now return the original portfolio SPA, not Modulate API
+functions. The six old Modulate environment settings are still present pending
+the user's action-time confirmation of Vercel's permanent deletion dialog;
+their working copies are configured on the new project. Historical deployments
+were not erased. [Migration evidence](evidence/standalone-connect-migration.json).

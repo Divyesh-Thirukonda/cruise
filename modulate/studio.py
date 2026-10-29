@@ -193,6 +193,14 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
                     result = product.cancel()
                 elif path == "/api/draft":
                     result = product.draft(data.get("job_id"), data.get("action"), data.get("text"))
+                elif path == "/api/computer":
+                    result = product.computer_session(data.get("action"))
+                elif path == "/api/computer/approval":
+                    result = product.approve_computer_action(data.get("id"), data.get("approved"))
+                elif path == "/api/response/dismiss":
+                    result = product.dismiss_response(data.get("id"))
+                elif path == "/api/speaker":
+                    result = product.speaker_action(data.get("action"))
                 elif path == "/api/pairing":
                     result = {**product.create_pairing(), "host_url": host_url}
                 elif path == "/api/revoke":

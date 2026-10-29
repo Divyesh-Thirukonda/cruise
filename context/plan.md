@@ -1,6 +1,6 @@
 # Modulate build plan
 
-Proposed schedule, revised October 28, 2026 in America/New_York. The [product](product-runtime.md) demonstrates typed/spoken Meta-to-game creation, physical controls, paired native Mac volume, PTT/hands-free refinements and UI rollback. Initial audio failures and fixes remain recorded. Next: repeated recovery/revocation, noise/performance trials, unfamiliar refinements, user-impact validation and demo evidence. The [number prototype](number-prototype.md) retains separate evidence.
+Proposed schedule, revised October 28, 2026 in America/New_York. The [product](product-runtime.md) demonstrates typed/spoken Meta-to-game creation, physical controls, paired native Mac volume, PTT/hands-free refinements and UI rollback. Initial audio failures and fixes remain recorded. The user has added browser computer tasks through actual cursor control and spoken replies; those paths are implemented but await native/physical validation. Repeated recovery/revocation, noise/performance trials, unfamiliar refinements, user-impact validation and demo evidence remain. The [number prototype](number-prototype.md) retains separate evidence.
 
 ## Build order
 
@@ -10,6 +10,7 @@ Proposed schedule, revised October 28, 2026 in America/New_York. The [product](p
 4. **Complete the generation loop.** A Meta-powered agent reads capabilities, produces original game code and bindings, invokes checks, inspects failures, and makes bounded repairs. Stage the exact checked package, activate with acknowledgement, and play it on the PiTFT.
 5. **Connect one computer action.** Select one host OS and implement a trusted system-volume bridge. Pair through a functional companion website, expose only granted capabilities, and verify revocation and disconnect. Then let the agent map the knob to this action.
 6. **Refine and recover.** Show a fresh spoken game or binding change, rejected unsupported requests, failed verification, failed activation, and recovery. Add wake detection only after capture/transcription and the main loop are dependable.
+7. **Validate computer tasks and spoken replies.** User consent now covers the native helper and screenshots sent to Meta; both required Mac permissions report granted. Test a 15-minute Chrome-window grant, an actual screenshot-to-Meta/cursor loop, interruption and revocation. Start with a read-only browser task; use no Gmail API. Standalone USB speech is audible by user confirmation; next verify an integrated reply, microphone pause and physical PiTFT B interruption. Mocked action tests and playback-process success are not substitutes for these checks.
 
 The [architecture](architecture.md) records implemented contracts and remaining checks. The build order above is now a repeatable verification sequence; successful live trials do not establish reliability. A model success message cannot replace independent checks.
 
@@ -33,7 +34,7 @@ These are planning targets, not guarantees. Reassess scope at each unproven depe
 - Use the physically confirmed joystick/buttons for the game and encoder for volume. Do not buy hardware to satisfy the sketch without instruction.
 - Reduce game complexity to a readable small 2D racer before dropping play on the actual device screen. A host preview does not prove the on-device claim.
 - Use push-to-talk before wake detection. A host microphone is acceptable as a visibly identified prototype input; typed text is a debug path and does not fulfill the voice target.
-- Use one provider, one runtime, one game, one host OS, and one computer action. Defer phone-game integration, additional applications, training, generated drivers, and firmware flashing.
+- Keep one primary provider, one game runtime and macOS as the host target. The user's added computer-task scope starts with one Chrome window plus local spoken replies. Defer unrestricted desktop/app control, phone-game integration, training, generated drivers and firmware flashing.
 - If the system-volume bridge is blocked, report that gap. A browser-audio demonstration must be called browser volume and does not fulfill system-volume control.
 - Use a simulator or cached package for development or disclosed recovery only. Do not replace failed live inference with an unlabeled preset.
 
@@ -49,6 +50,8 @@ Split by deliverable: hardware/display/voice capture; Meta agent/package verific
 | Meta AI tooling — 25% | Sanitized live model identity, generated code, fresh request, tool checks and any repair, capability-aware rejection |
 | Technical depth — 20% | Isolation/permission failures, independent harness results, pairing scope, package/revision consistency, activation and rollback |
 | Demo — 25% | Voice-to-game footage with physical input; same knob changing paired-computer volume; an unfamiliar refinement and failure recovery |
+
+For the computer/speaker extension, collect a separate consent-to-task-to-audible-reply trial, including stop/revoke behavior. Keep email contents, screenshots and derived private answers out of public traces or demo footage unless the user explicitly supplies content for publication.
 
 ## Measurement template
 

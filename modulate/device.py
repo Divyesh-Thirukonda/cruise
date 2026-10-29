@@ -5,6 +5,7 @@ import argparse
 from collections import deque
 import fcntl
 import json
+import math
 import os
 from pathlib import Path
 import queue
@@ -21,11 +22,13 @@ from .device_activation import DeviceActivation
 from .device_transport import Companion, TransportError, save_private
 from .hardware import Screen
 from .rendering import font
+from .speaker import Speaker
 from .voice import VoiceListener
 
 
 class Controller:
     def __init__(self, directory, enrollment, *, microphone=None):
+        self.booted_at = time.time()
         self.directory = Path(directory)
         self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.companion = Companion(enrollment)
@@ -55,6 +58,13 @@ class Controller:
         self.state = {"revision": None, "ack": None}
         self.voice_state = {"state": "idle", "message": "Starting voice"}
         self.voice_history = deque(maxlen=12)
+        self.speaker_state = {"available": False, "state": "stopped", "error": None}
+        self.speech_seen = deque(maxlen=128)
+        self.speech_ack = None
+        self.speech_stop_id = 0
+        self.speech_created_at = self.booted_at
+        self.speech_cooldown = 0.0
+        self.speech_button_held = False
         self.link_state = "Connecting to Mac"
         self.host = {}
         self.last_response = 0
@@ -71,6 +81,8 @@ class Controller:
         self.state = self.runtime.snapshot()
         self.encoder_revision = self.state.get("revision")
         self.voice = VoiceListener(self.request, self.voice_status, device=microphone, on_cancel=self.cancel_request)
+        self.speaker = Speaker(self.speaker_status)
+        self.speaker_state = self.speaker.snapshot()
         self.status_key = None
         self.dismissed_pairing = None
         self.pairing_in_flight = False
@@ -122,8 +134,71 @@ class Controller:
             if status.get("state") == "idle" and status.get("message", "").startswith("Please say a complete"):
                 self._feedback("Say a little more", 'Say "Hey Meta"\nthen the full request')
 
+    def _speaker_active(self):
+        return self.speaker_state.get("state") in {"queued", "speaking", "stopping"}
+
+    def speaker_status(self, status):
+        with self.lock:
+            was_active = self._speaker_active()
+            self.speaker_state = dict(status)
+            if was_active and not self._speaker_active():
+                self.speech_cooldown = time.monotonic() + 0.35
+
+    def _speech_guard(self):
+        with self.lock:
+            return self._speaker_active() or time.monotonic() < self.speech_cooldown
+
+    def _stop_speech(self):
+        with self.lock:
+            active = self._speaker_active()
+        self.speaker.cancel()
+        return active
+
+    def _sync_voice(self):
+        self.voice.set_busy(bool(self._busy()))
+        self.voice.set_enabled(bool(self.host.get("wake")) and not self._speech_guard())
+
+    def _update_speech(self, response):
+        stop_id = response.get("speech_stop_id", 0)
+        if type(stop_id) is int and stop_id > self.speech_stop_id:
+            self.speech_stop_id = stop_id
+            self._stop_speech()
+        if response.get("speaker_enabled", True) is not True:
+            if self._speaker_active():
+                self._stop_speech()
+            return
+        speech = response.get("speech")
+        if type(speech) is not dict or not self._job_id(speech.get("id")):
+            return
+        identifier = speech["id"]
+        if identifier in self.speech_seen:
+            return
+        created, expires = speech.get("created_at"), speech.get("expires_at")
+        if (type(created) not in (int, float) or type(expires) not in (int, float)
+                or not math.isfinite(created) or not math.isfinite(expires)
+                or created < self.speech_created_at or created > time.time() + 5
+                or expires <= time.time() or expires <= created
+                or (speech.get("job_id") is not None and not self._job_id(speech["job_id"]))):
+            return
+        text = speech.get("text")
+        if type(text) is not str or not text.strip() or len(text) > 1200:
+            return
+        # Invalidate microphone inference before any audible output begins.
+        self.voice.set_enabled(False)
+        try:
+            accepted = self.speaker.speak(text)
+        except ValueError:
+            accepted = False
+        if accepted:
+            self.speech_seen.append(identifier)
+            self.speech_created_at = created
+            self.speech_ack = identifier  # Accepted by the queue, not heard.
+
     def request(self, text):
         with self.lock:
+            if self._speech_guard():
+                self._feedback("Replying aloud", "Hold both screen buttons\nto interrupt and speak")
+                return False
             if self._busy():
                 self._feedback("Working", "Please wait for this build")
                 return False
@@ -142,6 +217,7 @@ class Controller:
             return True
 
     def cancel_request(self):
+        stopped_audio = self._stop_speech()
         with self.lock:
             if self.build and self.build.get("awaiting_response"):
                 try:
@@ -156,6 +232,9 @@ class Controller:
             if identifier is None:
                 identifier = (self.host.get("clarification") or {}).get("job_id")
             if not self._job_id(identifier):
+                if stopped_audio:
+                    self._feedback("Speech stopped", "Your current app stays active")
+                    return True
                 self._feedback("Nothing to cancel", "Your current app stays active")
                 return False
             try:
@@ -240,6 +319,7 @@ class Controller:
                           "commands": self.commands if self.state.get("kind") == "game" else [],
                           "telemetry": {"fps": round(self.fps, 1), "voice": self.voice_state,
                                         "voice_history": list(self.voice_history),
+                                        "speaker": dict(self.speaker_state),
                                         "processing": {"busy": bool(self._busy()),
                                                        **{key: (self.build or {}).get(key) for key in
                                                           ("job_id", "job_sequence", "phase", "title")}},
@@ -247,6 +327,8 @@ class Controller:
                                         "runtime": "physical", "error": self.state.get("error")}}
                 if self.state.get("failure"):
                     packet["failure"] = self.state["failure"]
+                if self.speech_ack is not None:
+                    packet["speech_ack"] = self.speech_ack
                 if self.pairing.get("token"):
                     packet["volume_token"] = self.pairing["token"]
             response = self.companion.post("heartbeat", packet)
@@ -344,6 +426,13 @@ class Controller:
     def _handle_buttons(self, sample, started):
         sample = dict(sample)
         a, b, valid = self._tft_buttons()
+        if valid and not b:
+            self.speech_button_held = False
+        if valid and b and self._speaker_active() and not self.speech_button_held:
+            self._stop_speech()
+            self.speech_button_held = True
+        if self.speech_button_held:
+            sample["button_b"] = False
         offer = self._offer()
         if offer:
             identity = (offer["code"], offer["expires_at"])
@@ -375,9 +464,10 @@ class Controller:
                     busy = self._busy()
                     if busy:
                         self._feedback("Working", "Please wait for this build")
-                if not busy:
-                    self.voice.request_ptt()
-                self.chord_fired = True
+                if busy:
+                    self.chord_fired = True
+                elif not self._speech_guard():
+                    self.chord_fired = self.voice.request_ptt() is not False
             sample.update(button_a=False, button_b=False)
         else:
             self.chord_start, self.chord_fired = None, False
@@ -394,8 +484,8 @@ class Controller:
             self.runtime.acknowledge_failure(response.get("failure_ack"))
             self.runtime.process(response.get("activation"))
             self._update_build(response)
-            self.voice.set_busy(bool(self._busy()))
-            self.voice.set_enabled(bool(response.get("wake")))
+            self._update_speech(response)
+            self._sync_voice()
             if response.get("activation"):
                 self.status_key = None  # Commit/rollback may have presented a frame.
 
@@ -467,6 +557,7 @@ class Controller:
         self.status_key = key
 
     def run(self):
+        self.speaker.start()
         self.voice.start()
         worker = threading.Thread(target=self.network, name="modulate-link", daemon=True)
         worker.start()
@@ -480,8 +571,7 @@ class Controller:
                 previous = started
                 self.reload_pairing()
                 self._apply_responses()
-                self.voice.set_busy(bool(self._busy()))
-                self.voice.set_enabled(bool(self.host.get("wake")))
+                self._sync_voice()
                 input_revision = self.runtime.snapshot().get("revision")
                 sample = self._handle_buttons(self.controls.poll(), started)
                 voice = self.voice_state.get("state")
@@ -489,10 +579,11 @@ class Controller:
                 voice_overlay = voice == "transcribing" or (voice == "listening" and
                                 voice_message.startswith(("Push-to-talk", "Wake phrase heard")))
                 busy = self.build is not None
+                speaking = self._speaker_active()
                 clarification = self.host.get("clarification")
                 question = clarification.get("question") if type(clarification) is dict else None
                 feedback = self._feedback_card()
-                overlay = busy or feedback is not None or self._offer() is not None or voice_overlay or bool(question)
+                overlay = speaking or busy or feedback is not None or self._offer() is not None or voice_overlay or bool(question)
                 if overlay:
                     sample["encoder_delta"] = 0
                 # A modal pairing/voice card temporarily pauses the game rather
@@ -505,7 +596,10 @@ class Controller:
                 if frame:
                     self.status_key = None
                 offer = self._offer()
-                if busy:
+                if speaking:
+                    self.status("Replying aloud", "B: stop speaking\nBoth screen buttons: talk")
+                    self._displayed("speaker", "Replying aloud")
+                elif busy:
                     self.draw_processing()
                 elif feedback:
                     self.status(feedback["title"], feedback["detail"])
@@ -534,6 +628,7 @@ class Controller:
                 self.stop.wait(max(0, 0.05 - (time.monotonic() - started)))
         finally:
             self.stop.set()
+            self.speaker.stop()
             self.voice.stop()
             worker.join(timeout=4)
             self.runtime.close()

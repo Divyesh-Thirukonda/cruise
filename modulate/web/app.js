@@ -6,7 +6,7 @@
     state: null, token: null, online: false, submitting: false, mutating: new Set(),
     previewKey: null, previewLoaded: false, previewError: false, eventKey: null,
     inspectSource: "active", inspectView: "code", pairing: null, noticeTimer: null,
-    draftId: null, draftFocus: null,
+    draftId: null, draftFocus: null, responseId: null, dismissedResponseId: null, approvalId: null,
   };
   const names = {joystick: "Joystick", encoder: "Encoder", button_a: "Button A",
     button_b: "Button B", encoder_pressed: "Encoder press", pitft_buttons: "PiTFT buttons"};
@@ -129,6 +129,9 @@
     $("inspect-candidate").disabled = !state?.candidate;
     $("inspect-active").disabled = !state?.active;
     renderVoiceDraft();
+    renderComputer();
+    renderSpeaker();
+    renderResponse();
   }
 
   function renderVoiceDraft() {
@@ -185,6 +188,97 @@
     text("clarification-question", visible ? question : "");
   }
 
+  function renderComputer() {
+    const computer = ui.state?.computer;
+    const expires = dateValue(computer?.expires_at);
+    const expired = Number.isFinite(expires) && expires <= Date.now();
+    const enabled = computer?.enabled === true && !expired;
+    const active = ui.online && enabled && computer?.active === true;
+    const supported = computer?.supported === true;
+    const permissions = computer?.permissions || {};
+    const pending = ui.mutating.has("computer");
+    const scope = typeof computer?.scope === "string" ? computer.scope : "Google Chrome window";
+    text("computer-status", !ui.online ? "Status unknown" : !computer ? "Unavailable" : !supported ? "Permission required" : expired && computer.enabled ? "Session expired" : active ? "Controlling" : enabled ? "Enabled" : "Off");
+    $("computer-status").dataset.status = active ? "running" : "idle";
+    $("computer-panel").dataset.active = String(active);
+    $("computer-live-notice").hidden = !active;
+    text("computer-live-scope", scope);
+    text("computer-scope", `${scope} · 15-minute session`);
+    for (const [id, key, label] of [["computer-screen-permission", "screen_recording", "Screen Recording"], ["computer-input-permission", "accessibility", "Accessibility"]]) {
+      text(id, `${label}: ${permissions[key] === true ? "granted" : permissions[key] === false ? "required" : "unknown"}`);
+    }
+    const error = typeof computer?.error === "string" ? computer.error : "";
+    $("computer-error").hidden = !error;
+    text("computer-error", error);
+    const seconds = Number.isFinite(expires) ? Math.max(0, Math.ceil((expires - Date.now()) / 1000)) : null;
+    text("computer-expiry", !ui.online ? "Reconnect to check or stop the session." : enabled && seconds !== null ? `Access expires in ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}. You can stop it at any time.` : expired && computer?.enabled ? "This session has expired. Enable a new session to continue." : "");
+    $("computer-enable").hidden = enabled;
+    $("computer-enable").disabled = !ui.online || !supported || permissions.screen_recording !== true || permissions.accessibility !== true || pending;
+    $("computer-revoke").hidden = computer?.enabled !== true;
+    $("computer-revoke").disabled = !ui.online || pending;
+    $("computer-stop-live").disabled = !ui.online || pending;
+    const approval = computer?.pending_approval;
+    const visible = enabled && typeof approval?.id === "string" && typeof approval?.description === "string";
+    ui.approvalId = visible ? approval.id : null;
+    $("computer-approval").hidden = !visible;
+    text("computer-approval-description", visible ? approval.description : "");
+    $("computer-approve").disabled = !ui.online || !visible || pending || ui.mutating.has("computer-approval");
+    $("computer-decline").disabled = $("computer-approve").disabled;
+  }
+
+  function renderSpeaker() {
+    const device = ui.state?.device;
+    const speaker = device?.telemetry?.speaker;
+    const online = ui.online && device?.connected === true;
+    const available = online && speaker?.available === true;
+    const labels = {idle: "Ready", ready: "Ready", speaking: "Speaking", playing: "Playing", preparing: "Preparing speech", stopped: "Stopped", error: "Audio error", unavailable: "Unavailable"};
+    const status = typeof speaker?.state === "string" ? labels[speaker.state] || human(speaker.state) : "Awaiting playback status";
+    const error = typeof speaker?.error === "string" && speaker.error ? ` · ${speaker.error}` : "";
+    text("speaker-detail", !online ? "Device offline · audio status unavailable" : !speaker ? "Awaiting device audio status" : available ? `USB speaker · ${status}${error}` : `Speaker unavailable${error}`);
+    $("speaker-detail").dataset.state = speaker?.error ? "error" : "normal";
+    $("speaker-test").disabled = !available || ui.mutating.has("speaker");
+    $("speaker-stop").disabled = !online || !speaker || ui.mutating.has("speaker");
+  }
+
+  function renderResponse() {
+    const response = ui.state?.response;
+    const expires = dateValue(response?.expires_at);
+    const visible = typeof response?.id === "string" && typeof response?.text === "string" && response.text.length > 0 && Number.isFinite(expires) && expires > Date.now() && response.id !== ui.dismissedResponseId;
+    const panel = $("response-panel");
+    if (!visible && !panel.hidden && panel.contains(document.activeElement)) $("request").focus();
+    panel.hidden = !visible;
+    ui.responseId = visible ? response.id : null;
+    text("response-text", visible ? response.text : "");
+    text("response-expiry", visible ? `Clears automatically at ${timeLabel(response.expires_at)}.` : "");
+    $("response-dismiss").disabled = !ui.online || !visible || ui.mutating.has("response");
+    if (response && Number.isFinite(expires) && expires <= Date.now()) ui.state.response = null;
+  }
+
+  async function computerAction(kind) {
+    renderComputer();
+    if ($(kind === "enable" ? "computer-enable" : "computer-revoke").disabled) return;
+    return action("computer", "/api/computer", {action: kind});
+  }
+
+  async function computerApproval(approved) {
+    renderComputer();
+    const id = ui.approvalId;
+    if (!id || $(approved ? "computer-approve" : "computer-decline").disabled) return;
+    return action("computer-approval", "/api/computer/approval", {id, approved});
+  }
+
+  async function dismissResponse() {
+    renderResponse();
+    const id = ui.responseId;
+    if (!id || $("response-dismiss").disabled) return;
+    const result = await action("response", "/api/response/dismiss", {id});
+    if (result) {
+      ui.dismissedResponseId = id;
+      if (ui.state?.response?.id === id) ui.state.response = null;
+      renderResponse();
+    }
+  }
+
   function setPlaceholder(title, detail) {
     text("placeholder-title", title);
     text("placeholder-detail", detail);
@@ -201,7 +295,7 @@
     text("program-kind", running ? (active ? "PROGRAM PAUSED" : "PROCESSING") : active ? (kind === "control" ? "CONTROL MODE" : kind === "game" ? "GAME RUNNING" : "ACTIVE PROGRAM") : "NO ACTIVE PROGRAM");
     $("program-kind").dataset.status = running ? "busy" : active ? "active" : "idle";
     text("active-revision", active?.revision ? `REV ${String(active.revision).slice(0, 8).toUpperCase()}` : "REV —");
-    text("generation-note", running ? (active ? "Your current program is preserved and paused on the Pi while this request is processed." : "The Pi shows progress while the agent creates and checks your program.") : "A new request creates and checks a program before activation.");
+    text("generation-note", running ? (active ? "Your current program is preserved and paused on the Pi while this request is processed." : "The Pi shows progress while the agent handles your request.") : "Requests can create checked programs or use the capabilities you have enabled.");
 
     if (!active) {
       ui.previewKey = null;
@@ -543,6 +637,16 @@
   $("voice-draft-edit").addEventListener("click", () => updateDraft("pause"));
   $("voice-draft-send").addEventListener("click", () => updateDraft("send"));
   $("voice-draft-discard").addEventListener("click", () => updateDraft("discard"));
+  $("computer-enable").addEventListener("click", () => computerAction("enable"));
+  $("computer-revoke").addEventListener("click", () => computerAction("revoke"));
+  $("computer-stop-live").addEventListener("click", () => computerAction("revoke"));
+  $("computer-approve").addEventListener("click", () => computerApproval(true));
+  $("computer-decline").addEventListener("click", () => computerApproval(false));
+  $("response-dismiss").addEventListener("click", dismissResponse);
+  ["test", "stop"].forEach((kind) => $("speaker-" + kind).addEventListener("click", () => {
+    renderSpeaker();
+    if (!$("speaker-" + kind).disabled) return action("speaker", "/api/speaker", {action: kind});
+  }));
   $("request").addEventListener("keydown", (event) => {
     if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
       event.preventDefault();
@@ -628,6 +732,7 @@
   });
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
   setInterval(pairingCountdown, 1000);
+  setInterval(() => { renderComputer(); renderResponse(); }, 1000);
   setInterval(renderVoiceDraft, 250);
   renderButtons();
   poll();

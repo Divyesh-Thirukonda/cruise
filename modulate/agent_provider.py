@@ -7,8 +7,10 @@ https://dev.meta.ai/docs/muse-spark-open/deploy
 https://docs.fireworks.ai/api-reference/post-chatcompletions
 https://docs.ollama.com/capabilities/tool-calling
 https://dev.meta.ai/docs/pricing-rate-limits
+https://dev.meta.ai/docs/cookbook/vision-input
 
-History uses text messages. Assistant tool_calls may use normalized
+History uses text messages and bounded inline user screenshots for Meta.
+Assistant tool_calls may use normalized
 {id, name, arguments: object} entries or OpenAI function entries. Tool replies
 carry tool_call_id and text content; their name is resolved from history.
 This module neither executes tools nor selects replacement providers/models.
@@ -16,6 +18,8 @@ This module neither executes tools nor selects replacement providers/models.
 
 from dataclasses import dataclass, replace
 import json
+import base64
+import io
 import math
 import os
 import re
@@ -42,6 +46,7 @@ MAX_ARGUMENT_BYTES = 256 * 1024
 MAX_MESSAGES = 128
 MAX_TOOLS = 32
 MAX_CALLS = 32
+MAX_IMAGE_BYTES = 350_000
 _NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_-]{0,63}\Z", re.ASCII)
 _IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}\Z", re.ASCII)
 _CALL_ID = re.compile(r"[A-Za-z0-9_.:-]{1,128}\Z", re.ASCII)
@@ -185,6 +190,47 @@ def _wire_calls(calls, local):
     return result
 
 
+def _image_parts(content):
+    """Only bounded inline screenshots; never fetch a model-supplied URL.
+
+    Meta contract: https://dev.meta.ai/docs/cookbook/vision-input
+    """
+    from PIL import Image
+    if not 1 <= len(content) <= 2:
+        raise AgentProviderError("Expected one screenshot and optional text.")
+    parts, images = [], 0
+    for part in content:
+        if not isinstance(part, dict):
+            raise AgentProviderError("Invalid image content part.")
+        if part.get("type") == "text" and set(part) == {"type", "text"}:
+            parts.append({"type": "text", "text": _string(part["text"], "image caption", 8000, empty=True)})
+            continue
+        if part.get("type") != "image_url" or set(part) != {"type", "image_url"}:
+            raise AgentProviderError("Invalid image content part.")
+        ref = part["image_url"]
+        if not isinstance(ref, dict) or set(ref) != {"url"} or not isinstance(ref["url"], str):
+            raise AgentProviderError("Invalid inline screenshot.")
+        url = ref["url"]
+        prefix = next((p for p in ("data:image/jpeg;base64,", "data:image/png;base64,") if url.startswith(p)), None)
+        if prefix is None or len(url) > MAX_IMAGE_BYTES * 4 // 3 + 100:
+            raise AgentProviderError("Screenshot must be a bounded inline PNG or JPEG.")
+        try:
+            raw = base64.b64decode(url[len(prefix):], validate=True)
+            if len(raw) > MAX_IMAGE_BYTES:
+                raise ValueError
+            with Image.open(io.BytesIO(raw)) as image:
+                if image.format not in {"PNG", "JPEG"} or max(image.size) > 1280 or min(image.size) < 1:
+                    raise ValueError
+                image.verify()
+        except Exception:
+            raise AgentProviderError("Invalid screenshot image.") from None
+        images += 1
+        parts.append({"type": "image_url", "image_url": {"url": url}})
+    if images != 1:
+        raise AgentProviderError("Expected exactly one screenshot.")
+    return parts
+
+
 def _messages(messages, local):
     if not isinstance(messages, list) or not 1 <= len(messages) <= MAX_MESSAGES:
         raise AgentProviderError("Messages must be a non-empty bounded list.")
@@ -198,7 +244,12 @@ def _messages(messages, local):
         content = message.get("content")
         if content is None and role == "assistant":
             content = ""
-        content = _string(content, "message content", MAX_CONTENT_CHARS, empty=True)
+        if isinstance(content, list):
+            if role != "user" or local:
+                raise AgentProviderError("Screenshots require a Meta user message.")
+            content = _image_parts(content)
+        else:
+            content = _string(content, "message content", MAX_CONTENT_CHARS, empty=True)
         item = {"role": "system" if local and role == "developer" else role, "content": content}
         if role == "assistant":
             if pending:
@@ -392,6 +443,8 @@ class AgentProvider:
         return result
 
     def _payload(self, messages, tools):
+        if self.config.provider != "meta" and any(isinstance(m.get("content"), list) for m in messages if isinstance(m, dict)):
+            raise AgentProviderError("Computer vision is verified only for the Meta adapter.")
         local = self.config.provider == "ollama"
         definitions, names = _tools(tools)
         payload = {"model": self.config.model, "messages": _messages(messages, local), "stream": False}

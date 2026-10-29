@@ -1,0 +1,8 @@
+# Optional native Mac helper. Versions verified against PyPI, 2026-10-28.
+# No Codex/ChatGPT runtime services or credentials are reused.
+PyAutoGUI==0.9.54; sys_platform == 'darwin'
+mss==10.2.0; sys_platform == 'darwin'
+pyobjc-framework-Quartz==12.2.2; sys_platform == 'darwin'
+pyobjc-framework-Cocoa==12.2.2; sys_platform == 'darwin'
+pyobjc-framework-ApplicationServices==12.2.2; sys_platform == 'darwin'
+Pillow==12.3.0

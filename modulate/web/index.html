@@ -23,12 +23,13 @@
 
     <main>
       <section class="intro" aria-labelledby="page-title">
-        <div><p class="eyebrow">YOUR HARDWARE, A NEW IDEA</p><h1 id="page-title">What should it become?</h1><p class="intro-copy">Describe a game or a new job for your controls.</p></div>
+        <div><p class="eyebrow">YOUR HARDWARE, A NEW IDEA</p><h1 id="page-title">What should it become?</h1><p class="intro-copy">Create a game, give your controls a job, or ask for help on your Mac.</p></div>
         <div class="runtime-label"><span class="tiny-cross" aria-hidden="true">+</span><span>CREATE · CHECK · PLAY</span></div>
       </section>
 
       <div id="service-notice" class="notice notice-warning" role="status" hidden></div>
       <div id="action-notice" class="notice" role="status" hidden></div>
+      <div id="computer-live-notice" class="notice computer-live-notice" role="status" hidden><span class="status-dot" aria-hidden="true"></span><strong>Agent controlling this Mac</strong><span id="computer-live-scope">Google Chrome window</span><button type="button" class="button button-small button-danger" id="computer-stop-live">Stop computer control</button></div>
 
       <div class="studio-grid">
         <div class="workspace-column">
@@ -56,6 +57,12 @@
             <div class="preview-footer"><span class="preview-origin"><span class="status-dot" id="preview-dot"></span><span id="preview-origin">Host preview · awaiting a program</span></span><span class="mono" id="active-revision">REV —</span></div>
           </section>
 
+          <section class="response-panel" id="response-panel" aria-labelledby="response-title" hidden>
+            <div class="response-heading"><h2 id="response-title"><span class="sparkle" aria-hidden="true">✳</span> Modulate replied</h2><button type="button" class="text-button" id="response-dismiss">Dismiss</button></div>
+            <p id="response-text" role="status" aria-live="polite"></p>
+            <p class="response-expiry" id="response-expiry"></p>
+          </section>
+
           <section class="voice-draft-panel" id="voice-draft-panel" aria-labelledby="voice-draft-title" hidden>
             <div class="voice-draft-heading"><h2 id="voice-draft-title">Review your spoken request</h2><span class="chip" id="voice-draft-countdown" role="status" aria-live="polite">Ready to send</span></div>
             <label class="mini-label" for="voice-draft-text">TRANSCRIPT</label>
@@ -68,8 +75,8 @@
             <form id="request-form">
               <label for="request" class="composer-label" id="composer-title"><span class="sparkle" aria-hidden="true">✳</span> Give it a new job</label>
               <textarea id="request" name="request" rows="3" maxlength="4000" placeholder="Make an original kart racer. Use the joystick to steer and button A to boost…" aria-describedby="composer-hint" required></textarea>
-              <div class="composer-bottom"><button type="button" class="voice-help" id="voice-help" aria-expanded="false" aria-controls="voice-instructions"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 3v14M6 6v8M2 8v4M14 6v8M18 8v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Device microphone</button><div class="composer-actions"><span id="composer-hint">⌘ / Ctrl + Enter</span><button class="button button-primary" id="request-submit" type="submit">Create <span aria-hidden="true">↗</span></button></div></div>
-              <p class="inline-help" id="voice-instructions" hidden>Say “Hey Meta” with wake listening on, or hold both screen buttons for a moment, then speak into the device microphone. Three seconds of silence ends recording. The transcript appears here for three seconds before sending; choose Edit to pause and change it. During a build, say “Hey Meta, cancel rebuild” to stop. This page does not access your browser microphone.</p>
+              <div class="composer-bottom"><button type="button" class="voice-help" id="voice-help" aria-expanded="false" aria-controls="voice-instructions"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 3v14M6 6v8M2 8v4M14 6v8M18 8v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Device microphone</button><div class="composer-actions"><span id="composer-hint">⌘ / Ctrl + Enter</span><button class="button button-primary" id="request-submit" type="submit">Send request <span aria-hidden="true">↗</span></button></div></div>
+              <p class="inline-help" id="voice-instructions" hidden>Say “Hey Meta” with wake listening on, or hold both screen buttons for a moment, then speak into the device microphone. Three seconds of silence ends recording. The transcript appears here for three seconds before sending; choose Edit to pause and change it. While a request is running, say “Hey Meta, cancel rebuild” to stop. This page does not access your browser microphone.</p>
             </form>
             <div class="suggestions" aria-label="Example requests"><span>TRY</span><button type="button" data-example="Create an original kart racer">A kart racer <span aria-hidden="true">↗</span></button><button type="button" data-example="Use the knob for my Mac volume">Control Mac volume <span aria-hidden="true">↗</span></button></div>
           </section>
@@ -90,12 +97,24 @@
             <div id="control-list" class="control-list"><p class="muted small">Waiting for a device capability report.</p></div>
             <details class="hardware-notes" id="hardware-notes" hidden><summary id="hardware-notes-summary">Device notes</summary><ul id="hardware-warnings"></ul></details>
             <div class="wake-row"><div><span>Wake listening</span><small id="wake-detail">Off · use push-to-talk</small></div><button type="button" role="switch" aria-checked="false" aria-label="Wake listening" class="switch" id="wake-toggle" disabled><span></span></button></div>
+            <div class="speaker-row"><div><span>Speaker</span><small id="speaker-detail" role="status">Awaiting device status</small></div><div class="speaker-actions"><button type="button" class="text-button" id="speaker-test" disabled>Test speaker</button><button type="button" class="text-button danger-text" id="speaker-stop" disabled>Stop audio</button></div></div>
           </section>
 
           <section class="host-panel" aria-labelledby="host-title">
             <div class="host-heading"><span class="computer-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span><div><h2 id="host-title">Your Mac</h2><p id="pairing-status">Pair to give your controls a new job.</p></div><span class="chip" id="paired-chip" hidden>PAIRED</span></div>
             <div class="volume-display" id="volume-display" hidden><div><span>System volume</span><strong id="volume-value">—</strong></div><div class="volume-track" role="meter" aria-label="Mac system volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="volume-meter"><span id="volume-fill"></span></div></div>
             <div class="host-actions"><button class="button button-outline" id="pairing-open" type="button">Pair a device <span aria-hidden="true">+</span></button><button class="text-button danger-text" id="revoke" type="button" hidden>Revoke access</button><span class="small muted" id="host-scope">Volume controls only</span></div>
+          </section>
+
+          <section class="computer-panel" id="computer-panel" aria-labelledby="computer-title">
+            <div class="panel-heading"><h2 id="computer-title">Computer control</h2><span class="chip" id="computer-status">Unavailable</span></div>
+            <p class="computer-consent">Lets Meta see this Chrome window and use its mouse and keyboard. Screens may contain private information.</p>
+            <p class="computer-scope" id="computer-scope">Google Chrome window · 15-minute session</p>
+            <div class="computer-permissions" aria-label="Mac permissions"><span id="computer-screen-permission">Screen Recording: unknown</span><span id="computer-input-permission">Accessibility: unknown</span></div>
+            <p class="computer-error" id="computer-error" hidden></p>
+            <p class="computer-expiry" id="computer-expiry" role="status"></p>
+            <div class="computer-actions"><button type="button" class="button button-primary" id="computer-enable" disabled>Enable computer control</button><button type="button" class="button button-danger" id="computer-revoke" hidden>Stop computer control</button></div>
+            <div class="computer-approval" id="computer-approval" hidden><span class="mini-label">APPROVAL REQUIRED</span><p id="computer-approval-description"></p><div><button type="button" class="button button-outline" id="computer-decline">Decline</button><button type="button" class="button button-primary" id="computer-approve">Approve</button></div></div>
           </section>
         </aside>
       </div>

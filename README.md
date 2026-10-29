@@ -2,7 +2,7 @@
 
 **Say what it should do. Give the same hardware a new job.**
 
-Modulate is a modular-device project you program by speaking: a Meta-powered agent uses connected controls and devices as context to generate and check software for an on-device game or a controller for your computer.
+Modulate is a modular-device project you program by speaking: a Meta-powered agent uses connected controls and devices as context to generate and check software for an on-device game or a controller for your computer. The user-requested extension adds browser computer tasks and spoken answers through the device.
 
 Say “Hey Meta, make a kart-racing game,” and the target experience is a small original game appearing on the device's screen, playable with its physical controls. Then say “Make this knob control my computer's volume,” and the agent maps the knob to a computer you have paired. Follow-up requests can change the game, button behavior, or adjustment sensitivity.
 
@@ -19,6 +19,8 @@ Planning began October 27, 2026 for the Meta Global AI Developer Hackathon. The 
 Another hands-free request increased the reversed step to −10. Two live UI rollbacks then restored −1 and returned to the original −10 revision, with zero model calls. [Rollback evidence](context/evidence/live-rollback.json) records Pi software acknowledgements, not optical readback.
 
 The user confirmed the **Indie Developer** track and [owned hardware](context/hardware.md). This is a working hackathon prototype: early audio failures required resampling/buffering fixes, and a shutdown race caused unintended game fallback. The shutdown fix preserved the exact game revision across two verified restarts. These trials do not establish broad wake/noise or failure reliability; revocation and performance testing remain. The [number prototype guide](context/number-prototype.md) preserves its earlier evidence.
+
+**Computer-task and speaker paths are implemented; the complete assistant loop awaits a live trial.** For requests such as “read my email,” the new path uses Meta vision and real cursor/keyboard actions in a separately authorized Chrome window, without a Gmail API. A 15-minute grant, fresh-observation checks, stop/revoke controls and transient responses bound the session. The user heard a standalone spoken sentence through the USB speaker at 40% volume. The Pi speech worker can pause its microphone during playback. Native dependencies are installed and both Mac permissions report granted; the user authorized the Chrome/screenshot-to-Meta trial, but actual model-driven capture/cursor operation and integrated spoken reply remain untested. [Setup, privacy and validation limits](context/product-runtime.md#computer-tasks-and-spoken-replies).
 
 ## Run the product studio
 
@@ -42,6 +44,8 @@ The latest voice update keeps ambient transcription visually quiet. A wake-only 
 4. **Control the computer.** Link the Mac through the companion and trusted bridge. Show the knob changing actual OS volume, then the demonstrated spoken sensitivity and direction changes.
 5. **Recover.** Show a rejected package, unavailable component, or failed activation leaving the previous working experience usable.
 
+After separate live validation, add a short browser task with its permission shown, visible cursor actions and an audible reply. Keep that evidence distinct from the already demonstrated game/volume flow.
+
 Voice is a core demo goal. Push-to-talk can establish it before wake-word detection; any host microphone or typed-input fallback must be identified. “Hey Meta” is a proposed activation phrase, not a claim that an official Meta voice-assistant integration exists. The user's “make Mario Kart” example is translated into an original small kart racer using our own or licensed assets.
 
 ## How it works in code
@@ -51,6 +55,8 @@ Voice is a core demo goal. Push-to-talk can establish it before wake-word detect
 The product generates **JavaScript application/game code on a stable device runtime**, with original sprite data. Firmware generation is a longer-term ambition; this build does not reflash the Pi or peripherals with model output. Generated code runs in a bounded QuickJS-NG worker with OS restrictions, separate from fixed hardware drivers and the allowlisted computer-action bridge. Verification is tied to the exact candidate and capability manifest; a model saying its code works is insufficient.
 
 The local website handles pairing, preview, requests and status. Meta, Fireworks and Ollama adapters are implemented; `muse-spark-1.3` powered the live games and control changes. The current stack uses local Whisper speech recognition, a macOS host bridge and pinned TLS for the Pi connection. The wake phrase uses a local transcript matcher and is not an official Meta assistant integration. Evidence distinguishes typed and spoken runs.
+
+Computer tasks use an independently implemented native Python helper, separate from generated packages and volume pairing. The agent receives temporary screenshots and chooses bounded actions. Existing Codex app services, credentials and proprietary computer-use runtime were not copied. Dependency attribution and the permission boundary are in the [architecture](context/architecture.md#computer-tasks-and-spoken-replies).
 
 ## Project context
 

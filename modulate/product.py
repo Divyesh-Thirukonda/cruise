@@ -16,6 +16,7 @@ from .agent import AgentError, Ledger, Orchestrator, digest
 from .game_runtime import validate_commands, validate_input, validate_package
 from .host_bridge import BridgeStore, BridgeError
 from .rendering import Renderer, png
+from .assistant_io import AssistantIO
 
 
 _SESSION = re.compile(r"[0-9a-f]{32}\Z")
@@ -32,6 +33,8 @@ _TOOL_PROGRESS = {
     "activate_package": ("activating", "Starting it on the controller"),
     "delegate_task": ("planning", "Working with a specialist"),
     "ask_user": ("planning", "One quick question"),
+    "computer_observe": ("planning", "Looking at the computer"),
+    "computer_act": ("planning", "Using the computer"),
 }
 
 
@@ -49,8 +52,8 @@ def _save_json(path, value):
         os.close(descriptor)
 
 
-class Product:
-    def __init__(self, state_dir, provider, *, budget=0, backend=None):
+class Product(AssistantIO):
+    def __init__(self, state_dir, provider, *, budget=0, backend=None, computer=None):
         self.directory = Path(state_dir)
         self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.lock = threading.RLock()
@@ -109,6 +112,7 @@ class Product:
         self.intent_path = self.directory / "activation-intent.json"
         self.last_intent = json.loads(self.intent_path.read_text()) if self.intent_path.exists() else None
         self.pairing = None
+        self._init_assistant_io(computer)
 
     @property
     def revision(self):
@@ -233,7 +237,10 @@ class Product:
                     "device_connected": self.connected(), "controls": list(self.device["controls"]) if self.connected() else [],
                     "devices": copy.deepcopy(self.device["devices"]), "warnings": list(self.device["warnings"]),
                     "button_sources": dict(self.device["button_sources"]),
-                    "paired_host": paired}
+                    "paired_host": paired,
+                    "computer": {key: value for key, value in self.computer.status().items()
+                                 if key in {"supported", "enabled", "scope"}},
+                    "speaker": {"available": self.telemetry.get("speaker", {}).get("available", False)}}
 
     def candidate_changed(self, identifier, package):
         with self.lock:
@@ -287,6 +294,9 @@ class Product:
             if job_sequence >= 2**53:
                 raise AgentError("Request sequence limit reached")
             self.running = True
+            self.response = None
+            self._stop_speech()
+            self.computer_approved_action = None
             job_id = uuid.uuid4().hex
             self.progress = {"job_id": job_id, "job_sequence": job_sequence, "request_id": None, "phase": "queued",
                              "title": "Request received", "tool": None, "role": "orchestrator"}
@@ -333,7 +343,8 @@ class Product:
                                         "\nClarifying question: " + followup["question"] +
                                         "\nUser's reply (may replace the request): " + request_text[:1800])
                     self.current_request = request_text
-                result = self.agent.run(request_text)
+                result = (self.agent.run(request_text, private=True) if followup and followup.get("private")
+                          else self.agent.run(request_text))
                 summary = result if isinstance(result, str) else "Request finished."
             except Exception as error:
                 summary = str(error)[:500]
@@ -346,7 +357,11 @@ class Product:
                         self.running = False
                         self.voice_draft = None
                         self.draft_deadline = None
-                        self.summary = summary[:500]
+                        if outcome == "ready":
+                            self._publish_response(summary, job_id)
+                        self.summary = ("Task complete. Response available in Studio." if self.agent.private_request
+                                        and outcome == "ready" else "Computer request stopped." if self.agent.private_request
+                                        else summary[:500])
                         self.progress.update(phase=outcome, title={"ready": "Ready", "error": "Could not finish",
                                              "cancelled": "Request cancelled"}[outcome], tool=None, role="orchestrator")
                         if self.clarification and outcome == "ready":
@@ -380,6 +395,7 @@ class Product:
                 raise AgentError("This request is no longer active")
             self.clarification = {"question": question.strip(), "request_id": self.progress["request_id"],
                                   "job_id": self.progress["job_id"],
+                                  "private": bool(self.agent.private_request),
                                   "original": self.current_request or ""}
             return {"clarification_required": True, "question": question.strip()}
 
@@ -407,10 +423,17 @@ class Product:
             if (not self.running and self.clarification
                     and (job_id is None or job_id == self.clarification["job_id"])):
                 self.clarification = None
+                self._stop_speech()
+                self.response = None
                 return {"cancelled": True, "dismissed_question": True}
             if job_id is not None and (not self.running or job_id != self.progress["job_id"]):
                 return {"cancelled": False, "reason": "That request has already finished"}
             self.agent.cancelled.set()
+            self.computer.cancel()
+            self._stop_speech()
+            self.response = None
+            self.computer_approval_decision = False
+            self.computer_approved_action = None
             self.clarification = None
             if self.running:
                 self.progress.update(phase="cancelled", title="Stopping the request", tool=None)
@@ -629,7 +652,8 @@ class Product:
                 pending = {key: self.pending[key] for key in ("id", "revision", "phase", "base_revision")}
                 if self.pending["phase"] == "stage":
                     pending["package"] = self.pending["package"]
-            return {"activation": pending, "active_revision": self.revision, "wake": self.wake,
+            return {**self._assistant_heartbeat(packet),
+                    "activation": pending, "active_revision": self.revision, "wake": self.wake,
                     "agent_running": self.running, "agent_state": self.agent_state(),
                     "clarification": ({"question": self.clarification["question"],
                                        "job_id": self.clarification["job_id"],
@@ -753,6 +777,7 @@ class Product:
                     "capabilities": self.capabilities(), "input": self.input, "telemetry": self.telemetry},
                     "active": self.active, "candidate": self.candidate,
                     "agent": self.agent_state(),
+                    "computer": self.computer_status(), "response": self._response_state(),
                     "voice_draft": copy.deepcopy(self.voice_draft),
                     "clarification": ({"question": self.clarification["question"],
                                        "job_id": self.clarification["job_id"],

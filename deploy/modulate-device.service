@@ -9,6 +9,9 @@ User=pi
 WorkingDirectory=/home/pi/modulate-product
 ExecStart=/home/pi/modulate-product/.venv/bin/python -m modulate.device --state-dir /home/pi/modulate-product/state --enrollment /home/pi/modulate-product/device-enrollment.json
 Environment=PYTHONUNBUFFERED=1
+# Raspberry Pi OS user pi is UID 1000; adjust both paths for another account.
+Environment=PULSE_SERVER=unix:/run/user/1000/pulse/native
+Environment=XDG_RUNTIME_DIR=/run/user/1000
 UMask=0077
 NoNewPrivileges=yes
 Restart=on-failure

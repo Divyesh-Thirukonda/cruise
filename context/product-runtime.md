@@ -2,6 +2,8 @@
 
 Implementation snapshot: October 28, 2026. A typed Meta request generated Pixel Kart Sprint on the Pi, with confirmed steering/buttons; a later spoken request generated MODULATE: Self Assembly. The same device controls native Mac volume; PTT/hands-free speech refined sensitivity, direction and step size. Two UI rollbacks restored mappings without model calls. This completes the main game/control/spoken-refinement prototype loop. Initial audio failures, limited wake evidence and performance constraints are recorded below. The earlier [number prototype](number-prototype.md) has separate evidence.
 
+The subsequent computer-task and spoken-reply extension is implemented. Native permissions report granted and a standalone USB sentence was heard by the user; the full model-driven capture/cursor/spoken-reply loop remains untested. Its setup and privacy boundary are [separate from the demonstrated volume bridge](#computer-tasks-and-spoken-replies).
+
 ## Install the host
 
 Use a dedicated virtual environment on macOS. The recorded host is Python 3.14.7; these instructions require Python 3.11 or newer. The current native volume backend supports macOS only. OpenSSL must be on PATH for local TLS certificate creation. The browser UI has no package manager, build step or external JavaScript dependency.
@@ -92,6 +94,26 @@ The USB microphone supports native 44.1/48 kHz capture but rejected the product'
 
 Logical game `button_a` is PiTFT A or the green Qwiic button at `0x6E`; `button_b` is PiTFT B or the red Qwiic button at `0x6F`. Both external boards were independently identified after a power cycle with firmware value 259, and the user confirmed their game input. Pairing confirmation and the push-to-talk chord use the physical PiTFT buttons only.
 
+## Computer tasks and spoken replies
+
+The user requested real computer interaction, such as “Hey Meta, read my email,” through the visible browser rather than a Gmail API. The agent now has `computer_observe` and `computer_act` tools backed by an independent native Python helper. This is separate from volume pairing and generated game packages. Dependencies are installed and native inspection reports Screen Recording and Accessibility granted. The user authorized a 15-minute Chrome trial and screenshots sent to Meta; actual model-driven screenshot/cursor operation is **not yet validated**.
+
+Install the optional macOS dependencies in the host environment:
+
+```sh
+.venv/bin/python -m pip install -r requirements-computer.txt
+```
+
+After consent to both local control and sending visible screenshots to Meta, grant the helper's actual launching process Screen Recording and Accessibility through macOS settings. Existing Codex permissions do not establish that this separate process has access. Studio reports the observed permission state. Put Chrome's intended window wholly on the primary display and frontmost, then use **Enable computer control**. The grant expires after 15 minutes and is fixed to that window's identity and geometry; changing focus or moving/resizing the window can require a fresh session. The helper supports at most 100 actions, each using a fresh single-use observation no older than 30 seconds. It does not expose a shell, arbitrary-app selection or clipboard-reading tool.
+
+Use **Stop computer control** to revoke access; cancelling the request also stops further actions. Moving the pointer to a primary-screen corner invokes the input library's failsafe. A dispatched click may already have taken effect, so cancellation is not undo. The model must ask before actions such as sending, deleting, buying, publishing or changing permissions; Studio shows **Approve**/**Decline** when it requests that confirmation. Action classification depends on the model and is not a guarantee that every consequential action will be caught. Leave passwords and authentication changes to the user.
+
+Screenshots and screen-derived responses are held in memory rather than written to trace artifacts. Private computer tasks lose package-writing/delegation tools; the device's current game remains intact. Responses and pending speech expire after two minutes. Screenshots are sent to the selected Meta vision endpoint for reasoning, so local non-retention does not imply provider non-retention. Do not publish private browser content as demo evidence. The [architecture](architecture.md#computer-tasks-and-spoken-replies) records limits, source attribution and the distinction from the installed Codex plugin.
+
+The Pi speech worker uses the OS packages `espeak-ng` and `pulseaudio-utils`: eSpeak NG produces audio in memory, piped to `paplay`. A single available playback sink can be selected automatically; use `MODULATE_SPEAKER_SINK` to select an explicit sink if ambiguous. Playback errors do not silently redirect to another output. Replies are bounded to 1,200 characters and a 90-second playback limit. These packages are installed. After an initial silent attempt, volume was set to 40% and a manual sink-name typo corrected; the user confirmed hearing a standalone sentence through the USB Jieli output. This does not yet prove an integrated agent reply.
+
+Use **Test speaker** in Studio to check audibility and **Stop audio** to interrupt. On the Pi, physical screen button B stops speech; holding both screen buttons invokes PTT after interrupting output. The microphone is paused while speech is queued, playing or stopping, with a short cooldown before listening resumes. A speech acknowledgement means the device accepted the message, not that the user heard it. Tests cover software delivery, stale-message handling and interruption; integrated replies, physical interruption and room echo behavior remain checks beyond the standalone audible test.
+
 ## Generated package and execution contract
 
 Applications are JavaScript packages loaded by a fixed runtime; they are **not flashed firmware**. Voice review and clarification do not give the model new hardware or host privileges, and there is no numeric intent-confidence guarantee. A game package contains exactly `kind`, `title`, `code`, `assets` and `controls`. `kind` is `game`; `assets.sprites` maps IDs to `{width,height,palette,pixels}`, with integer-indexed pixel rows and hex-color/transparent palettes. Generated sprites are required, with no preset game substituted for a failed call.
@@ -116,7 +138,8 @@ The fixed verifier runs startup and 48 representative updates, validates every o
 
 ## Evidence recorded so far
 
-- Latest voice-polish validation: 313 local tests ran with three PyAV-dependent Mac skips; all 164 focused Pi tests passed with actual PyAV and no skips. The user confirmed repaired wake acknowledgement and hands-free cancellation of a held request. A synthetic transcript and a real, explicitly wake-invoked weak utterance each elicited a live Meta clarification. Actual Studio editing/discard preserved the game and added no model calls. The user also dismissed the real clarification by voice. See [sanitized evidence](evidence/voice-review-cancellation.json). Synthetic/mock test effects remain distinct from live observations.
+- Voice-polish validation snapshot: 313 local tests ran with three PyAV-dependent Mac skips; all 164 focused Pi tests passed with actual PyAV and no skips. The user confirmed repaired wake acknowledgement and hands-free cancellation of a held request. A synthetic transcript and a real, explicitly wake-invoked weak utterance each elicited a live Meta clarification. Actual Studio editing/discard preserved the game and added no model calls. The user also dismissed the real clarification by voice. See [sanitized evidence](evidence/voice-review-cancellation.json). Synthetic/mock test effects remain distinct from live observations.
+- The computer/speaker implementation subsequently reached a local suite snapshot of 376 tests run with three skips. Computer-action tests use mocks; native inspection separately reports both permissions granted. The user heard a standalone USB sentence. These facts do not establish the full Meta/browser/spoken-reply loop.
 - All 13 focused game-runtime tests passed on both macOS and the Pi, using real sandboxed workers.
 - One small handwritten runtime fixture on the Pi completed 120 updates paced at 30 Hz in the same worker: median step 0.237 ms, maximum 0.544 ms. This excludes display transfer, rendering, audio and physical input. It is not a generated-game frame-rate claim.
 - The companion JavaScript passes `node --check`; static DOM checks found no duplicate IDs or missing script targets. The launched studio rendered in a browser using its actual API. This does not yet prove all actions or a physical device frame.
@@ -172,7 +195,7 @@ Successful spontaneous wake requests establish that the path worked in these tri
 
 Self Assembly and DotDash appeared lost after service restarts. Safe stage/category/timing diagnostics identified a shutdown race: default systemd control-group termination killed the worker while the main process was finishing a frame, incorrectly persisting a fallback. These were real failures, not deliberate fault injection. The installed `KillMode=mixed` unit sends TERM to the main process first and later kills remaining processes, matching [official systemd behavior](https://www.freedesktop.org/software/systemd/man/latest/systemd.kill.html).
 
-A voice request generated **DotDash**, revision `fd1ec6ccaeb0a923db24330ea4a84101bdde753a796f3f49fee39d276d7d358f`, in six model calls; the user confirmed its Listening → processing transition and telemetry reported about 14 fps. A typed request then generated **Dodge Fall**, revision `04f48a68e17635d45ea4a4b6f006dc33b2b7eba1483da05e80aaf83fa9394b0d`, in nine calls. The 60-sample processing trace belongs to the latter build. A spoken cursor request was declined because the paired host exposes volume capabilities only.
+A voice request generated **DotDash**, revision `fd1ec6ccaeb0a923db24330ea4a84101bdde753a796f3f49fee39d276d7d358f`, in six model calls; the user confirmed its Listening → processing transition and telemetry reported about 14 fps. A typed request then generated **Dodge Fall**, revision `04f48a68e17635d45ea4a4b6f006dc33b2b7eba1483da05e80aaf83fa9394b0d`, in nine calls. The 60-sample processing trace belongs to the latter build. A spoken cursor request was declined at that time because the host exposed volume capabilities only; this preceded the separate computer-task adapter above.
 
 After the shutdown fix, the exact saved Dodge Fall package passed fresh independent verification and normal device activation as an explicit **cached restore, not new inference**. Service restarts at **19:59:15 and 19:59:41 Eastern on October 28** both retained that exact game revision, reported no errors and returned to `wake_listening`. These are successful software-state checks for two restarts, not a universal reliability or optical-readback claim.
 

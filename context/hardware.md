@@ -22,6 +22,7 @@ One of each item below, including one cable kit:
 | [SparkFun Qwiic Cable Kit](https://www.sparkfun.com/sparkfun-qwiic-cable-kit.html) | Peripheral connections; confirm supplied cable lengths and count |
 | Bluetooth wireless speaker with microphone, model unspecified | Candidate voice input and audio output; microphone/profile compatibility untested |
 | USB PnP microphone, confirmed attached October28 | Tested capture at16kHz mono through ALSA `plughw:CARD=Device,DEV=0`; successful local transcription in the number prototype |
+| USB speaker/playback output, detected October 28 as Jieli | New spoken-reply output. User confirmed hearing a standalone sentence at 40% volume; integrated agent reply remains to test |
 
 Subsequent device evidence: joystick `0x20` has center readings (516, 504), user-confirmed steering and captured X endpoints −1 and 1. Both logical buttons appeared in a 240-sample game window. Later native-volume traces captured encoder `0x36` deltas and OS volume effects; the user confirmed direction. Green `0x6E` and red `0x6F` independently reported firmware 259 after power cycling and both large buttons worked. Green OR PiTFT A supplies `button_a`; red OR PiTFT B supplies `button_b`. Pairing/PTT remain physical PiTFT controls. These are subsequent device observations, separate from the original inventory.
 
@@ -48,12 +49,16 @@ The October 28 product revision adds voice requests, generated games on the devi
 - **Microphone:** the user subsequently attached a USB PnP microphone. Its capture and local Whisper transcription worked in the October28 number prototype. Bluetooth microphone support remains untested; the working USB path does not depend on it.
 - **Voice activation:** direct 16 kHz capture and initial overflows failed. Native 48 kHz capture, resampling, 0.25 s buffering and retry fixes preceded successful PTT/hands-free control refinements and a spoken Self Assembly game. Noise/false-trigger reliability remains unmeasured; this is not an official Meta assistant integration. The first kart used text.
 - **Computer connection:** enrolled TLS and the macOS bridge now carry real encoder-to-system-volume actions, confirmed through native reads and user feedback. Generated control refinements and UI rollback also worked. Revocation/disconnect fault behavior still needs broader live testing.
+- **Spoken output:** USB Jieli playback was detected and eSpeak NG/paplay installed. After the initial silent attempt, output was set to 40% and a manual sink-name typo corrected; the user heard a standalone sentence. The device speech worker pauses the microphone and supports physical PiTFT B interruption. Integrated agent replies and room echo behavior remain to test; Bluetooth audio remains untested.
+- **Browser computer tasks:** the new Chrome-window screenshot/cursor adapter is implemented separately from volume pairing. The user authorized the native/screenshot-to-Meta trial and both Mac permissions report granted; actual capture/action validation is pending. It uses no camera or Gmail API.
 
 “Modular” means the design can use supported plug-in peripherals and update its capability manifest. Hot swapping is not established; continue to power down before changing this assembly.
 
 ## Smallest useful assembly
 
 The current product uses **Pi 5 + Mini PiTFT + joystick + encoder + green/red Qwiic buttons + USB microphone**. Distinct button addresses survived a power cycle; game input, encoder volume effects and spoken control refinements are confirmed. Leave APDS9960 and IMU out until they serve a tested interaction.
+
+The added USB speaker has user-confirmed standalone speech output; the integrated agent-response path remains to test. Keep it separate from the untested Bluetooth speaker/microphone inventory entry.
 
 The [Mini PiTFT documentation](https://www.adafruit.com/product/4393) describes a 1.14-inch, 135×240 SPI display, two onboard buttons, and a bottom STEMMA QT/Qwiic connector. That connector provides the I2C path for the external peripherals, so a separate Qwiic SHIM is unnecessary for this proposed arrangement. Target a simple original 2D kart racer on this screen, with short mode names, labels, values, and connection state when controlling the PC. Test orientation, game legibility, frame delivery, input-to-display latency, and sustained operation on the physical display before promising playability or frame rates. A host preview is useful for development but does not prove on-device play. Put full transcripts, code/check results, and configuration previews on the host UI. Do not assume the PiTFT is a touchscreen.
 
@@ -70,6 +75,7 @@ Isolated game runtime → bounded drawing API → Pi device service → PiTFT
 Pi device service ↔ authenticated local connection ↔ paired PC bridge
 Host website → pairing, transcript, code/check results, and preview
 USB microphone → local Pi speech recognition
+Pi local speech synthesis → selected USB speaker output (standalone speech heard)
 ```
 
 This is a proposed daisy-chain topology, not a tested wiring diagram. Switch off power before attaching boards or changing cables. Confirm orientation, board revision, connector access, and that the display clears the Pi's cooling hardware. Leave the Servo pHAT out rather than assuming both header boards can stack with the supplied connectors.

@@ -36,12 +36,13 @@ class ControllerTests(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.directory = Path(temporary.name)
         self.buttons = [Button(), Button()]
-        for name in ("Companion", "Screen", "Controls", "DeviceActivation", "VoiceListener"):
+        for name in ("Companion", "Screen", "Controls", "DeviceActivation", "VoiceListener", "Speaker"):
             patcher = patch("modulate.device." + name)
             mock = patcher.start()
             self.addCleanup(patcher.stop)
             setattr(self, name, mock.return_value)
         self.Screen.buttons = self.buttons
+        self.Speaker.snapshot.return_value = {"available": False, "state": "stopped", "error": None}
         self.Controls.capabilities.return_value = {"controls": ["encoder", "button_a", "button_b"],
                                                   "devices": [], "warnings": []}
         self.DeviceActivation.snapshot.return_value = {"revision": None, "kind": None, "ack": None}

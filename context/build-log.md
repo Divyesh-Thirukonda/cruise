@@ -441,7 +441,12 @@ preserving unrelated work and environment ignores. It was fast-forwarded to main
 without force/reset. Production deployment `dpl_GUNxAfSjRWq9fxiHZJ5MeakakW6y`
 reached Ready; Vercel's alias read confirmed `divy.live` points to it. Root and
 retired connection paths now return the original portfolio SPA, not Modulate API
-functions. The six old Modulate environment settings are still present pending
-the user's action-time confirmation of Vercel's permanent deletion dialog;
-their working copies are configured on the new project. Historical deployments
-were not erased. [Migration evidence](evidence/standalone-connect-migration.json).
+functions. After the user's explicit deletion approval, removed all six retired
+`MODULATE_*` environment variables from the portfolio project. A backend read
+confirmed zero remaining, with the three unrelated variables unchanged; an
+independent read confirmed all six working copies remain in the standalone
+project. Redeployed the same restoration commit as
+`dpl_9z9Yjyd7Ng4KB68KiqyGpk5nVw5K` to apply the cleaned configuration. It reached
+Ready, `divy.live` points to it, and the live root title is `Divyesh Portfolio`.
+Provider credentials were not revoked and historical deployments were not erased.
+[Migration evidence](evidence/standalone-connect-migration.json).

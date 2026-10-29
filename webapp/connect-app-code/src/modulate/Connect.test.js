@@ -157,7 +157,7 @@ test('an old authentication error cannot clear a successfully refreshed connecti
   await waitFor(() => expect(stateReads).toBe(3));
   await act(async () => { oldState.reject(Object.assign(new Error('Expired old request'), { status: 401 })); });
   expect(screen.getByRole('button', { name: 'Disconnect browser' })).toBeInTheDocument();
-  expect(screen.getByText('Companion online')).toBeInTheDocument();
+  expect(within(screen.getByRole('region', { name: 'Device connection' })).getByText('Connected')).toBeInTheDocument();
 });
 
 test('the connected dashboard waits for device state and simultaneous refreshes share one read', async () => {
@@ -180,7 +180,7 @@ test('the connected dashboard waits for device state and simultaneous refreshes 
   await waitFor(() => expect(stateReads).toBe(2));
   expect(connectApi.mock.calls.filter(([action]) => action === 'session')).toHaveLength(2);
   await act(async () => { nextState.resolve(initialState); });
-  expect(screen.getByText('Companion online')).toBeInTheDocument();
+  expect(within(screen.getByRole('region', { name: 'Device connection' })).getByText('Connected')).toBeInTheDocument();
 });
 
 test('a temporary outage keeps the connection and recovers automatically', async () => {
@@ -199,7 +199,7 @@ test('a temporary outage keeps the connection and recovers automatically', async
     expect(screen.getByRole('button', { name: 'Disconnect browser' })).toBeInTheDocument();
     offline = false;
     await act(async () => { jest.advanceTimersByTime(document.hidden ? 8000 : 1500); });
-    expect(screen.getByText('Companion online')).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Device connection' })).getByText('Connected')).toBeInTheDocument();
     expect(screen.queryByText('Your companion is offline. Keep Modulate Studio running on the paired Mac. Retrying automatically.')).not.toBeInTheDocument();
   } finally { jest.useRealTimers(); }
 });
@@ -215,11 +215,11 @@ test('an initial state failure retains the authenticated session as offline and 
   await screen.findByText('Your companion is offline. Keep Modulate Studio running on the paired Mac. Retrying automatically.');
   expect(screen.getByRole('button', { name: 'Disconnect browser' })).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Connect to Modulate' })).not.toBeInTheDocument();
-  expect(screen.queryByText('Companion online')).not.toBeInTheDocument();
+  expect(within(screen.getByRole('region', { name: 'Device connection' })).queryByText('Connected')).not.toBeInTheDocument();
   expect(screen.queryByAltText('Actual host-rendered preview of the active Modulate program')).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Send request' })).toBeDisabled();
   stateUnavailable = false;
   fireEvent.click(screen.getByRole('button', { name: 'Refresh', exact: true }));
-  await screen.findByText('Companion online');
+  await within(screen.getByRole('region', { name: 'Device connection' })).findByText('Connected');
   expect(screen.getByText('Hey Meta is on')).toBeInTheDocument();
 });

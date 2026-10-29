@@ -76,3 +76,10 @@ React, React DOM, Create React App and Testing Library are reused dependencies;
 Lucide supplies icons. The Modulate-specific UI and gateway code were developed
 during this hackathon. No portfolio pages, personal assets, private runtime
 state, credentials or unrelated integrations are included.
+
+The footer's [Meta symbol](src/modulate/assets/meta.svg) is a pre-existing asset
+from [Simple Icons](https://github.com/simple-icons/simple-icons/blob/develop/icons/meta.svg),
+retrieved October 29, 2026 under its
+[CC0 distribution](https://github.com/simple-icons/simple-icons/blob/develop/LICENSE.md).
+Meta owns the brand and trademark; see its
+[brand resources](https://www.meta.com/brand/resources/meta/company-brand/).

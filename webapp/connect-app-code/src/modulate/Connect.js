@@ -9,6 +9,7 @@ import {
 import { command, connectApi, previewUrl } from './api';
 import './connect.css';
 import AppLibrary from './Library';
+import metaLogo from './assets/meta.svg';
 
 const NAV = [
   ['studio', LayoutDashboard, 'Studio'], ['library', Library, 'App library'], ['permissions', ShieldCheck, 'Permissions'],
@@ -232,6 +233,8 @@ export default function Connect() {
   const active = state?.active;
   const packageData = active?.package;
   const controls = Array.isArray(state?.device?.capabilities?.controls) ? state.device.capabilities.controls : [];
+  const connectionStatus = loading ? 'Connecting' : !authenticated ? 'Not connected' : !online ? 'Companion offline' : !deviceConnected ? 'Device offline' : 'Connected';
+  const connectionHint = loading ? 'Checking your connection…' : !authenticated ? 'Enter a code to link this browser.' : !online ? 'Open Modulate Studio on your Mac.' : !deviceConnected ? 'Companion is online. Check your Pi.' : `${controls.length} ${controls.length === 1 ? 'control' : 'controls'} ready to use.`;
   const response = state?.response;
   const responseVisible = response?.text && response.id !== dismissedResponse && dateMs(response.expires_at) > now;
   const draft = state?.voice_draft;
@@ -292,8 +295,11 @@ export default function Connect() {
       <div className="mc-sidebar-divider" />
       <button className={`mc-nav-help ${view === 'setup' ? 'is-selected' : ''}`} onClick={() => navigate('setup')}><CircleHelp size={21} />Setup guide<ArrowUpRight size={15} /></button>
       <div className="mc-sidebar-bottom">
-        <div className="mc-sidebar-device"><div className="mc-sidebar-device-top"><span className="mc-device-mini"><Cpu size={24} /></span><Badge live={deviceConnected}>{deviceConnected ? 'Online' : authenticated ? 'Offline' : 'Not connected'}</Badge></div><strong>{state?.device?.name || 'Your Modulate'}</strong><p>{deviceConnected ? `${controls.length} connected controls · Raspberry Pi` : 'Give your hardware a new job.'}</p>{authenticated ? <Button quiet icon={Power} onClick={() => run('disconnect', () => connectApi('disconnect', {}), 'This browser has been disconnected.')} disabled={Boolean(busy)}>Disconnect browser</Button> : <Button quiet icon={Link2} onClick={() => navigate('studio')}>Connect a device</Button>}</div>
-        <div className="mc-sidebar-footer" role="status"><Badge live={online && authenticated}>{loading ? 'Connecting' : authenticated ? online ? 'Companion online' : 'Companion offline' : 'No device linked'}</Badge></div>
+        <section className="mc-sidebar-device" aria-label="Device connection">
+          <div className="mc-sidebar-device-top"><span className="mc-device-mini"><Cpu size={19} /></span><strong>{authenticated ? state?.device?.name || 'Your Modulate' : 'Your Modulate'}</strong></div>
+          <div className="mc-connection-summary" role="status"><Badge live={!loading && authenticated && deviceConnected} warning={!loading && authenticated && !deviceConnected}>{connectionStatus}</Badge><p>{connectionHint}</p></div>
+          {authenticated ? <Button quiet icon={Power} onClick={() => run('disconnect', () => connectApi('disconnect', {}), 'This browser has been disconnected.')} disabled={Boolean(busy)}>Disconnect browser</Button> : <Button quiet icon={Link2} onClick={() => navigate('studio')} disabled={loading}>Connect a device<ArrowRight size={14} /></Button>}
+        </section>
       </div>
     </aside>
 
@@ -346,7 +352,7 @@ export default function Connect() {
         </>}
 
         {approval && <Card className="mc-approval" role="status"><span className="mc-eyebrow">YOUR DECISION</span><h2>One action needs your approval</h2><p>{approval.description}</p><div><Button disabled={genericDisabled} onClick={() => act('approval', '/api/computer/approval', { id: approval.id, approved: false })}>Decline</Button><Button primary disabled={genericDisabled} onClick={() => act('approval', '/api/computer/approval', { id: approval.id, approved: true })}>Approve action</Button></div></Card>}
-        <footer className="mc-footer"><div><span className="mc-footer-symbol">✳</span><span>Built with Meta AI</span>{authenticated && state?.model && <><span>·</span><span>{state.model}</span></>}</div><div><span className="mc-dot" />{authenticated ? online ? 'Companion connected' : 'Awaiting companion' : 'Connect. Create. Play.'}</div></footer>
+        <footer className="mc-footer"><div><img className="mc-footer-symbol" src={metaLogo} alt="" width={24} height={24} aria-hidden="true" /><span>Built with Meta AI</span>{authenticated && state?.model && <><span>·</span><span>{state.model}</span></>}</div><div>Connect. Create. Play.</div></footer>
       </main>
     </div>
 

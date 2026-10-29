@@ -543,3 +543,19 @@ no production browser was re-paired for verification. The browser viewport
 override did not apply during this run, so mobile layout was not visually
 re-verified. Local test servers were stopped; the real Studio companion remains
 running.
+
+### Portable setup instructions — October 29
+
+At the user's request, made the setup prompt, skill and main documentation
+agent-neutral. The default path is to open the download in a coding agent and
+read `skills/modulate-setup/SKILL.md`; saving it through that agent's skill
+mechanism is optional. The instructions require local file/command access for
+software setup, without claiming that chat-only tools can install the runtime.
+
+Retained the existing Codex manifest and catalog installer as an optional
+adapter, documented in a collapsed technical section. No new vendor-specific
+installer, platform behavior or access grant was added. Bumped the package to
+**0.1.1** and regenerated the archive/checksum/web prompt. Local validation
+passed: **five package tests**, **24 client tests**, the Next.js production build
+and source-provenance verification. Browser verification and deployment of this
+copy update will be recorded separately; no runtime or pairing state changed.

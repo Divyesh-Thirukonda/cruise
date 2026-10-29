@@ -253,7 +253,7 @@ export default function Connect() {
     activity: ['Inside the agent', 'Real decisions, tool calls and checks as they happen.'],
     code: ['Code & checks', 'The actual generated package, with its verification results.'],
     device: ['Your device', 'Connections, controls and sound.'],
-    setup: ['Set up Modulate', 'Let Codex handle the setup.'],
+    setup: ['Set up Modulate', 'Let your agent handle the setup.'],
     access: ['Choose access', 'Decide what Modulate can use.'],
     connect: ['Connect Modulate', 'Your next idea starts here.'],
   };

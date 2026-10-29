@@ -35,7 +35,7 @@ apply to the whole device, and macOS still owns its native permission dialogs.
 | Code | Responsibility |
 | --- | --- |
 | [src/app/connect/\[\[...screen\]\]/page.js](src/app/connect/[[...screen]]/page.js) | Next.js workspace URLs and supported-screen routing |
-| [src/modulate/EntryScreens.js](src/modulate/EntryScreens.js) | Connection landing, Codex setup help and post-connection access review |
+| [src/modulate/EntryScreens.js](src/modulate/EntryScreens.js) | Connection landing, coding-agent setup help and post-connection access review |
 | [src/modulate/Connect.js](src/modulate/Connect.js) | Session recovery, workspace navigation, Studio, separate Device/Access pages and developer views |
 | [src/modulate/Library.js](src/modulate/Library.js) | Saved apps, favorites, Trash and restore |
 | [src/modulate/api.js](src/modulate/api.js) | Same-origin requests and CSRF handling |
@@ -97,14 +97,17 @@ Never prefix credentials with `REACT_APP_`, `VITE_` or `NEXT_PUBLIC_`. The Mac
 companion still enforces permissions, pairing expiry and durable spending
 limits. A browser dashboard cannot itself grant native computer access.
 
-## Codex setup download
+## Coding-agent setup download
 
-`/connect/setup` offers **Copy Codex prompt** and an optional plugin download at
+`/connect/setup` offers **Copy setup prompt** and an optional plugin download at
 `/downloads/modulate-setup.zip`. The source is
 [plugins/modulate-setup](../../plugins/modulate-setup). Unzip it, open the folder
-in Codex, and ask it to install Modulate Setup. The explicit installer preserves
-existing local plugin catalog entries; Codex then lets the user enable the skill.
-Downloading does not run an installer or grant device access automatically.
+in your coding agent, and ask it to read `skills/modulate-setup/SKILL.md` and
+follow it. The Markdown skill works without a native plugin installation; the
+agent needs local file and command tools to perform setup. Optionally keep it
+using your agent's supported skill mechanism. The package includes a separately
+documented optional Codex adapter, not a universal installer. Downloading does
+not run an installer or grant device access automatically.
 
 The skill discovers existing installations before proposing changes, preserves
 private state and ledgers, and guides necessary physical/macOS steps. The public

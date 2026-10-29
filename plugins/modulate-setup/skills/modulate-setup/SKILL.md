@@ -5,6 +5,12 @@ description: Set up or repair Modulate's local Mac companion, Raspberry Pi runti
 
 # Modulate setup
 
+These instructions are portable: read this file in any coding agent with local
+file and command tools and follow the linked reference. No vendor-specific
+plugin installation is needed. If the user wants to keep the skill, use their
+agent's supported skill mechanism; do not assume the optional adapter in this
+package works with every agent.
+
 Help the user reach a working Modulate connection with as few manual steps as possible. Do the supported software work; explain the next physical or macOS action only when it is needed. Give short progress updates, not a list of every internal check.
 
 ## Establish what already exists

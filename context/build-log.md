@@ -645,4 +645,6 @@ assumes a preloaded gadget and Mac-only agent work. The public plugin bytes
 match the current source package. [Sanitized evidence](evidence/preloaded-enrollment.json)
 keeps local/simulated checks separate from physical enrollment. A full customer
 onboarding trial was deliberately left to the user rather than consuming the
-fresh reset; physical setup-screen confirmation is pending.
+fresh reset. The user subsequently confirmed that the physical gadget displays
+“Set up on your Mac.” This verifies the new screen, not completed enrollment or
+Mac/browser pairing.

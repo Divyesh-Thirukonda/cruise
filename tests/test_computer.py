@@ -179,8 +179,8 @@ class ComputerTests(unittest.TestCase):
             self.desktop.desktop = value
             with self.assertRaises(ComputerError): self.controller.observe()
 
-    def test_invalid_actions_consume_observation_without_native_side_effect(self):
-        actions = [{"type": "shell", "command": "ignored"}, {"type": "click", "x": -1, "y": 2},
+    def test_invalid_actions_retain_fresh_observation_for_correction_without_native_side_effect(self):
+        actions = [None, [], {}, {"type": "shell", "command": "ignored"}, {"type": "click", "x": -1, "y": 2},
                    {"type": "drag", "x": 0, "y": 0, "to_x": 1001, "to_y": 0},
                    {"type": "click", "x": True, "y": 2}, {"type": "click", "x": 1.5, "y": 2},
                    {"type": "scroll", "dx": 0, "dy": 9}, {"type": "key", "keys": ["command", "cmd", "v"]},
@@ -189,11 +189,32 @@ class ComputerTests(unittest.TestCase):
                    {"type": "launch_app", "bundle_id": "/Applications/TextEdit.app"},
                    {"type": "launch_app", "bundle_id": "com.apple.TextEdit", "args": ["ignored"]},
                    {"type": "type_text", "text": "bad\0text"}, {"type": "type_text", "text": "x" * 1001}]
+        identifier = self.observe()
         for action in actions:
             with self.subTest(action=action), self.assertRaises(ComputerError):
-                self.controller.act(self.observe(), action)
-            self.assertIsNone(self.controller.observation)
+                self.controller.act(identifier, action)
+            self.assertEqual(self.controller.observation["id"], identifier)
+            self.assertEqual(self.controller.grant["actions"], 0)
         self.assertFalse(any(call[0] == "action" for call in self.desktop.calls))
+        self.controller.act(identifier, {"type": "key", "keys": ["enter"]})
+        self.assertIsNone(self.controller.observation)
+        self.assertEqual(self.controller.grant["actions"], 1)
+        with self.assertRaises(ComputerError):
+            self.controller.act(identifier, {"type": "key", "keys": ["enter"]})
+        self.assertEqual(sum(call[0] == "action" for call in self.desktop.calls), 1)
+
+    def test_native_failure_consumes_observation_before_dispatch_and_cannot_replay(self):
+        identifier = self.observe()
+        def fail(_):
+            self.assertIsNone(self.controller.observation)
+            raise RuntimeError("Synthetic native failure after possible side effect")
+        self.desktop.on_perform = fail
+        with self.assertRaisesRegex(ComputerError, "Computer action failed"):
+            self.controller.act(identifier, {"type": "click", "x": 500, "y": 500})
+        with self.assertRaisesRegex(ComputerError, "Observe"):
+            self.controller.act(identifier, {"type": "click", "x": 500, "y": 500})
+        self.assertEqual(self.controller.grant["actions"], 1)
+        self.assertEqual(sum(call[0] == "action" for call in self.desktop.calls), 1)
 
     def test_modifiers_app_launch_unicode_paragraphs_and_clipboard_hotkeys_are_bounded(self):
         for keys in (["command", "tab"], ["command", "space"], ["command", "shift", "v"],

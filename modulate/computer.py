@@ -270,19 +270,26 @@ class ComputerController:
     def act(self, observation_id, action):
         with self.lock:
             desktop = self._check()
-            observation, self.observation = self.observation, None
-            if (not observation or observation_id != observation["id"]
-                    or self.clock() - observation["at"] >= OBSERVATION_SECONDS
+            observation = self.observation
+            if not observation or observation_id != observation["id"]:
+                raise ComputerError("Observe the current primary desktop again before acting")
+            if (self.clock() - observation["at"] >= OBSERVATION_SECONDS
                     or not _same_desktop(observation["desktop"], desktop)):
+                self.observation = None
                 raise ComputerError("Observe the current primary desktop again before acting")
             if self.grant["actions"] >= MAX_ACTIONS:
                 raise ComputerError("Computer request action limit reached")
             action = self._action(action, observation, desktop)
-            self.grant["actions"] += 1
             self.active = True
             try:
                 if not _same_desktop(desktop, self._check()):
+                    self.observation = None
                     raise ComputerError("Primary display changed; observe again")
+                # Validation has no OS side effects. Retain a fresh observation
+                # so malformed arguments can be repaired, but consume it before
+                # dispatch even if the native operation later fails or times out.
+                self.observation = None
+                self.grant["actions"] += 1
                 self.backend.perform(desktop, action, self.cancelled)
                 if self.cancelled.is_set():
                     raise ComputerError("Computer action cancelled; inspect the current result")

@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
-from modulate.agent import AgentError, Ledger, Orchestrator, digest
+from modulate.agent import AgentError, Ledger, Orchestrator, digest, _tool_error_category
 from modulate.agent_provider import AgentProvider
 
 
@@ -165,6 +165,10 @@ class AgentTests(unittest.TestCase):
                          "Finished after inspecting the last result.")
         self.assertEqual(len(provider.requests), 13)
         self.assertLessEqual(agent.calls, agent.max_calls)
+
+    def test_tool_diagnostics_never_echo_private_exception_text(self):
+        self.assertEqual(_tool_error_category({"error": "Invalid key combination"}), "key_combination")
+        self.assertEqual(_tool_error_category({"error": "SYNTHETIC_PRIVATE_SCREEN_TEXT"}), "tool_error")
 
     def test_repeated_identical_tool_failure_stops_and_counter_resets_for_new_request(self):
         failing = reply(("read_current_package", {}))

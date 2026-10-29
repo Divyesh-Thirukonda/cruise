@@ -1064,7 +1064,7 @@ class Controller:
                                           ("failed", "error", "not confirmed", "not connected")) else "instructions"
                     self.status(feedback["title"], feedback["detail"], mode=mode)
                 elif offer:
-                    self.status("Compare with Mac Studio", f"Code: {offer['code']}\nA: allow Mac access\nB: decline")
+                    self.status("Compare with your Mac", f"Code: {offer['code']}\nA: allow Mac access\nB: decline")
                 elif voice_overlay:
                     if voice_message.startswith("Listening for your answer"):
                         self.status("Your answer", "Go ahead. I’m listening.", mode="listening", footer="No Hey Meta needed")

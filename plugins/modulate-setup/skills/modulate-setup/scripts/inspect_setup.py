@@ -21,7 +21,7 @@ HELPER_ERRORS = {
     "setup_in_progress", "setup_error", "invalid_input",
 }
 HELPER_ACTIONS = {
-    "enter_details", "wait", "confirm_on_device", "open_studio", "check_identity",
+    "enter_details", "wait", "confirm_on_device", "open_setup", "open_studio", "check_identity",
     "new_setup_code", "check_code", "check_device", "check_network", "check_studio",
 }
 

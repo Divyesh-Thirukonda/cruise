@@ -18,12 +18,14 @@ shell or developer account. Modulate Studio is
 the companion software that must be installed and running on the Mac; opening
 this website alone does not start it. Copy the setup prompt into your coding
 agent so it can prepare and start Studio and link the preloaded gadget.
-It should finish with the verified connection-page URL for your installation
-and a fresh browser code displayed in local Studio or on the Pi. A separate
-installation needs its own configured URL, not the shared demo's unrelated hub.
+It should finish back at the website connection screen for this installation.
+The focused Mac page at `http://127.0.0.1:8787/setup` handles native code comparison
+and the browser-code handoff. The root local Studio remains a developer tool;
+it is not a customer setup destination. A separate installation needs its own
+configured URL, not the shared demo's unrelated hub.
 
 1. Keep the Mac companion and its outbound connection running.
-2. On that Mac, open `http://127.0.0.1:8787` and create a browser connection code.
+2. The setup agent opens `http://127.0.0.1:8787/setup`. Compare native pairing codes if needed. Once the Mac/device link and website connection are configured, use **Get connection code**, then **Continue to website**. Existing valid pending codes are reused; polling never rotates them.
 3. On a phone or computer, visit `https://modulate-connect.vercel.app/connect` and enter the single-use eight-digit code. Preserve leading zeroes. The first screen shows only a brief introduction, connection and setup help.
 4. Once connected, review the existing device access settings on the next screen. **Keep current access** opens Studio without a permission write; **Save & open Studio** sends only choices you changed. Connecting a browser itself does not reset device permissions.
 5. Use Studio for the running app and requests. **App library**, **Device** and **Access** have their own pages; expand **Developer tools** for agent activity or generated source/checks. The workspace sidebar appears after connection, and returning valid sessions open Studio directly.
@@ -95,9 +97,12 @@ with the proper host/device addresses and the retained state/ledger, run
 chat or logs. Compare the displayed Mac/request on both screens, then press
 small **A** again on the device to save the link; **B** declines it. The runtime
 loads the enrollment without a restart. This is followed by the existing,
-separate native Mac-access confirmation. Local setup is complete once Studio sees
-the gadget online and native Mac access is active. Browser access is optional;
-only request a browser code for a configured remote gateway the user wants.
+separate native Mac-access confirmation on the narrow `/setup` page. This verifies
+the local link; the customer website journey continues with a browser connection
+code and a return to `/connect`. If remote access is unconfigured, explain the
+remaining setup step without sending the customer into developer Studio or
+calling the website connected. A deliberately local-only installation can stop
+after the local link, but that is not the default website onboarding finish.
 
 The Mac verifies the physical certificate pin before sending any enrollment
 credential. The device accepts only a bounded origin/public certificate/device
@@ -121,7 +126,7 @@ The maintained Pi runtime displays setup locally if enrollment is missing/invali
 - **Both** screen buttons retain push-to-talk. Setup actions need a fresh release and press. Preparing native pairing does not approve it: the separate matching-code card still needs another fresh small-A press.
 - Once enrolled and able to reach the companion, say **“Hey Meta, help me connect”** or **“show setup.”** Meta chooses the `connection-setup` skill and trusted `connection_setup` tools to inspect state and prepare the next step. Computer use is not required for these tools. The agent cannot operate the Mac before native pairing or grant its own macOS permissions.
 
-Native comparison codes appear automatically in local Studio even when pairing starts on the gadget. The read-only `/api/pairing` route requires the local Studio cookie and CSRF token; codes stay out of ordinary state, agent context and remote data. Opening the dialog preserves the pending code, and expiry or completion clears it.
+Native comparison codes appear in the focused Mac setup page even when pairing starts on the gadget. Developer Studio retains its existing comparison dialog for diagnostics. The read-only `/api/pairing` route requires the local Studio cookie and CSRF token; codes stay out of ordinary state, agent context and remote data. Opening the dialog preserves the pending code, and expiry or completion clears it.
 
 Browser codes appear only in authenticated device setup offers, never the model's results, normal dashboard state or spoken reply. They expire after five minutes and disappear when consumed, replaced or revoked. A fresh matching Pi display telemetry report can confirm that an offered guide is visible; queued work is not reported as physical display success.
 
@@ -168,7 +173,7 @@ Sources: [Cloudflare Quick Tunnels](https://developers.cloudflare.com/tunnel/get
 
 ## Agent-led setup recovery
 
-The portable 0.3.0 skill checks fresh helper/Studio status before a handoff or
+The portable 0.4.0 skill checks fresh helper/companion status before a handoff or
 retry. It operates authorized Mac forms instead of repeatedly handing them back
 to the customer, and stops stale retries once the user advances the flow. Private
 identity/code entry remains the default; delegated entry follows the user and
@@ -177,5 +182,10 @@ tool permissions, without claiming it is absent from tool transcripts.
 The helper explains specific bounded error reasons and highlights mistyped
 identity positions without supplying or trusting a network replacement. Older
 factory errors that cannot distinguish a closed window from expiry remain
-explicitly uncertain. Completed enrollment continues to local Studio for the
-separate Mac-code comparison; it does not promise an unconfigured public link.
+explicitly uncertain. Completed enrollment continues to the focused Mac pairing page for the
+separate code comparison, then returns to the website connection screen.
+The agent verifies the configured website serves this installation and is
+reachable before handing off its browser code. A configured local gateway
+alone is not proof of web connectivity; only a successful browser session
+finishes website pairing. An existing browser session is retained and opens
+the workspace instead of being disconnected just to replay onboarding.

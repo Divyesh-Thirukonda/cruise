@@ -15,7 +15,7 @@ import AppLibrary from './Library';
 import metaLogo from './assets/meta.svg';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button, Badge, Toggle, Card, Brand } from './ui';
-import { ConnectionLanding, SetupScreen, AccessStep } from './EntryScreens';
+import { ConnectionLanding, SetupScreen, AccessStep, ConnectionUnavailable } from './EntryScreens';
 
 const NAV = [
   ['studio', LayoutDashboard, 'Studio'], ['library', Library, 'App library'],
@@ -49,6 +49,7 @@ export default function Connect() {
   const [session, setSession] = useState(null);
   const [state, setState] = useState(null);
   const [online, setOnline] = useState(false);
+  const [connectionUnavailable, setConnectionUnavailable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState(null);
   const [busy, setBusy] = useState('');
@@ -122,9 +123,11 @@ export default function Connect() {
           setState(null);
           setOnline(false);
         }
+        setConnectionUnavailable(nextSession.companion?.online === false);
       } catch (error) {
         if (!isCurrent()) return;
         setOnline(false);
+        setConnectionUnavailable(error.status !== 401);
         if (error.status === 401) { setSession(null); setState(null); }
         else if (nextSession) setSession(nextSession);
       } finally {
@@ -185,7 +188,10 @@ export default function Connect() {
       if (success) setNotice({ text: success, type: 'success' });
       return result;
     } catch (error) {
-      if (mounted.current) setNotice({ text: error.message || 'That action could not be completed.', type: 'error', setupHelp: !error.status || [502, 503, 504].includes(error.status) });
+      if (mounted.current) {
+        const setupHelp = !error.status || [502, 503, 504].includes(error.status);
+        setNotice({ text: key === 'connect' && setupHelp ? 'Your Modulate connection isn’t reachable yet. Ask your setup agent to finish or reconnect it.' : error.message || 'That action could not be completed.', type: 'error', setupHelp });
+      }
       return null;
     } finally {
       mutationRunning.current = false;
@@ -224,7 +230,7 @@ export default function Connect() {
   const packageData = active?.package;
   const controls = Array.isArray(state?.device?.capabilities?.controls) ? state.device.capabilities.controls : [];
   const connectionStatus = loading ? 'Connecting' : !authenticated ? 'Not connected' : !online ? 'Companion offline' : !deviceConnected ? 'Device offline' : 'Connected';
-  const connectionHint = loading ? 'Checking your connection…' : !authenticated ? 'Enter a code to link this browser.' : !online ? 'Open Modulate Studio on your Mac.' : !deviceConnected ? 'Companion is online. Check your Pi.' : `${controls.length} ${controls.length === 1 ? 'control' : 'controls'} ready to use.`;
+  const connectionHint = loading ? 'Checking your connection…' : !authenticated ? 'Enter a code to link this browser.' : !online ? 'Ask your setup agent to reconnect your Mac.' : !deviceConnected ? 'Companion is online. Check your Pi.' : `${controls.length} ${controls.length === 1 ? 'control' : 'controls'} ready to use.`;
   const response = state?.response;
   const responseVisible = response?.text && response.id !== dismissedResponse && dateMs(response.expires_at) > now;
   const draft = state?.voice_draft;
@@ -275,7 +281,7 @@ export default function Connect() {
   </Card>;
 
   const urgentControls = authenticated && (agentRunning || approval || draft || state?.clarification || computer?.active || cameraRunning || audioRunning) ? <div className="mf-urgent" role="status"><strong>{approval ? 'An action needs your approval' : draft ? 'Review your spoken request' : state?.clarification ? 'Modulate has a question' : agentRunning ? state?.agent?.title || 'Working on your request' : 'Your device is using a live connection'}</strong><div><Button quiet onClick={() => navigate('studio')}>Return to Studio</Button>{(agentRunning || draft || state?.clarification) && <Button danger disabled={genericDisabled} onClick={() => act('cancel', '/api/cancel', {})}>Cancel request</Button>}{computer?.active && <Button danger disabled={genericDisabled} onClick={() => act('computer', '/api/computer', { action: 'revoke' })}>Pause access</Button>}{cameraRunning && <Button quiet disabled={genericDisabled} onClick={() => act('camera', '/api/camera/stop', {})}>Stop camera</Button>}{audioRunning && <Button quiet disabled={genericDisabled} onClick={() => act('audio', '/api/audio/stop', {})}>Stop computer audio</Button>}</div></div> : null;
-  const entryProps = { loading, busy, notice, urgentControls, onDismissNotice: () => setNotice(null), navigate };
+  const entryProps = { loading, busy, notice, connectionUnavailable, urgentControls, onDismissNotice: () => setNotice(null), navigate };
   if (view === 'setup') return <SetupScreen {...entryProps} connected={authenticated} />;
   if (!authenticated || view === 'connect') return <ConnectionLanding {...entryProps} code={code} setCode={setCode} onConnect={pairBrowser} />;
   if (view === 'access') return <AccessStep {...entryProps} permissions={permissions} choices={PERMISSIONS} online={online} onSave={async choices => {
@@ -305,7 +311,7 @@ export default function Connect() {
       <main className="mc-main" id="mc-main">
         <div className="mc-page-heading"><div className="mc-page-title"><button className="mc-menu-button" type="button" aria-label="Open navigation" aria-expanded={menuOpen} aria-controls="mc-navigation" onClick={() => setMenuOpen(true)}><Menu size={22} /></button><div><h1>{pageTitles[view][0]}</h1><p>{pageTitles[view][1]}</p></div></div>{authenticated && <Button icon={RefreshCw} quiet disabled={Boolean(busy)} onClick={refresh}>Refresh</Button>}</div>
         {notice && <div className={`mc-notice mc-notice-${notice.type}`} role="status">{notice.type === 'success' ? <CheckCircle2 size={18} /> : <Bell size={18} />}<span>{notice.text}</span><button aria-label="Dismiss notification" onClick={() => setNotice(null)}><X size={16} /></button></div>}
-        {authenticated && !online && <div className="mc-notice mc-notice-warning" role="status"><Wifi size={18} /><span>Modulate Studio isn’t reachable on your Mac. Retrying automatically.<button className="mf-notice-action" type="button" onClick={() => navigate('setup')}>Set up or restart Studio<ArrowRight size={14} /></button></span></div>}
+        {authenticated && !online && <ConnectionUnavailable onSetup={() => navigate('setup')} />}
         {computer?.active && <div className="mc-live-control" role="status"><span className="mc-pulse-dot" /><strong>Modulate is using your Mac</strong><span>{computer.scope || 'Paired Mac desktop'}</span><Button danger icon={Square} onClick={() => act('computer', '/api/computer', { action: 'revoke' })} disabled={genericDisabled}>Pause access</Button></div>}
 
         {approval && <Card className="mc-approval" role="status"><span className="mc-eyebrow">YOUR DECISION</span><h2>One action needs your approval</h2><p>{approval.description}</p><div><Button disabled={genericDisabled} onClick={() => act('approval', '/api/computer/approval', { id: approval.id, approved: false })}>Decline</Button><Button primary disabled={genericDisabled} onClick={() => act('approval', '/api/computer/approval', { id: approval.id, approved: true })}>Approve action</Button></div></Card>}

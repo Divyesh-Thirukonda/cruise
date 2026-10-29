@@ -1,7 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { Camera, Settings2 } from 'lucide-react';
-import { AccessStep } from './EntryScreens';
+import { AccessStep, SetupScreen } from './EntryScreens';
 
 const choices = [
   { key: 'system', title: 'System controls', detail: 'Adjust system settings.', icon: Settings2 },
@@ -47,4 +47,13 @@ test('keeping current access discards unsaved edits without changing device gran
 
   expect(initial.onSave).not.toHaveBeenCalled();
   expect(initial.navigate).toHaveBeenCalledWith('studio');
+});
+
+
+test('setup returns to the website connection flow without modifying access', () => {
+  const navigate = jest.fn();
+  render(<SetupScreen navigate={navigate} connected={false} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Return to connection' }));
+  expect(navigate).toHaveBeenCalledWith('connect');
+  expect(screen.queryByRole('switch')).not.toBeInTheDocument();
 });

@@ -45,7 +45,7 @@
 .mf-plugin-card p { font-size: 11px; color: #919fb3; line-height: 1.8; margin: 5px 0; }
 .mf-plugin-card details { margin-top: 8px; }
 .mf-setup-scope { color: #7e8da3; font-size: 11px; line-height: 1.7; padding: 14px 0; border-top: 1px solid #2b3442; }
-.mf-setup .mf-main > .mc-button { margin: 10px 0 0 -12px; }
+.mf-setup .mf-main > .mc-button { margin: 14px 0 4px; }
 .mf-steps { display: flex; align-items: center; gap: 13px; margin-bottom: 35px; font-size: 11px; color: #6d7b91; }
 .mf-steps > span:not(.mf-step-line) { display: inline-flex; align-items: center; gap: 7px; }
 .mf-steps i { font-style: normal; border: 1px solid #3b4759; border-radius: 50%; width: 20px; height: 20px; display: grid; place-items: center; font-size: 9px; }

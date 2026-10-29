@@ -1,4 +1,4 @@
-"""Trusted setup guidance; pairing credentials travel only to the enrolled Pi."""
+"""Trusted setup guidance; model results never include connection codes."""
 from __future__ import annotations
 
 import copy
@@ -40,22 +40,23 @@ class ConnectionSetup:
                        and display.get("offer_id") == offer_id)
         if not product.connected():
             instructions = ["Keep Modulate powered and on the companion's network.",
-                            "Open Modulate Studio on the Mac and keep it running."]
+                            "Keep the companion running on your Mac; continue in the connection setup page."]
         elif not brief["paired_mac"]:
-            instructions = ["Start Mac pairing, then compare the code and press the small A button on Modulate.",
+            instructions = ["Continue pairing on your Mac, compare both codes, then press the small A button on Modulate.",
                             "Grant any required macOS permissions yourself on the Mac."]
         elif not brief["browser_count"] and brief["remote_enabled"]:
             instructions = [f"Create a browser code on Modulate, then open {CONNECT_LABEL} on your phone or computer.",
                             "Enter the code shown on the device and choose its access switches."]
         elif not brief["remote_enabled"]:
-            instructions = ["Ready on this Mac. Open local Studio at http://127.0.0.1:8787.",
-                            "Remote browser access is optional and is not configured for this installation."]
+            instructions = ["Your Mac and Modulate are linked. The website connection still needs setup.",
+                            "Ask your setup agent to finish the browser connection, then return to the website pairing screen."]
         else:
             instructions = [f"The Mac is paired. Use {CONNECT_LABEL} to manage the existing device connection."]
         return {**brief, "device_connected": product.connected(), "companion_running": True,
                 "pairing_saved": bool(product.capabilities()["paired_host"]),
                 "local_ready": product.connected() and bool(session),
-                "local_studio_url": "http://127.0.0.1:8787",
+                "companion_setup_url": "http://127.0.0.1:8787/setup",
+                "browser_linked": bool(brief["browser_count"]),
                 "pairing_expires_at": session.get("expires_at") if session else None,
                 "native_permissions": {key: permissions.get(key) if type(permissions.get(key)) is bool else None
                                        for key in ("screen_recording", "accessibility")},
@@ -101,21 +102,22 @@ class ConnectionSetup:
                 product.setup_offer = None
                 return {**brief, "pairing_started": True, "expires_at": pairing["expires_at"],
                         "display_requested": True, "displayed": False,
-                        "instruction": "Compare the pairing code in Studio with Modulate, then press the small A button on the device. The Mac is not authorized until that confirmation."}
+                        "instruction": "Compare the code on the Mac pairing screen with Modulate, then press the small A button on the device. The Mac is not authorized until that confirmation."}
             offer = {"kind": "guide", "id": uuid.uuid4().hex,
                      "expires_at": time.time() + OFFER_SECONDS, "title": "Connect your computer",
                      "lines": [CONNECT_HOST, "/connect", "A: continue setup", "B: not now"],
                      "connect_url": CONNECT_URL, "browser_count": brief["browser_count"]}
             if action == "create_browser_code":
                 if not brief["remote_enabled"]:
-                    raise AgentError("The public gateway is not configured. Open the Mac's local Studio to finish companion setup.")
+                    raise AgentError("The website connection is not configured. Ask your setup agent to finish it, then return to browser pairing.")
                 pairing = product.remote_access.create_pairing()
                 offer.update(kind="browser_code", code=pairing["code"], expires_at=pairing["expires_at"],
                              title="Connect this browser", lines=[CONNECT_HOST, "/connect", "Enter this one-use code", "B: not now"])
             elif not brief["remote_enabled"]:
-                offer["title"] = "Ready on your Mac" if brief["paired_mac"] else "Confirm Mac access"
-                offer["lines"] = ["On Mac: 127.0.0.1:8787",
-                                  "Local setup is complete." if brief["paired_mac"] else "A: show comparison code",
+                offer["title"] = "Finish connecting" if brief["paired_mac"] else "Confirm Mac access"
+                offer["lines"] = ["Continue on your Mac.",
+                                  "Finish website setup." if brief["paired_mac"] else "Compare both screens.",
+                                  "Ask your setup agent." if brief["paired_mac"] else "A: show comparison code",
                                   "B: close"]
             product.setup_offer = offer
             return {**brief, "display_requested": True, "displayed": False, "expires_at": offer["expires_at"],

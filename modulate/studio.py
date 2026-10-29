@@ -21,6 +21,7 @@ from .agent_provider import AgentProvider
 from .agent import AgentError
 from .host_bridge import BridgeError
 from .product import Product
+from .deployment import CONNECT_URL
 
 
 def atomic_json(path, value):
@@ -67,6 +68,26 @@ class IPv6Server(ThreadingHTTPServer):
     address_family = socket.AF_INET6
     daemon_threads = True
 
+
+
+def customer_setup_status(product):
+    """Local authenticated setup view; no generated content or host/provider credentials."""
+    with product.lock:
+        status = product.connection_setup("status")
+        result = {key: status.get(key) for key in (
+            "device_connected", "paired_mac", "pairing_saved", "local_ready",
+            "remote_enabled", "browser_count", "pairing_expires_at", "native_permissions")}
+        result["website_url"] = CONNECT_URL
+        result["browser_pairing"] = None
+        offer = product.setup_offer
+        remote = product.remote_access
+        if (result["device_connected"] is True and result["paired_mac"] is True
+                and result["local_ready"] is True and result["remote_enabled"] is True
+                and remote is not None and type(offer) is dict and offer.get("kind") == "browser_code"
+                and remote.pairing_active(offer.get("code"), offer.get("expires_at"))):
+            result["browser_pairing"] = {"code": offer["code"], "expires_at": offer["expires_at"],
+                                         "browser_count": offer.get("browser_count", result["browser_count"])}
+        return result
 
 def handler_for(product, *, device=False, device_key="", csrf="", cookie="", port=8787,
                 host_url="", peer=None):
@@ -136,6 +157,10 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
             if device or not self.authorized():
                 return self.send(403, {"error": "Forbidden"})
             path = urlparse(self.path).path
+            if path == "/api/setup":
+                if not self.authorized(sensitive=True):
+                    return self.send(403, {"error": "Forbidden"})
+                return self.send(200, customer_setup_status(product))
             if path == "/api/pairing":
                 if not self.authorized(sensitive=True):
                     return self.send(403, {"error": "Forbidden"})
@@ -149,14 +174,20 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
                 return self.send(200, product.preview_bytes, "image/png") if product.preview_bytes else self.send(404, {"error": "No live frame yet"})
             if path == "/api/candidate-preview.png":
                 return self.send(200, product.candidate_preview_bytes, "image/png") if product.candidate_preview_bytes else self.send(404, {"error": "No candidate preview yet"})
-            names = {"/": ("index.html", "text/html; charset=utf-8"), "/lab": ("lab.html", "text/html; charset=utf-8"), "/app.js": ("app.js", "text/javascript; charset=utf-8"),
+            names = {"/setup": ("setup.html", "text/html; charset=utf-8"),
+                     "/setup.js": ("setup.js", "text/javascript; charset=utf-8"),
+                     "/setup.css": ("setup.css", "text/css; charset=utf-8"),
+                     "/": ("index.html", "text/html; charset=utf-8"), "/lab": ("lab.html", "text/html; charset=utf-8"), "/app.js": ("app.js", "text/javascript; charset=utf-8"),
                      "/lab.js": ("lab.js", "text/javascript; charset=utf-8"),
                      "/lab.css": ("lab.css", "text/css; charset=utf-8"),
                      "/style.css": ("style.css", "text/css; charset=utf-8")}
             if path not in names:
                 return self.send(404, {"error": "Not found"})
             filename, mime = names[path]
-            return self.send(200, (web / filename).read_bytes(), mime, session=True)
+            content = (web / filename).read_bytes()
+            if filename == "setup.html":
+                content = content.replace(b"__CONNECT_URL__", CONNECT_URL.encode("ascii"))
+            return self.send(200, content, mime, session=True)
 
         def do_POST(self):
             if not self.authorized(mutation=True):
@@ -215,6 +246,29 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
                         result = product.rollback()
                     else:
                         return self.send(404, {"error": "Unknown device action"})
+                elif path in {"/api/setup/pairing", "/api/setup/browser-code"}:
+                    if data:
+                        raise ValueError("This setup step accepts no extra fields")
+                    with product.lock:
+                        current = customer_setup_status(product)
+                        if current["device_connected"] is not True:
+                            raise ValueError("Your gadget is offline. Keep it powered and connected before continuing.")
+                        if path == "/api/setup/pairing":
+                            if current["paired_mac"] is True:
+                                result = {"pending": None, "already_paired": True}
+                            else:
+                                pending = product.local_pairing() or product.create_pairing()
+                                result = {"pending": {**pending, "host_url": host_url}, "already_paired": False}
+                        else:
+                            if current["local_ready"] is not True or current["paired_mac"] is not True:
+                                raise ValueError("Confirm Mac access on the gadget before connecting the website.")
+                            if current["remote_enabled"] is not True:
+                                raise ValueError("Your setup agent still needs to finish this Mac's website connection.")
+                            if current["browser_pairing"] is None:
+                                product.connection_setup("create_browser_code")
+                            result = customer_setup_status(product)
+                            if result["browser_pairing"] is None:
+                                raise ValueError("A website code could not be prepared. Check the connection before retrying.")
                 elif path == "/api/request":
                     result = product.request(data.get("text"), followup_id=data.get("followup_id"))
                 elif path == "/api/library":
@@ -322,7 +376,7 @@ def main():
     for server in (device_server, studio):
         server.daemon_threads = True
     threading.Thread(target=device_server.serve_forever, daemon=True).start()
-    print(f"Modulate Studio: http://127.0.0.1:{args.port}", flush=True)
+    print(f"Modulate connection setup: http://127.0.0.1:{args.port}/setup", flush=True)
     print("Device endpoint uses pinned TLS, bearer authentication and an exact peer allowlist.", flush=True)
     try:
         studio.serve_forever()

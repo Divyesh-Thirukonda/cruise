@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Connect your Modulate</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/setup.css">
+  <script src="/setup.js" defer></script>
+</head>
+<body>
+  <header><a class="brand" href="__CONNECT_URL__" aria-label="Modulate website"><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>modulate<span>.</span></a><span class="local-label">Connection setup</span></header>
+  <main aria-labelledby="title">
+    <ol class="steps" aria-label="Connection progress"><li id="step-device"><span>1</span>Device linked</li><li id="step-mac"><span>2</span>Mac access</li><li id="step-web"><span>3</span>Website</li></ol>
+    <section class="card">
+      <div class="symbol" aria-hidden="true"><span></span><span></span><span></span></div>
+      <p id="eyebrow" class="eyebrow">CONNECTING</p>
+      <h1 id="title">Checking your connection.</h1>
+      <p id="description" class="description">Keep your gadget powered on. This page will show the next step.</p>
+      <section id="comparison" hidden aria-labelledby="comparison-label"><p id="comparison-label" class="eyebrow">MAC ACCESS CODE</p><output id="comparison-code" class="code" aria-label="Mac access comparison code"></output><p id="comparison-expiry" class="small"></p><p class="instruction">Check the same code on your gadget. Only then release and press small <strong>A</strong> once to approve. <strong>B</strong> declines.</p></section>
+      <section id="website-code-panel" hidden aria-labelledby="website-code-label"><p id="website-code-label" class="eyebrow">WEBSITE CONNECTION CODE</p><output id="website-code" class="code" aria-label="Website connection code"></output><p id="website-expiry" class="small"></p><p class="instruction">Use this one-use code on the Modulate website. Keep this Mac and your gadget running.</p></section>
+      <p id="notice" class="notice" role="status" aria-live="polite" hidden></p>
+      <button id="pair" class="primary" type="button" hidden>Show comparison code</button>
+      <button id="prepare-website" class="primary" type="button" hidden>Get website connection code</button>
+      <button id="continue-website" class="primary" type="button" hidden>Copy code and continue</button>
+      <a id="website-link" class="primary" href="__CONNECT_URL__" hidden>Open Modulate</a>
+      <button id="retry" class="secondary" type="button">Check connection</button>
+      <p id="permission-note" class="small" hidden></p>
+      <details id="access-details" hidden><summary>What Mac access allows</summary><p>Modulate can carry out your requests using this Mac’s apps, cursor, keyboard, system controls, camera and audio. macOS permissions still apply. You can manage access on the website after connecting.</p></details>
+    </section>
+    <p class="footnote">A few steps. Then a new idea is all it takes.</p>
+  </main>
+</body>
+</html>

@@ -42,6 +42,17 @@ class SetupProbeTests(unittest.TestCase):
         self.assertTrue(result["studio"]["pairing_saved"])
         self.assertFalse(result["studio"]["native_pairing_active"])
 
+    def test_completion_handoffs_support_current_and_legacy_helpers_without_private_urls(self):
+        for action in ("open_setup", "open_studio", "PRIVATE_ACTION"):
+            with self.subTest(action=action):
+                helper = {"status": "complete", "next_action": action,
+                          "companion_setup_url": "http://private-host/setup", "message": "private details"}
+                result = probe.live_status(self.read_status({}, helper))["enrollment_helper"]
+                expected = {"status": "complete"}
+                if action != "PRIVATE_ACTION":
+                    expected["next_action"] = action
+                self.assertEqual(result, expected)
+
     def test_online_but_unpaired_device_is_not_ready(self):
         state = {"device": {"connected": True}, "paired": False, "remote": {"enabled": False}}
         result = probe.live_status(self.read_status(state, {"status": "awaiting_confirmation"}))

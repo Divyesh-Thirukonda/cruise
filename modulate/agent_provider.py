@@ -27,6 +27,8 @@ import urllib.error
 import urllib.request
 import uuid
 
+from .cloud_provider import CloudConfigurationError, CloudProvider
+
 
 ENDPOINTS = {
     "meta": "https://api.meta.ai/v1/chat/completions",
@@ -421,9 +423,15 @@ class AgentProvider:
             raise AgentProviderError("Invalid credential environment variable name.")
         self.config = replace(config, model=model, endpoint=endpoint, api_key_env=key_env)
         self._opener = urllib.request.build_opener(_NoRedirect())
+        try:
+            self._cloud = CloudProvider() if config.provider == "meta" else None
+        except CloudConfigurationError:
+            raise AgentProviderError("Modulate cloud provider configuration is incomplete or invalid.") from None
 
     def _headers(self):
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        if self._cloud and self._cloud.enabled:
+            return self._cloud.request("meta", {})[1]
         if self.config.provider != "ollama":
             key = os.environ.get(self.config.api_key_env, "").strip()
             if not key:
@@ -436,8 +444,10 @@ class AgentProvider:
     def _request(self, payload):
         data = _encode(payload, MAX_REQUEST_BYTES, "Request")
         headers = self._headers()
+        endpoint = (self._cloud.request("meta", payload)[0]
+                    if self._cloud and self._cloud.enabled else self.config.endpoint)
         try:
-            request = urllib.request.Request(self.config.endpoint, data=data, headers=headers, method="POST")
+            request = urllib.request.Request(endpoint, data=data, headers=headers, method="POST")
             with self._opener.open(request, timeout=self.config.timeout) as response:
                 body = response.read(MAX_RESPONSE_BYTES + 1)
         except urllib.error.HTTPError as error:

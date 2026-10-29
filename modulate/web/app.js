@@ -576,6 +576,12 @@
 
   function renderFooter() {
     const state = ui.state;
+    const remote = state?.remote;
+    $("remote-panel").hidden = remote?.enabled !== true;
+    const browsers = remote?.browsers || [];
+    text("remote-status", browsers.length ? `${browsers.length} connected browser${browsers.length === 1 ? "" : "s"}. Device permissions are shared across them.` : "No connected browsers.");
+    $("remote-pair").disabled = !ui.online || ui.mutating.has("remote-pair");
+    $("remote-revoke").disabled = !ui.online || ui.mutating.has("remote-revoke");
     text("provider-label", state?.provider || "Provider unavailable");
     text("model-label", state?.model || "No model configured");
     $("model-label").title = typeof state?.model === "string" ? state.model : "";
@@ -752,6 +758,17 @@
   $("wake-toggle").addEventListener("click", () => action("wake", "/api/wake", {enabled: ui.state?.wake !== true}));
   $("pairing-open").addEventListener("click", createPairing);
   $("pairing-refresh").addEventListener("click", createPairing);
+  $("remote-pair").addEventListener("click", async () => {
+    const result = await action("remote-pair", "/api/remote/pairing", {});
+    if (result?.code) {
+      $("remote-code").hidden = false;
+      text("remote-code", `${result.code} · expires in 5 minutes · one use`);
+    }
+  });
+  $("remote-revoke").addEventListener("click", async () => {
+    const result = await action("remote-revoke", "/api/remote/revoke", {}, "All remote browsers disconnected.");
+    if (result) $("remote-code").hidden = true;
+  });
 
   $("inspect-open").addEventListener("click", () => {
     ui.inspectSource = ui.state?.candidate ? "candidate" : "active";

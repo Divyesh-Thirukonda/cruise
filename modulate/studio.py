@@ -55,7 +55,8 @@ def load_credentials(path):
     if path.stat().st_mode & 0o077:
         raise ValueError("Credential file must have mode600")
     allowed = {"MODEL_API_KEY", "FIREWORKS_API_KEY", "ELEVENLABS_API_KEY",
-               "ELEVENLABS_VOICE_ID", "ELEVENLABS_MODEL_ID", "MODULATE_TTS_PROVIDER"}
+               "ELEVENLABS_VOICE_ID", "ELEVENLABS_MODEL_ID", "MODULATE_TTS_PROVIDER",
+               "MODULATE_REMOTE_SECRET", "MODULATE_CLOUD_KEY", "MODULATE_CLOUD_URL"}
     for line in path.read_text().splitlines():
         name, separator, value = line.partition("=")
         if separator and name in allowed:
@@ -202,6 +203,14 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
                         return self.send(404, {"error": "Unknown device action"})
                 elif path == "/api/request":
                     result = product.request(data.get("text"), followup_id=data.get("followup_id"))
+                elif path == "/api/remote/pairing":
+                    if product.remote_access is None:
+                        raise ValueError("The public connection gateway is not configured")
+                    result = product.remote_access.create_pairing()
+                elif path == "/api/remote/revoke":
+                    if product.remote_access is None:
+                        raise ValueError("The public connection gateway is not configured")
+                    result = product.remote_access.revoke(all_sessions=True)
                 elif path == "/api/context/clear":
                     result = product.clear_context()
                 elif path == "/api/hardware/confirm":
@@ -233,6 +242,8 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
                 elif path == "/api/wake":
                     if type(data.get("enabled")) is not bool:
                         raise ValueError("enabled must be boolean")
+                    if data["enabled"] and hasattr(product, "require_permission"):
+                        product.require_permission("voice")
                     product.wake = data["enabled"]
                     result = {"enabled": product.wake}
                 else:
@@ -252,6 +263,8 @@ def main():
     parser.add_argument("--provider", choices=["meta", "ollama", "fireworks"], default="meta")
     parser.add_argument("--model", default="muse-spark-1.3")
     parser.add_argument("--env-file")
+    parser.add_argument("--connect-env-file", help="Optional private public-connection gateway configuration")
+    parser.add_argument("--remote-port", type=int, default=8789)
     parser.add_argument("--budget", type=float, default=0, help="Explicit approved dollar ceiling; defaults to no cloud calls")
     parser.add_argument("--port", type=int, default=8787)
     parser.add_argument("--device-port", type=int, default=8788)
@@ -259,6 +272,7 @@ def main():
     parser.add_argument("--device-address", required=True, help="Only this peer may access the TLS device endpoint")
     args = parser.parse_args()
     os.umask(0o077)
+    load_credentials(args.connect_env_file)
     load_credentials(args.env_file)
     directory = Path(args.state_dir).resolve()
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -267,6 +281,17 @@ def main():
     provider = AgentProvider({"provider": args.provider, "model": args.model, "max_tokens": 8192,
                               "reasoning_effort": "low" if args.provider == "meta" else None})
     product = Product(directory, provider, budget=args.budget)
+    remote_server = None
+    if os.environ.get("MODULATE_REMOTE_SECRET"):
+        from .remote_access import RemoteAccess, handler_for as remote_handler
+        if product.remote_access is None:
+            product.remote_access = RemoteAccess(product, directory)
+        product.remote_access.gateway_enabled = True
+        product.remote_access.start_guard()
+        remote_server = ThreadingHTTPServer(("127.0.0.1", args.remote_port),
+                                           remote_handler(product.remote_access, os.environ["MODULATE_REMOTE_SECRET"]))
+        remote_server.daemon_threads = True
+        threading.Thread(target=remote_server.serve_forever, daemon=True).start()
     address = ipaddress.ip_address(args.host_address)
     host_url = f"https://[{address}]:{args.device_port}" if address.version == 6 else f"https://{address}:{args.device_port}"
     enrollment = directory / "device-enrollment.json"
@@ -294,6 +319,10 @@ def main():
         studio.server_close()
         device_server.shutdown()
         device_server.server_close()
+        if remote_server:
+            product.remote_access.stopped.set()
+            remote_server.shutdown()
+            remote_server.server_close()
         lock.close()
 
 

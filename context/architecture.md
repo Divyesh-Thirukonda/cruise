@@ -131,6 +131,10 @@ The product's staging, watchdog and rollback require broader fault testing befor
 
 ## Acceptance evidence still needed
 
+The later [Modulate Connect extension](connect.md) adds a public dashboard through a dedicated authenticated gateway on loopback port 8789. The original Studio and Pi listeners retain their existing boundaries. Browser codes and hashed expiring sessions are maintained by the companion; Vercel carries only HttpOnly browser session cookies and forwards fixed operations. Shared device permission switches gate native tools, microphone requests and continuing control mappings, and survive restart even if the public gateway is disabled. They do not grant macOS permissions or make a phone's own OS controllable.
+
+Provider keys may now remain in production Vercel secrets, reached by a separate companion-only credential. The agent and durable spending/character ledgers still run on the Mac, with their existing reservations and caps. The default camera path stays Mac-to-Pi; a separate explicit browser-preview permission allows those frames through Vercel and the outbound connection. This supersedes earlier descriptions that camera pixels always remain local. Computer-task screenshots and speech keep their previously documented provider destinations.
+
 - Repeat the successful typed/spoken game activations with consecutive trials and additional gameplay paths; these individual runs are not a reliability guarantee.
 - Repeat spoken refinements with unfamiliar requests and measured capture/transcription timing; keep each run’s input mode and measured interval explicit.
 - Extend the demonstrated paired native-volume action with explicit revoke/disconnect trials and confirm that stale events cannot affect the host.

@@ -23,6 +23,8 @@ import time
 import urllib.error
 import urllib.request
 
+from .cloud_provider import CloudConfigurationError, CloudProvider
+
 
 MAX_TEXT_CHARACTERS = 1200
 MAX_TEXT_BYTES = 4800
@@ -151,6 +153,10 @@ class ElevenLabsTTS:
 
     def __init__(self, state_dir, *, api_key=None, voice_id=None, model_id=None,
                  max_chars=5000, opener=None, timeout=10, total_timeout=45):
+        try:
+            self._cloud = CloudProvider()
+        except CloudConfigurationError:
+            raise TTSError("configuration") from None
         self._key = api_key if api_key is not None else os.environ.get("ELEVENLABS_API_KEY", "")
         self.voice_id = voice_id if voice_id is not None else os.environ.get("ELEVENLABS_VOICE_ID", "")
         self.model_id = model_id if model_id is not None else os.environ.get("ELEVENLABS_MODEL_ID", "eleven_flash_v2_5")
@@ -173,7 +179,7 @@ class ElevenLabsTTS:
 
     def status(self):
         return {"provider": "elevenlabs", "model": self.model_id, "voice": self.voice_id or None,
-                "configured": bool(self._key and self.voice_id)}
+                "configured": bool((self._key or self._cloud.enabled) and self.voice_id)}
 
     @staticmethod
     def _text(text):
@@ -233,10 +239,17 @@ class ElevenLabsTTS:
         try:
             check()
             url = _ORIGIN + "/v1/text-to-speech/" + self.voice_id + "/stream?output_format=pcm_24000"
-            request = urllib.request.Request(url, data=json.dumps(
-                {"text": text, "model_id": self.model_id}).encode("utf-8"),
-                headers={"xi-api-key": self._key, "Content-Type": "application/json", "Accept": "audio/pcm"})
-            with self._opener.open(request, timeout=self.timeout) as response:
+            payload = {"text": text, "model_id": self.model_id}
+            headers = {"xi-api-key": self._key, "Content-Type": "application/json", "Accept": "audio/pcm"}
+            if self._cloud.enabled:
+                url, headers, payload = self._cloud.request("speech", {"voice_id": self.voice_id, "payload": payload})
+            request = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
+            # The gateway validates/buffers PCM before returning headers. Its
+            # first byte may take longer than the direct provider's streaming
+            # socket timeout; keep the existing overall deadline authoritative.
+            socket_timeout = (max(.1, min(self.total_timeout, deadline - time.monotonic()))
+                              if self._cloud.enabled else self.timeout)
+            with self._opener.open(request, timeout=socket_timeout) as response:
                 check()
                 if response.geturl() != url:
                     raise TTSError("redirect")

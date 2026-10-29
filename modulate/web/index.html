@@ -117,6 +117,14 @@
             <div class="host-actions"><button class="button button-outline" id="pairing-open" type="button">Pair a device <span aria-hidden="true">+</span></button><button class="text-button danger-text" id="revoke" type="button" hidden>Revoke access</button><span class="small muted" id="host-scope">Mac controls, apps and camera</span></div>
           </section>
 
+          <section class="host-panel" aria-labelledby="remote-title" id="remote-panel" hidden>
+            <div class="panel-heading"><h2 id="remote-title">Connect a browser</h2><span class="chip">DIVY.LIVE</span></div>
+            <p class="small muted">Open <a href="https://divy.live/connect" target="_blank" rel="noreferrer">divy.live/connect</a> on your phone or computer. A connection code grants control of this Modulate device and its paired Mac.</p>
+            <p class="small" id="remote-status">No connected browsers.</p>
+            <p class="mono" id="remote-code" role="status" hidden></p>
+            <div class="host-actions"><button type="button" class="button button-outline" id="remote-pair">Create connection code</button><button type="button" class="text-button danger-text" id="remote-revoke">Disconnect all browsers</button></div>
+          </section>
+
           <section class="computer-panel" id="computer-panel" aria-labelledby="computer-title">
             <div class="panel-heading"><h2 id="computer-title">Computer control</h2><span class="chip" id="computer-status">Unavailable</span></div>
             <p class="computer-consent">Pairing lets Modulate use your Mac’s apps, cursor, keyboard and system settings. Screens requested for computer tasks are sent to Meta; live camera frames stay on your Mac and Pi.</p>

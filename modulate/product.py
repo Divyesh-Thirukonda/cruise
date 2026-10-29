@@ -70,6 +70,7 @@ class Product(AssistantIO):
         self.directory = Path(state_dir)
         self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.lock = threading.RLock()
+        self.remote_access = None
         self.changed = threading.Condition(self.lock)
         self.events = deque(maxlen=150)
         self.intent_memory = IntentMemory(self.directory / "recent-context.json")
@@ -132,6 +133,11 @@ class Product(AssistantIO):
         self.last_intent = json.loads(self.intent_path.read_text()) if self.intent_path.exists() else None
         self.pairing = None
         self._init_assistant_io(computer)
+        # Permission denials survive launching the companion without its cloud
+        # gateway configuration. Omitting a secret cannot restore authority.
+        if (self.directory / "remote-access.json").exists():
+            from .remote_access import RemoteAccess
+            self.remote_access = RemoteAccess(self, self.directory, gateway_enabled=False)
 
     @property
     def revision(self):
@@ -139,6 +145,19 @@ class Product(AssistantIO):
 
     def connected(self):
         return self.last_seen is not None and time.monotonic() - self.last_seen < 4
+
+    def permission_allowed(self, name):
+        remote = getattr(self, "remote_access", None)
+        return remote is None or remote.allowed(name)
+
+    def require_permission(self, name):
+        if not self.permission_allowed(name):
+            raise AgentError(f"{name.replace('_', ' ').capitalize()} access is off in device permissions")
+
+    def check_request_access(self):
+        remote = getattr(self, "remote_access", None)
+        if remote is not None:
+            remote.require_job()
 
     def intent_context(self, include_private=False):
         with self.lock:
@@ -156,6 +175,8 @@ class Product(AssistantIO):
                     "hardware": self.hardware.inspect()}
 
     def hardware_debug(self, action, label=None):
+        if action != "cancel":
+            self.require_permission("hardware")
         with self.lock:
             if self.agent.cancelled.is_set() and action != "cancel":
                 raise AgentError("Hardware request cancelled")
@@ -174,6 +195,7 @@ class Product(AssistantIO):
                 "app_revision": self.revision}}
 
     def hardware_confirm(self, identifier, step):
+        self.require_permission("hardware")
         with self.lock:
             if self.running:
                 raise AgentError("Finish or cancel the current request before confirming wiring")
@@ -204,6 +226,7 @@ class Product(AssistantIO):
             return {"cleared": True}
 
     def speaker_control(self, action, value=None):
+        self.require_permission("speaker")
         with self.lock:
             if not self.connected() or self.agent.cancelled.is_set():
                 raise AgentError("Pi speaker request is disconnected or cancelled")
@@ -320,7 +343,8 @@ class Product(AssistantIO):
                     session = self.bridge.session(self.volume_token)
                     if session["capabilities"].get("supported") is not True:
                         raise BridgeError("Host volume is unavailable")
-                    paired = {"name": "This Mac", "session_id": session["session_id"], "actions": session["capabilities"]["actions"]}
+                    paired = {"name": "This Mac", "session_id": session["session_id"], "actions":
+                              session["capabilities"]["actions"] if self.permission_allowed("system") else []}
                 except BridgeError:
                     self.volume_token = None
                     self.volume = None
@@ -328,18 +352,20 @@ class Product(AssistantIO):
                     "device_connected": self.connected(), "controls": list(self.device["controls"]) if self.connected() else [],
                     "devices": copy.deepcopy(self.device["devices"]), "warnings": list(self.device["warnings"]),
                     "button_sources": dict(self.device["button_sources"]),
-                    "hardware_debug": {"supported": self.hardware.inspect().get("supported", False),
+                    "permissions": ({key: self.permission_allowed(key) for key in
+                                    ("computer", "system", "camera", "audio", "voice", "speaker", "hardware")}),
+                    "hardware_debug": {"supported": self.permission_allowed("hardware") and self.hardware.inspect().get("supported", False),
                                        "guided_button_address_repair": True},
                     "paired_host": paired,
                     "computer": {key: value for key, value in self.computer_status().items()
                                  if key in {"supported", "enabled", "scope"}},
-                    "computer_audio": {"supported": self.audio_status()["supported"],
+                    "computer_audio": {"supported": self.permission_allowed("audio") and self.permission_allowed("speaker") and self.audio_status()["supported"],
                                        "source": "paired_mac", "local_stream_only": True,
                                        "format": "pcm_s16le_48000_stereo"},
-                    "camera": {"supported": self.camera_status()["supported"],
+                    "camera": {"supported": self.permission_allowed("camera") and self.camera_status()["supported"],
                                "source": "paired_mac", "local_stream_only": True,
                                "width": 240, "height": 135},
-                    "speaker": {"available": self.telemetry.get("speaker", {}).get("available", False),
+                    "speaker": {"available": self.permission_allowed("speaker") and self.telemetry.get("speaker", {}).get("available", False),
                                 "volume_control": self.speaker_volume.status()["available"],
                                 "actions": ["get", "set", "delta", "mute"], "target": "Modulate Pi speaker"}}
 
@@ -467,6 +493,8 @@ class Product(AssistantIO):
         return ("An unexpected error stopped this request. Your active app is still available. Check Studio and describe what happened before starting a new request.", None)
 
     def request(self, text, source="website", followup_id=None):
+        if source == "microphone":
+            self.require_permission("voice")
         if not isinstance(text, str) or not 1 <= len(text.strip()) <= 4000:
             raise AgentError("Request must contain 1–4000 characters")
         with self.lock:
@@ -882,7 +910,7 @@ class Product(AssistantIO):
                             from PIL import Image
                             camera_image = Image.open(BytesIO(camera_frame["jpeg"])).convert("RGB")
                     self._device_preview(png(self.renderer.render(commands, camera_image)))
-                elif self.active["package"]["kind"] == "control" and self.volume_token:
+                elif self.active["package"]["kind"] == "control" and self.volume_token and self.permission_allowed("system"):
                     package = self.active["package"]
                     try:
                         self.validate_control(package)
@@ -912,7 +940,7 @@ class Product(AssistantIO):
                     "hardware_workflow": self.hardware.inspect().get("workflow"),
                     "speaker_volume": self.speaker_volume.offer(session_id),
                     "camera_frame": self._camera_packet(), "computer_audio": self.audio_offer(),
-                    "activation": pending, "active_revision": self.revision, "wake": self.wake,
+                    "activation": pending, "active_revision": self.revision, "wake": self.wake and self.permission_allowed("voice"),
                     "agent_running": self.running, "agent_state": self.agent_state(),
                     "clarification": self._clarification_state(),
                     "volume": self.volume, "paired": bool(self.capabilities()["paired_host"]),
@@ -1057,6 +1085,7 @@ class Product(AssistantIO):
                     "voice_draft": copy.deepcopy(self.voice_draft),
                     "clarification": self._clarification_state(),
                     "events": list(self.events), "volume": self.volume,
-                    "paired": bool(self.capabilities()["paired_host"]), "wake": self.wake,
+                    "paired": bool(self.capabilities()["paired_host"]), "wake": self.wake and self.permission_allowed("voice"),
+                    "remote": self.remote_access.local_status() if self.remote_access else {"enabled": False},
                     "preview_version": self.preview_version,
                     "candidate_preview_version": self.candidate_preview_version}

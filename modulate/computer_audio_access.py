@@ -24,7 +24,8 @@ class ComputerAudioAccess:
 
     def _audio_authorized(self):
         paired = self._paired_session()
-        return bool(paired and not self.computer_paused
+        return bool(paired and not self.computer_paused and self.permission_allowed("audio")
+                    and self.permission_allowed("speaker")
                     and paired["session_id"] == getattr(self, "audio_pair", None))
 
     def computer_audio(self, action):
@@ -33,6 +34,10 @@ class ComputerAudioAccess:
         if action == "stop":
             return self.stop_computer_audio()
         with self.lock:
+            if action == "start":
+                self.check_request_access()
+                self.require_permission("audio")
+                self.require_permission("speaker")
             paired = self._require_mac()
             if action == "status":
                 return self.audio_status()

@@ -48,6 +48,7 @@ class AssistantIO(MacAccess):
 
     def computer_session(self, action, minutes=15):
         if action == "enable":
+            self.require_permission("computer")
             if not self.connected():
                 raise AgentError("Connect the controller before enabling computer control")
             if self.running:
@@ -76,6 +77,8 @@ class AssistantIO(MacAccess):
         return self.computer_status()
 
     def computer_authorized(self):
+        self.check_request_access()
+        self.require_permission("computer")
         self._require_mac()
         self._sync_computer_pairing()
         if not self.connected():
@@ -163,6 +166,8 @@ class AssistantIO(MacAccess):
         self.speech_stop_id = max(self.speech_stop_id + 1, int(time.time() * 1000))
 
     def _queue_speech(self, text, job_id=None):
+        if not self.permission_allowed("speaker"):
+            return
         text = " ".join(str(text).split())
         if not text:
             return
@@ -262,6 +267,7 @@ class AssistantIO(MacAccess):
                 self.stop_computer_audio()
                 self._stop_speech()
             elif action == "test":
+                self.require_permission("speaker")
                 if not self.connected():
                     raise AgentError("The controller is disconnected")
                 self._queue_speech("Modulate speaker connected. I can read my answers aloud.")
@@ -277,7 +283,7 @@ class AssistantIO(MacAccess):
             self.speech_message = None
         return {"speech": copy.deepcopy(self.speech_message), "speech_stop_id": self.speech_stop_id,
                 "speech_pending": self.speech_pending is not None, "speech_error": self.speech_error,
-                "speaker_enabled": True}
+                "speaker_enabled": self.permission_allowed("speaker")}
 
     def _response_state(self):
         if self.response and self.response["expires_at"] <= time.time():

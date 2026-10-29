@@ -47,7 +47,7 @@ class MacAccess(ComputerAudioAccess):
 
     def _sync_computer_pairing(self):
         paired = self._paired_session()
-        identifier = paired["session_id"] if paired and not self.computer_paused else None
+        identifier = paired["session_id"] if paired and not self.computer_paused and self.permission_allowed("computer") else None
         self.computer.sync_pairing(identifier)
         return paired
 
@@ -78,6 +78,8 @@ class MacAccess(ComputerAudioAccess):
 
     def system_control(self, action, value=None):
         with self.lock:
+            self.check_request_access()
+            self.require_permission("system")
             paired = self._require_mac()
             if action not in paired["capabilities"]["actions"]:
                 raise AgentError("That system setting is unavailable; inspect the current capabilities")
@@ -110,6 +112,9 @@ class MacAccess(ComputerAudioAccess):
         if action not in {"start", "stop", "status"}:
             raise AgentError("Camera action must be start, stop or status")
         with self.lock:
+            if action == "start":
+                self.check_request_access()
+                self.require_permission("camera")
             self._require_mac()
             camera = self._camera_instance()
             if action == "stop":
@@ -135,6 +140,7 @@ class MacAccess(ComputerAudioAccess):
 
     def validate_camera(self, package):
         if package.get("camera"):
+            self.require_permission("camera")
             paired = self._require_mac()
             if package["camera"]["target"] != paired["session_id"]:
                 raise AgentError("Camera source must be the currently paired Mac")
@@ -143,7 +149,7 @@ class MacAccess(ComputerAudioAccess):
 
     def _camera_wanted(self):
         paired = self._paired_session()
-        if not paired or self.computer_paused or self.camera_suspended:
+        if not paired or self.computer_paused or self.camera_suspended or not self.permission_allowed("camera"):
             return False
         package = (self.active or {}).get("package", {})
         return (package.get("camera", {}).get("target") == paired["session_id"]

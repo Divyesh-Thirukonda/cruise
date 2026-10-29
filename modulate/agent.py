@@ -519,6 +519,8 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
                 raise AgentError("Cancelled by user; no further tool actions")
             if self.calls >= self.max_calls:
                 raise AgentError("Shared agent-call limit reached")
+            if hasattr(self.service, "check_request_access"):
+                self.service.check_request_access()
             reservation = self.provider.request_budget(messages, tools)
             call_id = self.ledger.reserve(reservation["reserved_cost_microdollars"])
             self.calls += 1
@@ -633,6 +635,8 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
     def dispatch(self, name, arguments, role):
         if self.cancelled.is_set():
             raise AgentError("Cancelled by user; no further tool actions")
+        if hasattr(self.service, "check_request_access"):
+            self.service.check_request_access()
         definitions = {item["function"]["name"]: item["function"]["parameters"] for item in TOOLS}
         if not isinstance(name, str) or name not in definitions or not isinstance(arguments, dict):
             raise AgentError("Unknown tool")

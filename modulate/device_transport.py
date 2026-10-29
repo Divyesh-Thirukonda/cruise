@@ -2,10 +2,14 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import http.client
 import os
 from pathlib import Path
 import ssl
 import tempfile
+import re
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -13,6 +17,21 @@ import urllib.request
 
 class TransportError(Exception):
     pass
+
+
+SPEECH_FORMAT = "pcm_s16le_24000_mono"
+MAX_SPEECH_BYTES = 4_320_000  # 90 s of 24 kHz mono signed 16-bit PCM.
+
+
+def speech_descriptor(value):
+    """Validate only the fixed, authenticated in-memory audio contract."""
+    if (not isinstance(value, dict) or set(value) != {"id", "format", "bytes", "sha256"}
+            or not isinstance(value["id"], str) or re.fullmatch(r"[0-9a-f]{32}", value["id"]) is None
+            or value["format"] != SPEECH_FORMAT or type(value["bytes"]) is not int
+            or not 2 <= value["bytes"] <= MAX_SPEECH_BYTES or value["bytes"] % 2
+            or not isinstance(value["sha256"], str) or re.fullmatch(r"[0-9a-f]{64}", value["sha256"]) is None):
+        raise TransportError("Invalid speech audio descriptor")
+    return dict(value)
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -42,7 +61,7 @@ class Companion:
                                                  urllib.request.HTTPSHandler(context=context))
 
     def post(self, action, data):
-        if action not in {"heartbeat", "request", "pair", "rollback", "cancel"}:
+        if action not in {"heartbeat", "request", "pair", "rollback", "cancel", "unclear"}:
             raise TransportError("Unknown companion action")
         try:
             body = json.dumps(data, allow_nan=False).encode()
@@ -72,6 +91,57 @@ class Companion:
             raise TransportError("Companion unavailable; check the Mac studio and network") from None
         except (ValueError, TypeError):
             raise TransportError("Malformed companion response") from None
+
+    def speech_audio(self, descriptor, cancel):
+        """Fetch one enrolled host's bounded PCM on the speech worker only.
+
+        No redirect or URL is accepted from the descriptor. Cancellation is
+        checked between reads; a blocked connection/read has a three-second
+        socket timeout. Expiry and authorization are checked again by the host.
+        """
+        descriptor = speech_descriptor(descriptor)
+        if cancel.is_set():
+            raise TransportError("Speech audio request cancelled")
+        url = self.origin + "/device/speech"
+        request = urllib.request.Request(url, data=json.dumps({"id": descriptor["id"]}).encode(),
+                    headers={"Content-Type": "application/json", "Authorization": "Bearer " + self.key})
+        deadline = time.monotonic() + 90
+        try:
+            with self.opener.open(request, timeout=3) as response:
+                if response.geturl() != url:
+                    raise TransportError("Speech audio redirect refused")
+                if response.headers.get_content_type() not in {"application/octet-stream", "audio/pcm"}:
+                    raise TransportError("Unexpected speech audio format")
+                declared_format = response.headers.get("X-Modulate-Audio-Format")
+                if declared_format is not None and declared_format != SPEECH_FORMAT:
+                    raise TransportError("Unexpected speech audio format")
+                declared_size = response.headers.get("Content-Length")
+                if declared_size is not None and declared_size != str(descriptor["bytes"]):
+                    raise TransportError("Speech audio length does not match its descriptor")
+                raw = bytearray()
+                while len(raw) <= descriptor["bytes"]:
+                    if cancel.is_set():
+                        raise TransportError("Speech audio request cancelled")
+                    if time.monotonic() >= deadline:
+                        raise TransportError("Speech audio request timed out")
+                    chunk = response.read(min(65_536, descriptor["bytes"] + 1 - len(raw)))
+                    if not chunk:
+                        break
+                    raw.extend(chunk)
+                if cancel.is_set():
+                    raise TransportError("Speech audio request cancelled")
+                if time.monotonic() >= deadline:
+                    raise TransportError("Speech audio request timed out")
+                if len(raw) != descriptor["bytes"] or hashlib.sha256(raw).hexdigest() != descriptor["sha256"]:
+                    raise TransportError("Speech audio integrity check failed")
+                return bytes(raw)
+        except urllib.error.HTTPError as error:
+            # Error bodies can contain request or provider details; never read them.
+            code = error.code
+            error.close()
+            raise TransportError(f"Speech audio unavailable or expired (HTTP {code})") from None
+        except (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException):
+            raise TransportError("Speech audio unavailable; check the companion connection") from None
 
 
 def save_private(path, data):

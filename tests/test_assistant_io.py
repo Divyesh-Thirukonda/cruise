@@ -295,7 +295,8 @@ class AssistantIOTests(unittest.TestCase):
         accepted = self.request(private_request)
         state = self.product.state()
         self.assertEqual(state["agent"]["status"], "failed")
-        expected = "I couldn't finish that computer request. " + failure
+        expected = ("I couldn't get a usable reply from the model. The connection or provider may be unavailable. "
+                    "Check the connection. Would you like me to try your original request once more?")
         self.assertEqual(state["response"]["text"], expected)
         speech = self.heartbeat()["speech"]
         self.assertEqual(speech["text"], expected)
@@ -315,7 +316,7 @@ class AssistantIOTests(unittest.TestCase):
         private = "SYNTHETIC_PRIVATE_EXCEPTION_PAYLOAD_93b2"
         self.provider.script = [reply(("computer_observe", {})), RuntimeError(private)]
         self.request()
-        self.assertIn("unexpected computer error", self.product.state()["response"]["text"])
+        self.assertIn("unexpected error", self.product.state()["response"]["text"])
         self.assertNotIn(private, self.product.state()["response"]["text"])
         self.assertNotIn(private, self.heartbeat()["speech"]["text"])
         self.assert_not_persisted(private)

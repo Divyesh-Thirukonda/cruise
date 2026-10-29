@@ -21,9 +21,13 @@ class FakeProduct:
     def state(self):
         return {"synthetic": True}
 
-    def request(self, text, source="website"):
-        self.calls.append(("request", text, source))
+    def request(self, text, source="website", followup_id=None):
+        self.calls.append(("request", text, source, followup_id))
         return {"accepted": True, "source": source, "job_id": "a" * 32}
+
+    def unclear(self, reason, followup_id=None):
+        self.calls.append(("unclear", reason, followup_id))
+        return {"accepted": True, "job_id": "a" * 32}
 
     def cancel(self, job_id=None):
         self.calls.append(("cancel", job_id) if job_id is not None else ("cancel",))
@@ -259,6 +263,18 @@ class StudioTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(json.loads(body)["job_id"], "a" * 32)
         self.assertEqual(json.loads(body)["source"], "microphone")
+
+    def test_followup_and_unclear_routes_preserve_exact_scope_and_authentication(self):
+        product, port = self.start(device=True, device_key="synthetic-device", peer="127.0.0.1")
+        headers = {"Authorization": "Bearer synthetic-device", "Content-Type": "application/json"}
+        identifier = "c" * 32
+        body = json.dumps({"text": "yes", "followup_id": identifier})
+        self.assertEqual(self.request(port, "/device/request", method="POST", body=body, headers=headers)[0], 200)
+        body = json.dumps({"reason": "empty", "followup_id": identifier})
+        self.assertEqual(self.request(port, "/device/unclear", method="POST", body=body,
+                                      headers={"Content-Type": "application/json"})[0], 403)
+        self.assertEqual(self.request(port, "/device/unclear", method="POST", body=body, headers=headers)[0], 200)
+        self.assertEqual(product.calls, [("request", "yes", "microphone", identifier), ("unclear", "empty", identifier)])
 
 
 if __name__ == "__main__":

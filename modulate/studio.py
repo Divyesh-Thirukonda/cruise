@@ -54,7 +54,8 @@ def load_credentials(path):
     path = Path(path).expanduser()
     if path.stat().st_mode & 0o077:
         raise ValueError("Credential file must have mode600")
-    allowed = {"MODEL_API_KEY", "FIREWORKS_API_KEY"}
+    allowed = {"MODEL_API_KEY", "FIREWORKS_API_KEY", "ELEVENLABS_API_KEY",
+               "ELEVENLABS_VOICE_ID", "ELEVENLABS_MODEL_ID", "MODULATE_TTS_PROVIDER"}
     for line in path.read_text().splitlines():
         name, separator, value = line.partition("=")
         if separator and name in allowed:
@@ -172,10 +173,14 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
                     raise ValueError("Expected an object")
                 path = urlparse(self.path).path
                 if device:
-                    if path == "/device/heartbeat":
+                    if path == "/device/speech":
+                        return self.send(200, product.get_speech_audio(data.get("id")), "application/octet-stream")
+                    elif path == "/device/heartbeat":
                         result = product.heartbeat(data)
                     elif path == "/device/request":
-                        result = product.request(data.get("text"), source="microphone")
+                        result = product.request(data.get("text"), source="microphone", followup_id=data.get("followup_id"))
+                    elif path == "/device/unclear":
+                        result = product.unclear(data.get("reason"), followup_id=data.get("followup_id"))
                     elif path == "/device/cancel":
                         job_id = data.get("job_id")
                         if not isinstance(job_id, str) or len(job_id) != 32:
@@ -188,7 +193,7 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
                     else:
                         return self.send(404, {"error": "Unknown device action"})
                 elif path == "/api/request":
-                    result = product.request(data.get("text"))
+                    result = product.request(data.get("text"), followup_id=data.get("followup_id"))
                 elif path == "/api/cancel":
                     result = product.cancel()
                 elif path == "/api/draft":

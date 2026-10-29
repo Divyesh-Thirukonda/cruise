@@ -80,8 +80,9 @@ class Controller:
         # before the render loop runs, so the host does not stage a false recovery.
         self.state = self.runtime.snapshot()
         self.encoder_revision = self.state.get("revision")
-        self.voice = VoiceListener(self.request, self.voice_status, device=microphone, on_cancel=self.cancel_request)
-        self.speaker = Speaker(self.speaker_status)
+        self.voice = VoiceListener(self.request, self.voice_status, device=microphone,
+                                   on_cancel=self.cancel_request, on_unclear=self.unclear)
+        self.speaker = Speaker(self.speaker_status, audio_fetch=self.companion.speech_audio)
         self.speaker_state = self.speaker.snapshot()
         self.status_key = None
         self.dismissed_pairing = None
@@ -135,7 +136,7 @@ class Controller:
                 self._feedback("Say a little more", 'Say "Hey Meta"\nthen the full request')
 
     def _speaker_active(self):
-        return self.speaker_state.get("state") in {"queued", "speaking", "stopping"}
+        return self.speaker_state.get("state") in {"queued", "fetching", "speaking", "stopping"}
 
     def speaker_status(self, status):
         with self.lock:
@@ -157,6 +158,14 @@ class Controller:
     def _sync_voice(self):
         self.voice.set_busy(bool(self._busy()))
         self.voice.set_enabled(bool(self.host.get("wake")) and not self._speech_guard())
+        question = self.host.get("clarification")
+        identifier = None
+        if (not self._busy() and not self._speech_guard() and not self.host.get("speech_pending") and self.host.get("wake")
+                and time.monotonic() - self.last_response <= 4 and type(question) is dict
+                and self._job_id(question.get("id")) and type(question.get("expires_at")) in (int, float)
+                and math.isfinite(question["expires_at"]) and question["expires_at"] > time.time()):
+            identifier = question["id"]
+        self.voice.set_followup(identifier, seconds=20)
 
     def _update_speech(self, response):
         stop_id = response.get("speech_stop_id", 0)
@@ -183,10 +192,15 @@ class Controller:
         text = speech.get("text")
         if type(text) is not str or not text.strip() or len(text) > 1200:
             return
+        audio = {}
+        if "audio" in speech:
+            if type(speech["audio"]) is not dict or speech["audio"].get("id") != identifier:
+                return
+            audio["audio"] = speech["audio"]
         try:
             # Only accepted speech interrupts capture. Unavailable output is
             # retried by heartbeat without invalidating every wake recording.
-            accepted = self.speaker.speak(text, before_playback=lambda: self.voice.set_enabled(False))
+            accepted = self.speaker.speak(text, before_playback=lambda: self.voice.set_enabled(False), **audio)
         except ValueError:
             accepted = False
         if accepted:
@@ -194,8 +208,19 @@ class Controller:
             self.speech_created_at = created
             self.speech_ack = identifier  # Accepted by the queue, not heard.
 
-    def request(self, text):
+    def unclear(self, reason, followup_id=None):
+        if type(reason) is not str or reason not in {"empty", "incomplete"}:
+            return False
+        return self.request("", followup_id=followup_id, _unclear=reason)
+
+    def request(self, text, *, followup_id=None, _unclear=None):
         with self.lock:
+            question = self.host.get("clarification")
+            if followup_id is not None and (type(question) is not dict or question.get("id") != followup_id
+                    or type(question.get("expires_at")) not in (int, float)
+                    or not math.isfinite(question["expires_at"]) or question["expires_at"] <= time.time()):
+                self._feedback("Conversation ended", "Say Hey Meta\nthen the full request")
+                return False
             if self._speech_guard():
                 self._feedback("Replying aloud", "Hold both screen buttons\nto interrupt and speak")
                 return False
@@ -206,7 +231,8 @@ class Controller:
                 self._feedback("Not connected", "Check the Mac connection\nRequest was not queued")
                 return False
             try:
-                self.requests.put_nowait(text)
+                self.requests.put_nowait({"text": text, "followup_id": followup_id, "unclear": _unclear}
+                                         if followup_id is not None or _unclear else text)
             except queue.Full:
                 self._feedback("Working", "Please wait for this build")
                 return False
@@ -292,8 +318,11 @@ class Controller:
                 self.finished_jobs.append(identifier)
                 self.build = None
                 if was_busy and state["status"] != "completed":
-                    title = "Request cancelled" if state["status"] == "cancelled" else "Request failed"
-                    self._feedback(title, "See Studio for details")
+                    if state["status"] == "failed" and type(response.get("clarification")) is dict:
+                        self.feedback = None  # The actionable question takes precedence.
+                    else:
+                        title = "Request cancelled" if state["status"] == "cancelled" else "Request failed"
+                        self._feedback(title, "See Studio for details")
                 elif was_busy:
                     self.feedback = None
 
@@ -354,7 +383,13 @@ class Controller:
                 with self.lock:
                     self.request_in_flight = True
                 try:
-                    accepted = self.companion.post("request", {"text": text})
+                    if type(text) is dict:
+                        route = "unclear" if text.get("unclear") else "request"
+                        payload = ({"reason": text["unclear"]} if route == "unclear" else {"text": text["text"]})
+                        payload["followup_id"] = text.get("followup_id")
+                    else:
+                        route, payload = "request", {"text": text}
+                    accepted = self.companion.post(route, payload)
                     if (accepted.get("accepted") is not True or not self._job_id(accepted.get("job_id"))
                             or not self._job_sequence(accepted.get("job_sequence", 0))):
                         raise TransportError("Companion did not confirm this request")
@@ -577,7 +612,7 @@ class Controller:
                 voice = self.voice_state.get("state")
                 voice_message = self.voice_state.get("message", "")
                 voice_overlay = voice == "transcribing" or (voice == "listening" and
-                                voice_message.startswith(("Push-to-talk", "Wake phrase heard")))
+                                voice_message.startswith(("Push-to-talk", "Wake phrase heard", "Listening for your answer")))
                 busy = self.build is not None
                 speaking = self._speaker_active()
                 clarification = self.host.get("clarification")
@@ -606,10 +641,13 @@ class Controller:
                 elif offer:
                     self.status("Link this Mac?", f"Code: {offer['code']}\nA: allow volume control\nB: decline")
                 elif voice_overlay:
-                    self.status("Listening" if voice == "listening" else "Understanding",
-                                "Speak your request" if voice == "listening" else "Local speech recognition")
+                    if voice_message.startswith("Listening for your answer"):
+                        self.status("Your answer", "Answer the question\nNo Hey Meta needed")
+                    else:
+                        self.status("Listening" if voice == "listening" else "Understanding",
+                                    "Speak your request" if voice == "listening" else "Local speech recognition")
                 elif question:
-                    self.status("Quick question", "\n".join(textwrap.wrap(question, 31)[:3]) + '\nSay "Hey Meta" + answer')
+                    self.status("Quick question", "\n".join(textwrap.wrap(question, 31)[:3]) + '\nReply after I finish speaking')
                 elif self.host.get("agent_running") and not current.get("kind"):
                     self.status("Reinventing...", "Meta is building and testing\nFollow progress in Studio")
                 elif current.get("kind") == "control":

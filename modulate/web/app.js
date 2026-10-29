@@ -186,6 +186,7 @@
     const visible = typeof question === "string" && question.trim().length > 0;
     $("clarification-panel").hidden = !visible;
     text("clarification-question", visible ? question : "");
+    text("clarification-label", ui.state?.clarification?.kind === "recovery" ? "LET’S GET THIS WORKING" : "ONE QUICK QUESTION");
   }
 
   function renderComputer() {
@@ -235,9 +236,13 @@
     const available = online && speaker?.available === true;
     const labels = {idle: "Ready", ready: "Ready", speaking: "Speaking", playing: "Playing", preparing: "Preparing speech", stopped: "Stopped", error: "Audio error", unavailable: "Unavailable"};
     const status = typeof speaker?.state === "string" ? labels[speaker.state] || human(speaker.state) : "Awaiting playback status";
-    const error = typeof speaker?.error === "string" && speaker.error ? ` · ${speaker.error}` : "";
-    text("speaker-detail", !online ? "Device offline · audio status unavailable" : !speaker ? "Awaiting device audio status" : available ? `USB speaker · ${status}${error}` : `Speaker unavailable${error}`);
-    $("speaker-detail").dataset.state = speaker?.error ? "error" : "normal";
+    const speech = ui.state?.speech;
+    const errorText = speech?.error || speaker?.error;
+    const error = typeof errorText === "string" && errorText ? ` · ${errorText}` : "";
+    const provider = speech?.provider === "elevenlabs" ? "ElevenLabs" : "Local voice";
+    const delivery = speech?.pending ? "Preparing voice" : status;
+    text("speaker-detail", !online ? "Device offline · audio status unavailable" : !speaker ? "Awaiting device audio status" : available ? `${provider} · ${delivery}${error}` : `Speaker unavailable${error}`);
+    $("speaker-detail").dataset.state = errorText ? "error" : "normal";
     $("speaker-test").disabled = !available || ui.mutating.has("speaker");
     $("speaker-stop").disabled = !online || !speaker || ui.mutating.has("speaker");
   }
@@ -665,7 +670,7 @@
     ui.submitting = true;
     renderButtons();
     try {
-      await post("/api/request", {text: request});
+      await post("/api/request", {text: request, followup_id: ui.state?.clarification?.id || null});
       announce("Request sent. Follow the agent’s work in the timeline.");
       if ($("request").value.trim() === request) $("request").value = "";
       await refresh();

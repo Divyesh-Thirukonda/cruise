@@ -23,6 +23,8 @@ from .assistant_io import AssistantIO
 _SESSION = re.compile(r"[0-9a-f]{32}\Z")
 _REVISION = re.compile(r"[0-9a-f]{64}\Z")
 _CONTROLS = {"joystick", "encoder", "button_a", "button_b", "encoder_pressed"}
+_FOLLOWUP_SECONDS = 120
+_MAX_QUESTIONS = 4
 _PHASES = {"queued", "planning", "coding", "checking", "previewing", "activating", "ready", "error", "cancelled"}
 _TOOL_PROGRESS = {
     "inspect_capabilities": ("planning", "Reading the connected controls"),
@@ -75,6 +77,7 @@ class Product(AssistantIO):
         self.voice_draft = None
         self.draft_deadline = None
         self.clarification = None
+        self.conversation = None
         self.current_request = None
         self.device = {"name": "Controller", "controls": [], "devices": [], "warnings": [], "button_sources": {}}
         self.last_seen = None
@@ -281,7 +284,92 @@ class Product(AssistantIO):
         except AgentError as error:
             return {"passed": False, "checks": [], "errors": [str(error)], "metrics": {}}
 
-    def request(self, text, source="website"):
+    def _clarification_state(self):
+        if self.clarification and self.clarification["expires_at"] <= time.time():
+            self.clarification = None
+            self.conversation = self.current_request = None
+        return ({key: self.clarification[key] for key in
+                 ("id", "question", "job_id", "request_id", "expires_at", "kind")}
+                if self.clarification else None)
+
+    def _followup(self, identifier):
+        self._clarification_state()
+        if identifier is not None and (type(identifier) is not str or not _SESSION.fullmatch(identifier)
+                or not self.clarification or self.clarification["id"] != identifier):
+            raise AgentError("That conversation has ended. Say Hey Meta and repeat your full request.")
+        return copy.deepcopy(self.clarification)
+
+    def _question(self, question, *, kind="clarification"):
+        context = self.conversation or {"original": "", "history": [], "questions": 0, "recoveries": 0}
+        if context["questions"] >= _MAX_QUESTIONS:
+            raise AgentError("Conversation question limit reached; start again with the full request")
+        context["questions"] += 1
+        self.conversation = context
+        self.clarification = {"id": uuid.uuid4().hex, "question": question,
+                              "request_id": self.progress["request_id"], "job_id": self.progress["job_id"],
+                              "expires_at": time.time() + _FOLLOWUP_SECONDS, "kind": kind,
+                              "private": bool(self.agent.private_request), "context": copy.deepcopy(context)}
+
+    def unclear(self, reason, followup_id=None):
+        """A confirmed invocation with no usable speech needs no guessed intent."""
+        if type(reason) is not str or reason not in {"empty", "incomplete"}:
+            raise AgentError("Unknown speech clarification reason")
+        with self.lock:
+            if self.running or not self.connected():
+                raise AgentError("Wait for the current request and controller connection")
+            if self.progress["job_sequence"] + 1 >= 2**53:
+                raise AgentError("Request sequence limit reached")
+            followup = self._followup(followup_id)
+            self.conversation = (followup["context"] if followup else
+                                 {"original": "", "history": [], "questions": 0, "recoveries": 0})
+            self.agent.private_request = bool(followup and followup.get("private"))
+            job_id = uuid.uuid4().hex
+            self.progress = {"job_id": job_id, "job_sequence": self.progress["job_sequence"] + 1,
+                             "request_id": None, "phase": "ready", "title": "One quick question",
+                             "tool": None, "role": "orchestrator"}
+            question = followup["question"] if followup else "I heard you call me, but missed the request. What would you like me to do?"
+            self._stop_speech()
+            self.clarification = None
+            try:
+                self._question(question)
+            except AgentError:
+                question = "I still couldn't understand the request. Please type it in Studio, or say Hey Meta and start again."
+                self.conversation = self.current_request = None
+            self._publish_response(question, job_id)
+            self.summary = "Waiting for a clearer request." if self.clarification else "Speech clarification ended."
+            self._save_job()
+            return {"accepted": True, "job_id": job_id, "job_sequence": self.progress["job_sequence"]}
+
+    @staticmethod
+    def _failure_guidance(error):
+        """Fixed operational explanations; never echo exception payloads or invent intent."""
+        message = str(error).lower()
+        if isinstance(error, AgentProviderError):
+            if any(word in message for word in ("credential", "http 401", "http 403", "configuration", "endpoint")):
+                return ("Meta access isn't available. Check the provider credentials and account access in the companion, then start a new request.", None)
+            if any(word in message for word in ("usage", "cost", "model identifier", "refused")):
+                return ("The provider could not safely complete this request. Check its access and billing status in Studio before starting again.", None)
+            return ("I couldn't get a usable reply from the model. The connection or provider may be unavailable.",
+                    "Check the connection. Would you like me to try your original request once more?")
+        if isinstance(error, AgentError):
+            if any(word in message for word in ("budget", "accounting", "reserved cost", "reported usage")):
+                return ("The model spending limit or billing check stopped this request. Review the budget in Studio; I won't raise it or retry automatically.", None)
+            if "declined" in message or "approval expired" in message:
+                return ("That computer action was not approved, so I stopped. Start a new request if you want to reconsider it.", None)
+            if any(word in message for word in ("permission", "enable computer", "access is disabled", "chrome", "helper unavailable")):
+                return ("I can't use the granted Chrome window right now. Check computer access and permissions in Studio and bring that window forward.",
+                        "Once you've fixed the Chrome connection, should I continue the original request?")
+            if any(word in message for word in ("disconnected", "synchroniz", "acknowledg", "activation", "timed out")):
+                return ("I couldn't confirm the operation with the device or computer. Check the connection and what is currently visible before retrying.",
+                        "After checking the connection and current result, should I try the original request once more?")
+            if "question limit" in message:
+                return ("I still need a clearer goal. Please start a new request that says what should happen and which app or device to use.", None)
+            if "limit" in message or "same operation failed" in message:
+                return ("I reached the bounded attempt limit without finishing. Please narrow the goal or explain the result you want.",
+                        "What should I change about the original request before trying again?")
+        return ("An unexpected error stopped this request. Your active app is still available. Check Studio and describe what happened before starting a new request.", None)
+
+    def request(self, text, source="website", followup_id=None):
         if not isinstance(text, str) or not 1 <= len(text.strip()) <= 4000:
             raise AgentError("Request must contain 1–4000 characters")
         with self.lock:
@@ -291,6 +379,7 @@ class Product(AssistantIO):
                 raise AgentError("The physical controller is not connected")
             if self.device_revision != self.revision:
                 raise AgentError("Wait for the controller and host to finish synchronizing")
+            followup = self._followup(followup_id)
             job_sequence = self.progress["job_sequence"] + 1
             if job_sequence >= 2**53:
                 raise AgentError("Request sequence limit reached")
@@ -304,8 +393,11 @@ class Product(AssistantIO):
             self.progress = {"job_id": job_id, "job_sequence": job_sequence, "request_id": None, "phase": "queued",
                              "title": "Request received", "tool": None, "role": "orchestrator"}
             self.summary = "Your request is queued."
-            followup = copy.deepcopy(self.clarification)
             self.clarification = None
+            self.conversation = (followup["context"] if followup else
+                                 {"original": text.strip(), "history": [], "questions": 0, "recoveries": 0})
+            if followup and followup["kind"] == "recovery":
+                self.conversation["recoveries"] += 1
             self.current_request = text.strip()
             if source == "microphone":
                 self.voice_draft = {"job_id": job_id, "text": text.strip(),
@@ -319,6 +411,7 @@ class Product(AssistantIO):
                 self.running = False
                 self.voice_draft = None
                 self.draft_deadline = None
+                self.conversation = self.current_request = None
                 self.progress.update(phase="error", title="Could not start")
                 self.summary = "The companion could not save the request status."
                 raise AgentError(self.summary) from None
@@ -342,21 +435,31 @@ class Product(AssistantIO):
                     self.voice_draft = None
                     self.draft_deadline = None
                     if followup:
-                        request_text = ("Previous request: " + followup["original"][:1600] +
+                        answer = request_text
+                        if not self.conversation["original"]:
+                            self.conversation["original"] = answer
+                        history = "\n".join("Question: " + item["question"] + "\nReply: " + item["answer"]
+                                            for item in self.conversation["history"])
+                        request_text = ("Previous request: " + self.conversation["original"] +
+                                        "\nEarlier conversation: " + history +
                                         "\nClarifying question: " + followup["question"] +
-                                        "\nUser's reply (may replace the request): " + request_text[:1800])
+                                        "\nUser's reply (may replace the request): " + answer)
+                        self.conversation["history"] = (self.conversation["history"] +
+                            [{"question": followup["question"], "answer": answer}])[-_MAX_QUESTIONS:]
                     self.current_request = request_text
                 result = (self.agent.run(request_text, private=True) if followup and followup.get("private")
                           else self.agent.run(request_text))
                 summary = result if isinstance(result, str) else "Request finished."
             except Exception as error:
-                # Trusted component/provider errors carry user-facing guidance.
-                # Unexpected exceptions can contain paths or private payloads.
-                summary = (" ".join(str(error).split())[:500]
-                           if not self.agent.private_request or isinstance(error, (AgentError, AgentProviderError))
-                           else "An unexpected computer error occurred. Please try again.")
-                if self.agent.private_request:
-                    summary = "I couldn't finish that computer request. " + summary
+                summary, question = self._failure_guidance(error)
+                with self.lock:
+                    if (question and self.conversation and not self.agent.cancelled.is_set()
+                            and self.conversation["recoveries"] < 1
+                            and self.conversation["questions"] < _MAX_QUESTIONS):
+                        self._question(question, kind="recovery")
+                        summary += " " + question
+                    elif question:
+                        summary += " I've stopped retrying. Start a new request when you're ready."
                 outcome = "error"
             finally:
                 with self.lock:
@@ -373,8 +476,10 @@ class Product(AssistantIO):
                                         else summary[:500])
                         self.progress.update(phase=outcome, title={"ready": "Ready", "error": "Could not finish",
                                              "cancelled": "Request cancelled"}[outcome], tool=None, role="orchestrator")
-                        if self.clarification and outcome == "ready":
+                        if self.clarification:
                             self.progress["title"] = "One quick question"
+                        else:
+                            self.conversation = self.current_request = None
                         try:
                             self._save_job()
                         except Exception:
@@ -389,6 +494,7 @@ class Product(AssistantIO):
                 self.running = False
                 self.voice_draft = None
                 self.draft_deadline = None
+                self.conversation = self.current_request = None
                 self.progress.update(phase="error", title="Could not start")
                 self.summary = "The companion could not start this request."
                 self._save_job()
@@ -402,10 +508,7 @@ class Product(AssistantIO):
             if (not self.running or self.agent.cancelled.is_set()
                     or getattr(self.job_context, "job_id", None) != self.progress["job_id"]):
                 raise AgentError("This request is no longer active")
-            self.clarification = {"question": question.strip(), "request_id": self.progress["request_id"],
-                                  "job_id": self.progress["job_id"],
-                                  "private": bool(self.agent.private_request),
-                                  "original": self.current_request or ""}
+            self._question(question.strip())
             return {"clarification_required": True, "question": question.strip()}
 
     def draft(self, job_id, action, text=None):
@@ -432,6 +535,7 @@ class Product(AssistantIO):
             if (not self.running and self.clarification
                     and (job_id is None or job_id == self.clarification["job_id"])):
                 self.clarification = None
+                self.conversation = self.current_request = None
                 self._stop_speech()
                 self.response = None
                 return {"cancelled": True, "dismissed_question": True}
@@ -444,6 +548,7 @@ class Product(AssistantIO):
             self.computer_approval_decision = False
             self.computer_approved_action = None
             self.clarification = None
+            self.conversation = self.current_request = None
             if self.running:
                 self.progress.update(phase="cancelled", title="Stopping the request", tool=None)
             if self.pending and self.pending["phase"] not in {"confirmed", "abort"}:
@@ -664,9 +769,7 @@ class Product(AssistantIO):
             return {**self._assistant_heartbeat(packet),
                     "activation": pending, "active_revision": self.revision, "wake": self.wake,
                     "agent_running": self.running, "agent_state": self.agent_state(),
-                    "clarification": ({"question": self.clarification["question"],
-                                       "job_id": self.clarification["job_id"],
-                                       "request_id": self.clarification["request_id"]} if self.clarification else None),
+                    "clarification": self._clarification_state(),
                     "volume": self.volume, "paired": bool(self.capabilities()["paired_host"]),
                     "failure_ack": ({key: failure[key] for key in ("revision", "restored_revision")} if failure is not None else None),
                     "pairing": (copy.deepcopy(self.pairing) if self.pairing and time.time() < self.pairing["expires_at"]
@@ -787,10 +890,9 @@ class Product(AssistantIO):
                     "active": self.active, "candidate": self.candidate,
                     "agent": self.agent_state(),
                     "computer": self.computer_status(), "response": self._response_state(),
+                    "speech": self.speech_status(),
                     "voice_draft": copy.deepcopy(self.voice_draft),
-                    "clarification": ({"question": self.clarification["question"],
-                                       "job_id": self.clarification["job_id"],
-                                       "request_id": self.clarification["request_id"]} if self.clarification else None),
+                    "clarification": self._clarification_state(),
                     "events": list(self.events), "volume": self.volume,
                     "paired": bool(self.capabilities()["paired_host"]), "wake": self.wake,
                     "preview_version": self.preview_version,

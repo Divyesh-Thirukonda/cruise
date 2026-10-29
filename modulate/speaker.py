@@ -1,8 +1,9 @@
-"""Bounded local speech output; content exists only in memory and process pipes.
+"""Bounded speech output; content exists only in memory and process pipes.
 
-eSpeak NG synthesizes WAV on stdout; paplay/aplay receives that pipe. A successful
-exit establishes software playback delivery, not that a physical speaker was
-audible. This module never changes volume or chooses an ALSA fallback silently.
+Local eSpeak NG synthesizes WAV on stdout, or a trusted fetcher supplies verified
+remote PCM; paplay/aplay receives a pipe. A successful exit establishes software
+playback delivery, not that a physical speaker was audible. This module never
+changes volume or switches provider/output automatically after a failure.
 
 CLI references:
 https://github.com/espeak-ng/espeak-ng/blob/master/docs/guide.md
@@ -10,12 +11,15 @@ https://manpages.debian.org/bookworm/pulseaudio-utils/paplay.1.en.html
 """
 
 import os
+import hashlib
 import re
 import shutil
 import signal
 import subprocess
 import threading
 import time
+
+from .device_transport import MAX_SPEECH_BYTES, TransportError, speech_descriptor
 
 
 MAX_TEXT_CHARACTERS = 1200
@@ -28,6 +32,7 @@ _ERRORS = {
     "playback_failed": "Configured audio output rejected playback",
     "timeout": "Speech playback exceeded its time limit",
     "unavailable": "Local speech output is unavailable",
+    "audio_failed": "ElevenLabs speech audio could not be fetched or verified",
 }
 
 
@@ -102,6 +107,7 @@ class LocalSpeechBackend:
     def info(self):
         return {"available": self.error is None and self.output is not None,
                 "backend": "espeak-ng/" + ("aplay" if self.mode == "alsa" else "paplay"),
+                "pcm_backend": "aplay" if self.mode == "alsa" else "paplay",
                 "output": self.output, "output_selection": self.selection, "error": self.error}
 
     @staticmethod
@@ -180,18 +186,72 @@ class LocalSpeechBackend:
         finally:
             self._close(processes)
 
+    def play_pcm(self, audio, cancel):
+        """Play bounded signed 16-bit little-endian 24 kHz mono PCM from memory."""
+        if type(audio) is not bytes or not 2 <= len(audio) <= MAX_SPEECH_BYTES or len(audio) % 2:
+            raise ValueError("PCM speech must contain bounded complete 16-bit samples")
+        if not self.info()["available"]:
+            raise SpeakerError()
+        if cancel.is_set():
+            return False
+        processes = []
+        try:
+            arguments = ([self.player, "-q", "-D", self.output, "-t", "raw", "-f", "S16_LE",
+                          "-r", "24000", "-c", "1"] if self.mode == "alsa" else
+                         [self.player, "--playback", "--device=" + self.output,
+                          "--raw", "--format=s16le", "--rate=24000", "--channels=1",
+                          "--client-name=Modulate", "--stream-name=Speech"])
+            player = subprocess.Popen(arguments, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
+                                      stderr=subprocess.DEVNULL, close_fds=True, start_new_session=True)
+            processes.append(player)
+            os.set_blocking(player.stdin.fileno(), False)
+            position = 0
+            deadline = time.monotonic() + MAX_PLAYBACK_SECONDS
+            while True:
+                if cancel.is_set():
+                    return False
+                if time.monotonic() >= deadline:
+                    raise SpeakerError("timeout")
+                playback = player.poll()
+                if playback is not None:
+                    if playback != 0 or position != len(audio):
+                        raise SpeakerError("playback_failed")
+                    return True
+                if position < len(audio):
+                    try:
+                        position += os.write(player.stdin.fileno(), audio[position:position + 16_384])
+                    except BlockingIOError:
+                        pass
+                    if position == len(audio):
+                        player.stdin.close()
+                cancel.wait(0.025)
+        except SpeakerError as error:
+            if error.category == "playback_failed":
+                self.error = _ERRORS["playback_failed"]
+            raise
+        except (OSError, ValueError, subprocess.SubprocessError):
+            self.error = _ERRORS["playback_failed"]
+            raise SpeakerError("playback_failed") from None
+        finally:
+            self._close(processes)
+
 
 class Speaker:
     """One active utterance plus one latest pending utterance, with no history.
 
-    Backend contract: info()->generic metadata; play(text,cancel_event)->bool.
+    Backend: info()->generic metadata; play(text,cancel_event)->bool, and
+    play_pcm(bytes,cancel_event)->bool for remote audio. The optional trusted
+    audio_fetch(descriptor,cancel_event) runs only on this worker, returns PCM
+    bytes, and must bound its network work and honor cancellation.
     Backends must honor cancellation and bound their work. Status callbacks are
     content-free and must return promptly. start() precedes speak().
     """
 
-    def __init__(self, on_status=None, backend=None):
+    def __init__(self, on_status=None, backend=None, audio_fetch=None):
         self.backend = backend if backend is not None else LocalSpeechBackend()
         self.on_status = on_status
+        self.audio_fetch = audio_fetch
+        self._provider = "local"
         self._changed = threading.Condition(threading.RLock())
         self._notifications = threading.RLock()
         self._thread = None
@@ -206,7 +266,10 @@ class Speaker:
 
     def snapshot(self):
         with self._changed:
-            return {**self._info, "state": self._state, "error": self._error,
+            backend = ("elevenlabs/" + self._info.get("pcm_backend", self._info.get("backend", "configured-output"))
+                       if self._provider == "elevenlabs" else self._info.get("backend"))
+            return {**self._info, "backend": backend, "provider": self._provider,
+                    "state": self._state, "error": self._error,
                     "request_id": self._sequence or None, "last_delivery": self._last_delivery}
 
     def _notify(self):
@@ -232,20 +295,28 @@ class Speaker:
         self._notify()
         return available
 
-    def speak(self, text, *, before_playback=None):
+    def speak(self, text, audio=None, *, before_playback=None):
         """Queue accepted speech, optionally pausing capture before it can play.
 
         The trusted hook runs only after validation and availability checks,
         while the queue is locked. Rejected retries must not interrupt capture.
         """
         text = _validate_text(text)
+        if audio is not None:
+            try:
+                audio = speech_descriptor(audio)
+            except TransportError:
+                raise ValueError("Invalid speech audio descriptor") from None
+            if not callable(self.audio_fetch) or not callable(getattr(self.backend, "play_pcm", None)):
+                raise ValueError("Remote speech audio playback is unavailable")
         with self._changed:
             if self._stopped or not self._info.get("available"):
                 return False
             if before_playback is not None:
                 before_playback()
             self._sequence += 1
-            self._pending = (self._sequence, text)
+            self._pending = (self._sequence, text, audio)
+            self._provider = "elevenlabs" if audio is not None else "local"
             if self._active_cancel:
                 self._active_cancel.set()
             self._state, self._error, self._last_delivery = "queued", None, None
@@ -308,19 +379,36 @@ class Speaker:
             with self._changed:
                 if self._stopped or self._pending is None:
                     continue
-                identifier, text = self._pending
+                identifier, text, audio = self._pending
                 self._pending = None
                 cancel = self._active_cancel = threading.Event()
-                self._state = "speaking"
+                self._state = "fetching" if audio is not None else "speaking"
             self._notify()
             error = None
             delivered = False
+            payload = None
             try:
-                delivered = self.backend.play(text, cancel)
+                if audio is None:
+                    delivered = self.backend.play(text, cancel)
+                else:
+                    try:
+                        payload = self.audio_fetch(audio, cancel)
+                        if not cancel.is_set() and (type(payload) is not bytes or len(payload) != audio["bytes"]
+                                                   or hashlib.sha256(payload).hexdigest() != audio["sha256"]):
+                            raise SpeakerError("audio_failed")
+                    except Exception:
+                        if not cancel.is_set():
+                            raise SpeakerError("audio_failed") from None
+                    if not cancel.is_set():
+                        with self._changed:
+                            if identifier == self._sequence and not self._stopped:
+                                self._state = "speaking"
+                        self._notify()
+                        delivered = self.backend.play_pcm(payload, cancel)
             except Exception as failure:
                 error = str(failure) if isinstance(failure, SpeakerError) else _ERRORS["playback_failed"]
             finally:
-                text = None
+                text = audio = payload = None
             with self._changed:
                 self._active_cancel = None
                 self._info = dict(self.backend.info())

@@ -452,6 +452,137 @@ class ListenerTests(unittest.TestCase):
             self.listener._deliver("Hey Meta " + request, utterance, False, self.listener._epoch)
         self.assertEqual(self.requests, ["blue", "slower", "yes", "okay", "ok"])
 
+    def test_direct_short_reply_requires_exact_followup_and_is_consumed_once(self):
+        self.listener.set_enabled(True)
+        self.listener.on_request = Mock(return_value=True)
+        self.listener._deliver("yes", Utterance(b"", time.monotonic()), False, self.listener._epoch)
+        self.listener.on_request.assert_not_called()
+        self.assertTrue(self.listener.set_followup("a" * 32))
+        utterance = Utterance(b"", time.monotonic(), followup_id="a" * 32)
+        self.listener._deliver("yes", utterance, False, self.listener._epoch)
+        self.listener._deliver("yes", utterance, False, self.listener._epoch)
+        self.listener.on_request.assert_called_once_with("yes", followup_id="a" * 32)
+        self.assertIsNone(self.listener._followup_id)
+        self.assertFalse(self.listener.set_followup("a" * 32), "Polling cannot reopen a consumed grant")
+
+    def test_followup_window_is_bounded_and_same_id_never_extends_or_rearms(self):
+        self.listener.set_enabled(True)
+        for value in (0, True, 31, float("nan"), "20"):
+            with self.assertRaises(ValueError):
+                self.listener.set_followup("a" * 32, seconds=value)
+        for value in ("", "unknown", "A" * 32, 123):
+            with self.assertRaises(ValueError):
+                self.listener.set_followup(value)
+        with patch("modulate.voice.time.monotonic", return_value=100):
+            self.assertTrue(self.listener.set_followup("a" * 32))
+        epoch = self.listener._epoch
+        with patch("modulate.voice.time.monotonic", return_value=110):
+            self.assertFalse(self.listener.set_followup("a" * 32, seconds=30))
+        self.assertEqual(self.listener._followup_until, 120)
+        self.assertEqual(self.listener._epoch, epoch)
+        with patch("modulate.voice.time.monotonic", return_value=121):
+            self.assertFalse(self.listener.set_followup("a" * 32))
+            self.listener.set_followup(None)
+            self.assertFalse(self.listener.set_followup("a" * 32))
+            self.assertTrue(self.listener.set_followup("b" * 32))
+            self.assertFalse(self.listener.set_followup("a" * 32), "A stale earlier ID cannot replace the new question")
+        self.assertEqual(self.listener._followup_until, 141)
+
+    def test_followup_expiry_checks_speech_start_not_late_transcription(self):
+        self.listener.set_enabled(True)
+        self.listener.on_request = Mock(return_value=True)
+        with patch("modulate.voice.time.monotonic", return_value=100):
+            self.listener.set_followup("a" * 32)
+        with patch("modulate.voice.time.monotonic", return_value=130):
+            self.listener._deliver("yes", Utterance(b"", 120, followup_id="a" * 32),
+                                   False, self.listener._epoch)
+            self.listener.on_request.assert_not_called()
+            self.listener._deliver("yes", Utterance(b"", 119.9, followup_id="a" * 32),
+                                   False, self.listener._epoch)
+        self.listener.on_request.assert_called_once_with("yes", followup_id="a" * 32)
+
+    def test_replaced_cleared_muted_busy_or_stopped_followup_drops_late_results(self):
+        self.listener.set_enabled(True)
+        self.listener.on_request = Mock(return_value=True)
+        self.listener.on_unclear = Mock(return_value=True)
+        for index, change in enumerate(("replace", "clear", "mute", "busy", "stop")):
+            with self.subTest(change=change):
+                self.listener.set_enabled(True)
+                self.listener.set_busy(False)
+                identifier = f"{index:032x}"
+                self.assertTrue(self.listener.set_followup(identifier))
+                epoch = self.listener._epoch
+                utterance = Utterance(b"", time.monotonic(), followup_id=identifier)
+                if change == "replace":
+                    self.listener.set_followup("f" * 32)
+                elif change == "clear":
+                    self.listener.set_followup(None)
+                elif change == "mute":
+                    self.listener.set_enabled(False)
+                elif change == "busy":
+                    self.listener.set_busy(True)
+                else:
+                    self.listener.stop()
+                self.listener._deliver("yes", utterance, False, epoch)
+                self.listener._deliver("", utterance, False, epoch)
+        self.listener.on_request.assert_not_called()
+        self.listener.on_unclear.assert_not_called()
+
+    def test_direct_followup_cancel_clears_scope_without_generating(self):
+        self.listener.set_enabled(True)
+        self.listener.on_cancel = Mock(return_value=True)
+        self.listener.set_followup("a" * 32)
+        self.listener._deliver("cancel", Utterance(b"", time.monotonic(), followup_id="a" * 32),
+                               False, self.listener._epoch)
+        self.listener.on_cancel.assert_called_once_with()
+        self.assertIsNone(self.listener._followup_id)
+        self.assertEqual(self.requests, [])
+
+    def test_empty_invoked_audio_asks_question_but_empty_ambient_does_not(self):
+        self.listener.set_enabled(True)
+        self.listener.on_unclear = Mock(return_value=True)
+        for text in ("", "...", "um"):
+            self.listener._deliver(text, Utterance(b"", time.monotonic()), False, self.listener._epoch)
+        self.listener.on_unclear.assert_not_called()
+        self.listener._deliver("", Utterance(b"", time.monotonic(), invoked=True), False, self.listener._epoch)
+        self.listener.on_unclear.assert_called_once_with("empty", followup_id=None)
+        self.listener.on_unclear.reset_mock()
+        self.listener._deliver("...", Utterance(b"", time.monotonic()), True, self.listener._epoch)
+        self.listener.on_unclear.assert_called_once_with("empty", followup_id=None)
+        self.assertEqual(self.requests, [])
+
+    def test_weak_followup_requests_clarification_with_exact_context(self):
+        self.listener.set_enabled(True)
+        self.listener.on_unclear = Mock(return_value=True)
+        self.listener.on_request = Mock(return_value=True)
+        self.listener.set_followup("a" * 32)
+        self.listener._deliver("um", Utterance(b"", time.monotonic(), followup_id="a" * 32),
+                               False, self.listener._epoch)
+        self.listener.on_unclear.assert_called_once_with("incomplete", followup_id="a" * 32)
+        self.assertIsNone(self.listener._followup_id)
+        self.listener.set_followup("b" * 32)
+        self.listener._deliver("the other one", Utterance(b"", time.monotonic(), followup_id="b" * 32),
+                               False, self.listener._epoch)
+        self.listener.on_request.assert_called_once_with("the other one", followup_id="b" * 32)
+
+    def test_busy_mode_never_asks_clarification_for_empty_invocation(self):
+        self.listener.set_enabled(True)
+        self.listener.set_busy(True)
+        self.listener.on_unclear = Mock(return_value=True)
+        self.listener._deliver("", Utterance(b"", time.monotonic(), invoked=True), False, self.listener._epoch)
+        self.listener.on_unclear.assert_not_called()
+        self.assertFalse(self.listener.set_followup("a" * 32))
+
+    def test_followup_not_armed_while_speaker_suppresses_microphone(self):
+        self.assertFalse(self.listener.set_followup("a" * 32))
+        self.listener.set_enabled(True)
+        self.assertTrue(self.listener.set_followup("a" * 32))
+        self.listener.set_enabled(False)
+        self.listener.set_enabled(True)
+        self.assertFalse(self.listener.set_followup("a" * 32))
+        self.listener._deliver("yes", Utterance(b"", time.monotonic()), False, self.listener._epoch)
+        self.assertEqual(self.requests, [])
+
     def test_busy_capture_accepts_only_explicit_cancellation_and_no_generation(self):
         self.listener.on_cancel = Mock(return_value=True)
         self.listener.set_enabled(True)
@@ -545,6 +676,84 @@ class ListenerTests(unittest.TestCase):
             listener._probe_thread.join(1)
         self.assertEqual((sd.opens, sd.closes), (1, 1))
         return utterance, len(reads), transcribe
+
+    def test_followup_capture_needs_no_wake_probe_and_waits_full_three_second_quiet(self):
+        self.listener.set_enabled(True)
+        self.listener.set_followup("a" * 32)
+        blocks = [NATIVE_SPEECH] * 40 + [NATIVE_SILENCE] * 120
+        utterance, reads, transcribe = self.capture_wake(blocks, lambda _: "should not run")
+        transcribe.assert_not_called()
+        self.assertEqual(reads, 160)
+        self.assertEqual(utterance.audio, SPEECH * 40 + SILENCE * 120)
+        self.assertEqual(utterance.followup_id, "a" * 32)
+        self.assertTrue(utterance.invoked)
+        self.assertTrue(any(item["message"].startswith("Listening for your answer") for item in self.statuses))
+
+    def test_followup_capture_keeps_three_second_end_after_start_window_expires(self):
+        clock = [100.0]
+        self.listener.set_enabled(True)
+        with patch("modulate.voice.time.monotonic", side_effect=lambda: clock[0]):
+            self.listener.set_followup("a" * 32, seconds=1)
+
+            def hook(index):
+                clock[0] = 100 + index * BLOCK_SECONDS
+
+            blocks = [NATIVE_SPEECH] * 40 + [NATIVE_SILENCE] * 120
+            utterance, reads, transcribe = self.capture_wake(blocks, lambda _: "should not run", hook)
+            self.assertEqual(reads, 160)
+            self.assertGreater(clock[0], self.listener._followup_until)
+            self.listener.on_request = Mock(return_value=True)
+            self.listener._deliver("yes", utterance, False, self.listener._epoch)
+        transcribe.assert_not_called()
+        self.listener.on_request.assert_called_once_with("yes", followup_id="a" * 32)
+
+    def test_followup_capture_timeout_is_silent_and_does_not_reprompt(self):
+        clock = [100.0]
+        self.listener.set_enabled(True)
+        self.listener.on_unclear = Mock(return_value=True)
+        with patch("modulate.voice.time.monotonic", side_effect=lambda: clock[0]):
+            self.listener.set_followup("a" * 32, seconds=1)
+
+            def hook(index):
+                clock[0] = 100 + index * BLOCK_SECONDS
+
+            utterance, reads, transcribe = self.capture_wake([NATIVE_SILENCE] * 42, lambda _: "should not run", hook)
+        self.assertIsNone(utterance)
+        self.assertEqual(reads, 41)
+        transcribe.assert_not_called()
+        self.listener.on_unclear.assert_not_called()
+        self.assertEqual(self.requests, [])
+
+    def test_bare_wake_without_command_requests_clarification_after_command_window(self):
+        clock = [100.0]
+        self.listener.on_unclear = Mock(return_value=True)
+
+        def hook(index):
+            clock[0] = 100 + index * BLOCK_SECONDS
+
+        blocks = [NATIVE_SPEECH] * 40 + [NATIVE_SILENCE] * 400
+        with patch("modulate.voice.time.monotonic", side_effect=lambda: clock[0]):
+            utterance, reads, transcribe = self.capture_wake(blocks, lambda _: "Hey Meta", hook)
+            self.assertGreaterEqual(clock[0], 107)
+            self.assertLess(reads, len(blocks))
+            self.assertEqual(utterance.audio, b"")
+            self.assertEqual(utterance.transcript, "")
+            self.listener._deliver(utterance.transcript, utterance, False, self.listener._epoch)
+        transcribe.assert_called_once()
+        self.listener.on_unclear.assert_called_once_with("empty", followup_id=None)
+        self.assertEqual(self.requests, [])
+
+    def test_explicit_silent_ptt_requests_clarification_without_whisper(self):
+        self.listener.on_unclear = Mock(return_value=True)
+        sd = FakeSoundDevice()
+        self.listener._audio = SyntheticQueue(NATIVE_SILENCE)
+        with patch.dict("sys.modules", {"sounddevice": sd}):
+            utterance = self.listener._capture(ptt=True)
+        self.assertEqual(utterance.audio, b"")
+        self.assertEqual(utterance.transcript, "")
+        self.listener._deliver(utterance.transcript, utterance, True, self.listener._epoch)
+        self.listener.on_unclear.assert_called_once_with("empty", followup_id=None)
+        self.assertEqual(self.requests, [])
 
     def test_fast_wake_probe_continues_capture_and_preserves_correction_without_early_send(self):
         probe_started, release_probe = threading.Event(), threading.Event()

@@ -141,6 +141,19 @@ class AgentTests(unittest.TestCase):
         self.assertFalse(any(item["type"] == "tool_started" for item in self.service.events))
         self.assertEqual(agent.ledger.status()["charged_or_reserved_dollars"], 0)
 
+    def test_repeated_identical_tool_failure_stops_and_counter_resets_for_new_request(self):
+        failing = reply(("read_current_package", {}))
+        agent, provider = self.make([failing, failing, failing, reply(content="Must not be called")])
+        def unavailable():
+            raise AgentError("Synthetic operation unavailable")
+        self.service.current_package = unavailable
+        with self.assertRaisesRegex(AgentError, "same operation failed three times"):
+            agent.run("Synthetic request")
+        self.assertEqual(len(provider.requests), 3)
+        self.assertEqual(self.service.activations, [])
+        provider.script = [failing, reply(content="This operation is unavailable.")]
+        self.assertEqual(agent.run("A new request"), "This operation is unavailable.")
+
     def test_model_selects_order_then_writes_checks_and_activates_exact_candidate(self):
         def build(messages, tools):
             self.assertIn("runtime", result_for(messages, "read_runtime_api"))

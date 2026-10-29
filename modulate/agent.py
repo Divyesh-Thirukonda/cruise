@@ -74,7 +74,18 @@ or revise a candidate after feedback. This is not a fixed call sequence.
 Establish the intended outcome before changing a package. If the request is
 incomplete, the target is unclear, or a missing detail would change what you build,
 use ask_user with one short, specific question before writing or activating.
+Use ask_user whenever you need a reply; a question in plain final text does not
+open the listening window. Do not ask for a reply you do not need.
 Do not invent a task from conversational filler or an unfinished transcript.
+During a clarification, interpret the answer together with the supplied original
+goal and earlier replies. A short yes can answer your question; it is never an
+approval receipt for sending, deleting, buying, or another protected computer
+action. Those actions still require the separate computer confirmation interface.
+After an operational problem, explain the observed cause plainly and ask one
+specific question only if a person can supply missing information or fix access.
+If the capability is genuinely unavailable, explain that limit and stop instead
+of repeatedly asking to retry or substituting an unrelated task. Do not claim
+success after a failed tool. Preserve the current app until a replacement passes.
 Use reasonable small defaults when the intended outcome is clear; do not turn
 ordinary implementation choices into questions. If no action was requested,
 a brief response without changing the current program is enough.
@@ -284,6 +295,7 @@ class Orchestrator:
         self.request_id = None
         self.private_request = False
         self.protocol_repairs = 0
+        self.tool_failures = {}
 
     def event(self, kind, **values):
         if self.private_request or kind == "request_started":
@@ -305,12 +317,15 @@ class Orchestrator:
             self.run_lock.release()
 
     def _run(self, text, *, private=False):
-        if not isinstance(text, str) or not 1 <= len(text.strip()) <= 4000:
-            raise AgentError("Request must contain 1–4000 characters")
+        # Public requests remain <=4000 chars. Trusted conversation assembly
+        # retains the original and at most four bounded question/reply turns.
+        if not isinstance(text, str) or not 1 <= len(text.strip()) <= 24_000:
+            raise AgentError("Agent context must contain 1–24000 characters")
         self.request_id = uuid.uuid4().hex
         self.cancelled.clear()
         self.calls = self.delegations = 0
         self.protocol_repairs = 0
+        self.tool_failures = {}
         self.candidates = {}
         self.clarification = None
         self.private_request = bool(private)
@@ -396,9 +411,14 @@ class Orchestrator:
                     status = "failed"
                 self.event("tool_finished", title=call["name"].replace("_", " "), role=role, tool=call["name"],
                            status=status, seconds=round(time.monotonic() - started, 3), detail=result)
+                if status == "failed":
+                    fingerprint = (call["name"], result["type"], result["error"])
+                    self.tool_failures[fingerprint] = self.tool_failures.get(fingerprint, 0) + 1
+                    if self.tool_failures[fingerprint] >= 3:
+                        raise AgentError("The same operation failed three times; human help is needed before continuing")
                 if call["name"] == "ask_user" and role == "orchestrator":
                     if status != "passed":
-                        raise AgentError("Could not request clarification; no further tool actions")
+                        raise AgentError("Could not request clarification: " + result["error"])
                     return result["question"]
                 if isinstance(result, dict) and "image_url" in result:
                     result = dict(result)

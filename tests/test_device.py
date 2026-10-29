@@ -52,6 +52,46 @@ class ControllerTests(unittest.TestCase):
     def offer(self):
         self.controller.host = {"pairing": {"code": "12345678", "expires_at": time.time() + 120}}
 
+    def test_followup_arms_only_after_speech_is_ready_and_stops_when_expired(self):
+        question = {"id": "e" * 32, "expires_at": time.time() + 120}
+        self.controller.host = {"wake": True, "clarification": question, "speech_pending": True}
+        self.controller._sync_voice()
+        self.VoiceListener.set_followup.assert_called_with(None, seconds=20)
+        self.controller.host["speech_pending"] = False
+        self.controller._sync_voice()
+        self.VoiceListener.set_followup.assert_called_with(question["id"], seconds=20)
+        self.controller.speaker_state["state"] = "speaking"
+        self.controller._sync_voice()
+        self.VoiceListener.set_followup.assert_called_with(None, seconds=20)
+        self.controller.speaker_state["state"] = "idle"
+        question["expires_at"] = time.time() - 1
+        self.controller._sync_voice()
+        self.VoiceListener.set_followup.assert_called_with(None, seconds=20)
+
+    def test_followup_token_is_forwarded_and_stale_answer_never_queued(self):
+        identifier = "e" * 32
+        self.controller.host = {"clarification": {"id": identifier, "expires_at": time.time() + 120}}
+        self.assertFalse(self.controller.request("yes", followup_id="f" * 32))
+        self.assertTrue(self.controller.requests.empty())
+        self.assertTrue(self.controller.request("yes", followup_id=identifier))
+        self.Companion.post.side_effect = [{"wake": True}, {"accepted": True, "job_id": "a" * 32, "job_sequence": 1}]
+        self.controller._network_step()
+        self.assertEqual(self.Companion.post.call_args.args, ("request", {"text": "yes", "followup_id": identifier}))
+
+    def test_missing_speech_uses_clarification_route_with_no_invented_request(self):
+        self.assertTrue(self.controller.unclear("empty"))
+        self.Companion.post.side_effect = [{"wake": True}, {"accepted": True, "job_id": "a" * 32, "job_sequence": 1}]
+        self.controller._network_step()
+        self.assertEqual(self.Companion.post.call_args.args, ("unclear", {"reason": "empty", "followup_id": None}))
+
+    def test_failed_job_question_is_not_hidden_by_generic_failure_card(self):
+        self.controller.build = {"job_id": "a" * 32, "job_sequence": 1}
+        self.controller._update_build({"agent_state": {"job_id": "a" * 32, "job_sequence": 1,
+                                      "running": False, "status": "failed"},
+                                      "clarification": {"question": "Would you like me to try again?"}})
+        self.assertIsNone(self.controller.build)
+        self.assertIsNone(self.controller._feedback_card())
+
     def test_voice_cancel_discards_unsent_request_without_network_action(self):
         self.controller.request('Make a game')
         self.assertTrue(self.controller.cancel_request())

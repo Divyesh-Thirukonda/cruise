@@ -15,11 +15,12 @@ from modulate.voice import VoiceListener
 
 
 class FakeSpeaker:
-    def __init__(self, on_status):
+    def __init__(self, on_status, audio_fetch=None):
         self.on_status = on_status
         self.value = {"available": True, "state": "idle", "backend": "synthetic",
                       "output": "synthetic-sink", "error": None, "request_id": None}
         self.spoken = []
+        self.audio = []
         self.cancelled = self.started = self.stopped = 0
 
     def snapshot(self):
@@ -37,12 +38,13 @@ class FakeSpeaker:
         self.stopped += 1
         self.emit("stopped")
 
-    def speak(self, text, *, before_playback=None):
+    def speak(self, text, *, audio=None, before_playback=None):
         if not self.value["available"]:
             return False
         if before_playback is not None:
             before_playback()
         self.spoken.append(text)
+        self.audio.append(audio)
         self.value["request_id"] = len(self.spoken)
         self.emit("queued")
         return True
@@ -103,6 +105,16 @@ class DeviceSpeakerTests(unittest.TestCase):
         self.assertEqual(packet["speech_ack"], "b" * 32)
         self.assertEqual(packet["telemetry"]["speaker"]["state"], "queued")
         self.assertNotIn("PRIVATE_EMAIL_SUMMARY", json.dumps(packet))
+
+    def test_audio_descriptor_must_match_speech_identity(self):
+        response = self.response()
+        descriptor = {"id": "d" * 32, "format": "pcm_s16le_24000_mono", "bytes": 4800, "sha256": "e" * 64}
+        response["speech"]["audio"] = descriptor
+        self.apply(response)
+        self.assertEqual(self.speaker.spoken, [])
+        descriptor["id"] = response["speech"]["id"]
+        self.apply(response)
+        self.assertEqual(self.speaker.audio, [descriptor])
 
     def test_jobless_system_speaker_test_is_accepted_but_malformed_job_is_rejected(self):
         self.apply(self.response(job_id=None, text="Speaker test"))

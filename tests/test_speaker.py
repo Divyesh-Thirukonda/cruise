@@ -1,6 +1,7 @@
 """Synthetic TTS process/queue tests; no speech, player or hardware is opened."""
 
 import os
+import hashlib
 import subprocess
 import threading
 import time
@@ -9,6 +10,12 @@ import unittest
 from unittest.mock import Mock, patch
 
 from modulate.speaker import LocalSpeechBackend, Speaker, SpeakerError, MAX_TEXT_CHARACTERS
+from modulate.device_transport import SPEECH_FORMAT, MAX_SPEECH_BYTES, TransportError
+
+
+def audio_descriptor(payload, identifier="a" * 32):
+    return {"id": identifier, "format": SPEECH_FORMAT, "bytes": len(payload),
+            "sha256": hashlib.sha256(payload).hexdigest()}
 
 
 def wait_until(condition):
@@ -44,6 +51,9 @@ class FakeBackend:
                 self.release.wait(1)
                 return False
         return not cancel.is_set()
+
+    def play_pcm(self, audio, cancel):
+        return self.play(audio, cancel)
 
 
 class SpeakerTests(unittest.TestCase):
@@ -212,6 +222,89 @@ class SpeakerTests(unittest.TestCase):
             wait_until(lambda: self.backend.refresh.call_count >= 2)
             self.assertTrue(speaker.stop())
 
+    def test_remote_audio_fetch_runs_on_worker_then_pcm_with_provider_label(self):
+        payload = b"\x01\x00" * 200
+        descriptor = audio_descriptor(payload)
+        pause = Mock()
+        caller = threading.get_ident()
+        def fetch(audio, cancel):
+            pause.assert_called_once_with()
+            self.assertNotEqual(threading.get_ident(), caller)
+            self.assertEqual(audio, descriptor)
+            self.assertFalse(cancel.is_set())
+            return payload
+        self.speaker.audio_fetch = fetch
+        self.backend.release.set()
+        self.speaker.start()
+        self.assertTrue(self.speaker.speak("PRIVATE_DISPLAY_ONLY", descriptor, before_playback=pause))
+        wait_until(lambda: self.speaker.snapshot()["last_delivery"] == "delivered")
+        self.assertEqual(self.backend.calls, [payload])
+        self.assertEqual(self.speaker.snapshot()["provider"], "elevenlabs")
+        self.assertTrue(self.speaker.snapshot()["backend"].startswith("elevenlabs/"))
+        self.assertIn("fetching", [status["state"] for status in self.statuses])
+        self.assertNotIn("PRIVATE", str(self.statuses))
+        self.assertIsNone(self.speaker._pending)
+
+    def test_invalid_remote_descriptor_does_not_pause_capture_or_fetch(self):
+        self.speaker.audio_fetch = Mock()
+        self.speaker.start()
+        pause = Mock()
+        valid = audio_descriptor(b"\x01\x00")
+        for changes in ({"bytes": 3}, {"bytes": MAX_SPEECH_BYTES + 2}, {"format": "mp3"},
+                        {"url": "https://elsewhere.invalid"}, {"sha256": "bad"}):
+            with self.subTest(changes=changes), self.assertRaises(ValueError):
+                self.speaker.speak("Synthetic reply", {**valid, **changes}, before_playback=pause)
+        pause.assert_not_called()
+        self.speaker.audio_fetch.assert_not_called()
+        self.assertEqual(self.backend.calls, [])
+
+    def test_remote_fetch_failure_or_bad_bytes_never_fall_back_to_local_text(self):
+        valid = audio_descriptor(b"\x01\x00" * 100)
+        for failure in (TransportError("PRIVATE_AUTH_ERROR"), b"wrong", b"\x02\x00" * 100,
+                        b"\x00" * (MAX_SPEECH_BYTES + 2)):
+            with self.subTest(result_type=type(failure).__name__):
+                self.speaker.audio_fetch = Mock(side_effect=failure) if isinstance(failure, Exception) else Mock(return_value=failure)
+                self.speaker.start()
+                self.speaker.speak("PRIVATE_NEVER_LOCAL_FALLBACK", valid)
+                wait_until(lambda: self.speaker.snapshot()["last_delivery"] == "failed")
+                self.assertIn("ElevenLabs", self.speaker.snapshot()["error"])
+                self.assertEqual(self.backend.calls, [])
+                self.assertNotIn("PRIVATE", str(self.statuses))
+
+    def test_new_remote_reply_cancels_old_fetch_and_only_latest_pcm_is_played(self):
+        first, latest = b"\x01\x00" * 100, b"\x02\x00" * 100
+        entered = threading.Event()
+        def fetch(descriptor, cancel):
+            if descriptor["id"] == "a" * 32:
+                entered.set()
+                self.assertTrue(cancel.wait(1))
+                return first
+            return latest
+        self.speaker.audio_fetch = fetch
+        self.backend.release.set()
+        self.speaker.start()
+        self.speaker.speak("Old", audio_descriptor(first))
+        self.assertTrue(entered.wait(1))
+        self.assertEqual(self.speaker.snapshot()["state"], "fetching")
+        self.speaker.speak("New", audio_descriptor(latest, "b" * 32))
+        wait_until(lambda: self.speaker.snapshot()["last_delivery"] == "delivered")
+        self.assertEqual(self.backend.calls, [latest])
+
+    def test_cancel_during_remote_fetch_never_starts_player(self):
+        entered = threading.Event()
+        def fetch(descriptor, cancel):
+            entered.set()
+            self.assertTrue(cancel.wait(1))
+            raise TransportError("Synthetic cancellation")
+        self.speaker.audio_fetch = fetch
+        self.speaker.start()
+        self.speaker.speak("Reply", audio_descriptor(b"\x01\x00"))
+        self.assertTrue(entered.wait(1))
+        self.speaker.cancel()
+        wait_until(lambda: self.speaker.snapshot()["state"] == "idle")
+        self.assertEqual(self.speaker.snapshot()["last_delivery"], "cancelled")
+        self.assertEqual(self.backend.calls, [])
+
 
 class BackendTests(unittest.TestCase):
     def setUp(self):
@@ -360,6 +453,66 @@ class BackendTests(unittest.TestCase):
         with patch("modulate.speaker.subprocess.Popen") as launch:
             self.assertFalse(backend.play("private", cancel))
         launch.assert_not_called()
+
+    def test_raw_pcm_uses_pinned_output_fixed_format_stdin_and_no_synth(self):
+        payload = b"\x01\x00" * 100
+        for mode in ("pulse", "alsa"):
+            with self.subTest(mode=mode):
+                backend = LocalSpeechBackend(alsa_device="plughw:2,0") if mode == "alsa" else LocalSpeechBackend()
+                processes, written, create, write = self.pipeline()
+                with patch("modulate.speaker.subprocess.Popen", side_effect=create) as launch, \
+                        patch("modulate.speaker.os.set_blocking"), patch("modulate.speaker.os.write", side_effect=write), \
+                        patch("modulate.speaker.os.killpg"):
+                    self.assertTrue(backend.play_pcm(payload, threading.Event()))
+                self.assertEqual(launch.call_count, 1)
+                arguments = launch.call_args.args[0]
+                if mode == "pulse":
+                    for flag in ("--device=usb-speaker", "--raw", "--format=s16le", "--rate=24000", "--channels=1"):
+                        self.assertIn(flag, arguments)
+                else:
+                    self.assertEqual(arguments, ["/usr/bin/aplay", "-q", "-D", "plughw:2,0", "-t", "raw",
+                                                 "-f", "S16_LE", "-r", "24000", "-c", "1"])
+                self.assertEqual(bytes(written), payload)
+                self.assertNotIn("shell", launch.call_args.kwargs)
+                self.assertTrue(all(process.stdin.closed for process in processes))
+
+    def test_raw_pcm_timeout_terminates_player_and_invalid_audio_never_launches(self):
+        backend = LocalSpeechBackend()
+        processes, _, create, write = self.pipeline(hang=True)
+        with patch("modulate.speaker.subprocess.Popen", side_effect=create), \
+                patch("modulate.speaker.os.set_blocking"), patch("modulate.speaker.os.write", side_effect=write), \
+                patch("modulate.speaker.os.killpg") as terminate, \
+                patch("modulate.speaker.time.monotonic", side_effect=[0, 91]):
+            with self.assertRaisesRegex(SpeakerError, "time limit"):
+                backend.play_pcm(b"\x01\x00", threading.Event())
+        terminate.assert_called_once()
+        self.assertTrue(processes[0].finished)
+        with patch("modulate.speaker.subprocess.Popen") as launch:
+            for audio in (b"", b"x", b"x" * (MAX_SPEECH_BYTES + 2), "text"):
+                with self.assertRaises(ValueError):
+                    backend.play_pcm(audio, threading.Event())
+            cancelled = threading.Event()
+            cancelled.set()
+            self.assertFalse(backend.play_pcm(b"\x01\x00", cancelled))
+        launch.assert_not_called()
+
+    def test_raw_pcm_cancellation_during_playback_terminates_process_group(self):
+        backend = LocalSpeechBackend()
+        cancel = threading.Event()
+        processes, written, create, write = self.pipeline(hang=True)
+        def interrupt(descriptor, data):
+            size = write(descriptor, data)
+            cancel.set()
+            return size
+        with patch("modulate.speaker.subprocess.Popen", side_effect=create), \
+                patch("modulate.speaker.os.set_blocking"), patch("modulate.speaker.os.write", side_effect=interrupt), \
+                patch("modulate.speaker.os.killpg") as terminate:
+            self.assertFalse(backend.play_pcm(b"\x01\x00" * 100, cancel))
+        terminate.assert_called_once()
+        self.assertTrue(processes[0].finished)
+        self.assertEqual(len(written), 200)
+        self.assertEqual(backend.output, "usb-speaker")
+        self.assertTrue(backend.info()["available"])
 
 
 if __name__ == "__main__":

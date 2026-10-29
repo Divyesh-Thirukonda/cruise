@@ -4,6 +4,10 @@ No screenshots, screen-derived answers or speech text are persisted here.
 Computer grants are local, revocable, and independent of the volume pairing.
 """
 import copy
+import hashlib
+import os
+import re
+import threading
 import time
 import uuid
 
@@ -21,6 +25,15 @@ class AssistantIO:
         self.computer_approval_decision = None
         self.computer_approved_action = None
         self.computer_focus_pending = False
+        self.tts = None
+        self.speech_error = None
+        self.speech_audio = None
+        self.speech_pending = None
+        self.speech_cancel = None
+        self.speech_worker = None
+        if os.environ.get("MODULATE_TTS_PROVIDER") == "elevenlabs":
+            from .tts import ElevenLabsTTS
+            self.tts = ElevenLabsTTS(self.directory)
 
     def computer_status(self):
         value = self.computer.status()
@@ -130,6 +143,10 @@ class AssistantIO:
             return {"accepted": True}
 
     def _stop_speech(self):
+        if self.speech_cancel:
+            self.speech_cancel.set()
+        self.speech_pending = None
+        self.speech_audio = None
         self.speech_message = None
         self.speech_stop_id = max(self.speech_stop_id + 1, int(time.time() * 1000))
 
@@ -139,8 +156,78 @@ class AssistantIO:
             return
         if len(text) > 1200:
             text = text[:1140].rsplit(" ", 1)[0] + ". The rest is in Studio."
-        self.speech_message = {"id": uuid.uuid4().hex, "job_id": job_id, "text": text,
-                               "created_at": time.time(), "expires_at": time.time() + 120}
+        self._stop_speech()
+        self.speech_error = None
+        message = {"id": uuid.uuid4().hex, "job_id": job_id, "text": text,
+                   "created_at": time.time(), "expires_at": time.time() + 120}
+        if self.tts is None:
+            self.speech_message = message
+            return
+        self.speech_pending = message
+        if self.speech_worker is None or not self.speech_worker.is_alive():
+            self.speech_worker = threading.Thread(target=self._synthesize_pending,
+                                                   name="modulate-speech-synthesis", daemon=True)
+            self.speech_worker.start()
+
+    def _synthesize_pending(self):
+        # Only one synthesis at a time; replacements cancel active work and
+        # replace the single pending entry. No provider work holds the host lock.
+        while True:
+            with self.lock:
+                message = self.speech_pending
+                if message is None:
+                    self.speech_worker = None
+                    return
+                if message["expires_at"] <= time.time():
+                    self.speech_pending = None
+                    continue
+                cancel = self.speech_cancel = threading.Event()
+            waiting_for_previous = False
+            try:
+                audio = self.tts.synthesize(message["text"], cancel)
+                if type(audio) is not bytes or not audio or len(audio) > 4_320_000 or len(audio) % 2:
+                    raise ValueError("Invalid speech audio")
+                with self.lock:
+                    if (not cancel.is_set() and self.speech_pending is message
+                            and message["expires_at"] > time.time()):
+                        descriptor = {"id": message["id"], "format": "pcm_s16le_24000_mono",
+                                      "bytes": len(audio), "sha256": hashlib.sha256(audio).hexdigest()}
+                        self.speech_audio = {"id": message["id"], "data": audio,
+                                             "expires_at": message["expires_at"]}
+                        self.speech_message = {**message, "audio": descriptor}
+            except Exception as error:
+                with self.lock:
+                    if not cancel.is_set() and self.speech_pending is message:
+                        # Cancellation can return before the provider's blocked
+                        # socket worker exits. Busy means no request was sent;
+                        # retain only the newest reply until that worker stops.
+                        from .tts import TTSError
+                        waiting_for_previous = (isinstance(error, TTSError)
+                                                and error.category == "busy"
+                                                and message["expires_at"] > time.time())
+                        if not waiting_for_previous:
+                            self.speech_error = "ElevenLabs could not produce this reply. The text is still available in Studio."
+                if waiting_for_previous:
+                    cancel.wait(.1)
+            finally:
+                with self.lock:
+                    if self.speech_pending is message and not waiting_for_previous:
+                        self.speech_pending = None
+                    if self.speech_cancel is cancel:
+                        self.speech_cancel = None
+
+    def get_speech_audio(self, identifier):
+        with self.lock:
+            if self.speech_audio and self.speech_audio["expires_at"] <= time.time():
+                self.speech_audio = None
+            if (type(identifier) is not str or not re.fullmatch(r"[0-9a-f]{32}", identifier)
+                    or not self.speech_audio or self.speech_audio["id"] != identifier):
+                raise AgentError("That spoken reply is no longer available")
+            return self.speech_audio["data"]
+
+    def speech_status(self):
+        return {"provider": "elevenlabs" if self.tts is not None else "local",
+                "pending": self.speech_pending is not None, "error": self.speech_error}
 
     def _publish_response(self, text, job_id):
         text = str(text).strip()[:4000]
@@ -170,10 +257,13 @@ class AssistantIO:
         return {"accepted": True}
 
     def _assistant_heartbeat(self, packet):
+        if self.speech_audio and self.speech_audio["expires_at"] <= time.time():
+            self.speech_audio = None
         if self.speech_message and (self.speech_message["expires_at"] <= time.time()
                                     or packet.get("speech_ack") == self.speech_message["id"]):
             self.speech_message = None
         return {"speech": copy.deepcopy(self.speech_message), "speech_stop_id": self.speech_stop_id,
+                "speech_pending": self.speech_pending is not None, "speech_error": self.speech_error,
                 "speaker_enabled": True}
 
     def _response_state(self):

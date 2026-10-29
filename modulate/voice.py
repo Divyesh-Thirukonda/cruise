@@ -97,6 +97,7 @@ class Utterance:
     started_at: float
     transcript: str | None = None
     invoked: bool = False
+    followup_id: str | None = None
 
 
 def pcm_rms(audio):
@@ -220,14 +221,18 @@ class VoiceListener:
     request_ptt() queues one silence-ended recording even with wake disabled and
     returns False when stopped, already recording PTT, or transcribing.
     on_request(text) must enqueue promptly; returning False reports busy.
+    Scoped answers use on_request(text, followup_id=identifier). Optional
+    on_unclear(reason, followup_id=None) asks for a trusted local clarification.
     on_status receives only state/message, never transcript or audio.
     """
 
-    def __init__(self, on_request, on_status, device=None, *, rms_threshold=0.015, on_cancel=None):
+    def __init__(self, on_request, on_status, device=None, *, rms_threshold=0.015, on_cancel=None,
+                 on_unclear=None):
         if device is not None and (type(device) is not int or device < 0):
             raise ValueError("Microphone device must be a sounddevice integer index")
         self.on_request, self.on_status = on_request, on_status
         self.on_cancel = on_cancel
+        self.on_unclear = on_unclear
         self.device = device
         self._vad = EnergyVAD(rms_threshold)
         self._gate = WakeGate()
@@ -244,6 +249,9 @@ class VoiceListener:
         self._selected = None
         self._enabled = self._pending_ptt = self._ptt_active = self._transcribing = False
         self._busy = False
+        self._followup_id = None
+        self._followup_seen = deque(maxlen=64)
+        self._followup_from = self._followup_until = 0.0
         self._epoch = 0
         self._last_status = None
         self._feedback = None
@@ -283,6 +291,7 @@ class VoiceListener:
         with self._lock:
             self._stop.set()
             self._pending_ptt = False
+            self._followup_id = None
             self._epoch += 1
             self._changed.set()
             thread = self._thread
@@ -296,10 +305,41 @@ class VoiceListener:
         with self._lock:
             if self._enabled != enabled:
                 self._enabled = enabled
+                if not enabled:
+                    self._followup_id = None
                 self._epoch += 1  # Invalidate any in-flight wake transcription.
                 # Heartbeats repeat the current setting. They must not wake a
                 # two-second audio-error backoff four times each second.
                 self._changed.set()
+
+    def set_followup(self, identifier, *, seconds=20):
+        """Grant one answer beginning within 1–30 s, after speaker/cooldown.
+
+        A repeated ID never extends or reopens a grant, even after consumption
+        or expiry. Clearing, muting, cancellation and busy mode invalidate it.
+        The host independently validates the same ID and question context.
+        """
+        if identifier is not None and (not isinstance(identifier, str)
+                                       or re.fullmatch(r"[0-9a-f]{32}", identifier) is None):
+            raise ValueError("Follow-up identifier must be 32 lowercase hexadecimal characters")
+        if type(seconds) not in (int, float) or not math.isfinite(seconds) or not 1 <= seconds <= 30:
+            raise ValueError("Follow-up listening must last 1–30 seconds")
+        with self._lock:
+            if identifier is None:
+                if self._followup_id is None:
+                    return False
+                self._followup_id = None
+            else:
+                if (identifier in self._followup_seen or not self._enabled
+                        or self._busy or self._stop.is_set()):
+                    return False
+                self._followup_id = identifier
+                self._followup_seen.append(identifier)
+                self._followup_from = time.monotonic()
+                self._followup_until = self._followup_from + seconds
+            self._epoch += 1
+            self._changed.set()
+            return True
 
     def request_ptt(self):
         with self._lock:
@@ -316,6 +356,8 @@ class VoiceListener:
         with self._lock:
             if self._busy != busy:
                 self._busy = busy
+                if busy:
+                    self._followup_id = None
                 self._epoch += 1
                 self._pending_ptt = False
                 self._changed.set()
@@ -407,6 +449,9 @@ class VoiceListener:
             if self._stop.is_set() or (not ptt and not self._enabled):
                 return None
             epoch = self._epoch
+            followup_id = (self._followup_id if not self._busy
+                           and self._followup_from <= time.monotonic() < self._followup_until else None)
+            followup_until = self._followup_until
         import sounddevice as sd
 
         if self._selected is None:
@@ -427,6 +472,7 @@ class VoiceListener:
         completed_voiced = 0
         confirmed = False
         last_audio = started = time.monotonic()
+        awaiting_command = self._gate.armed(started)
         with sd.RawInputStream(device=index, channels=1, samplerate=CAPTURE_RATE,
                                blocksize=CAPTURE_BLOCK_SAMPLES, dtype="int16",
                                latency=INPUT_LATENCY_SECONDS, callback=self._callback) as stream:
@@ -434,6 +480,8 @@ class VoiceListener:
                 with self._lock:
                     if epoch != self._epoch or (not ptt and (not self._enabled or self._pending_ptt)):
                         return None
+                if followup_id and time.monotonic() >= followup_until and not self._vad.active:
+                    return None  # The answer window ends silently; normal wake listening resumes.
                 if self._overflow.is_set():
                     raise VoiceError(self._audio_problem or "Microphone audio gap; partial recording discarded")
                 if not stream.active:
@@ -460,6 +508,7 @@ class VoiceListener:
                         confirmed = True
                         if not remainder:
                             self._gate.accept(probe["text"], now=time.monotonic())
+                            awaiting_command = True
                         self._emit("listening", "Wake phrase heard; pause three seconds when finished")
                 if completed is not None and not self._vad.active and (probe is None or probe["done"].is_set()):
                     if probe is not None and completed_voiced == probe["voiced"]:
@@ -477,6 +526,8 @@ class VoiceListener:
                         return Utterance(completed.audio, completed.started_at, invoked=confirmed)
                 if ptt:
                     self._emit("listening", "Push-to-talk: pause three seconds when finished")
+                elif followup_id:
+                    self._emit("listening", "Listening for your answer; pause three seconds when finished")
                 elif confirmed or self._gate.armed(time.monotonic()):
                     self._emit("listening", "Wake phrase heard; pause three seconds when finished")
                 else:
@@ -497,8 +548,11 @@ class VoiceListener:
                     voiced += int(speaking)
                     utterance = self._vad.feed(audio, timestamp, speaking=speaking)
                     if utterance is not None:
-                        if ptt:
-                            return utterance
+                        if ptt or followup_id:
+                            if followup_id and utterance.started_at >= followup_until:
+                                return None
+                            return Utterance(utterance.audio, utterance.started_at,
+                                             invoked=bool(followup_id), followup_id=followup_id)
                         if completed is not None:
                             joined = completed.audio + utterance.audio
                             if len(joined) >= MAX_AUDIO_BYTES:
@@ -512,7 +566,7 @@ class VoiceListener:
                     retry_probe = (probe is not None and probe["handled"]
                                    and wake_remainder(probe["text"] or "") is None
                                    and voiced >= probe["voiced"] + 3 and completed is None)
-                    if (not ptt and (probe is None or retry_probe) and not confirmed
+                    if (not ptt and not followup_id and (probe is None or retry_probe) and not confirmed
                             and not self._gate.armed(timestamp) and self._vad.active
                             and self._vad.silence >= 20 and self._vad.voiced >= 3):
                         offset = max(0, probe["end_chunk"] - 10) if retry_probe else 0
@@ -523,19 +577,49 @@ class VoiceListener:
                             probe = fresh
                 if confirmed and not self._gate.armed(time.monotonic()) and not self._vad.active and completed is None:
                     confirmed = False
+                if awaiting_command and not self._gate.armed(time.monotonic()) and not self._vad.active and completed is None:
+                    if self.on_unclear is not None:
+                        self._gate.reset()
+                        return Utterance(b"", started, transcript="", invoked=True)
+                    awaiting_command = False
                 if ptt and not self._vad.active and native_blocks >= PTT_NO_SPEECH_BLOCKS:
                     message = "No speech detected; try push-to-talk again"
                     self._feedback_message(message)
                     self._emit("idle", message)
+                    if self.on_unclear is not None:
+                        return Utterance(b"", started, transcript="", followup_id=followup_id)
                     return None
         return None
+
+    def _clarify(self, reason, followup_id, epoch):
+        with self._lock:
+            if self._stop.is_set() or epoch != self._epoch or self._busy:
+                return
+            if followup_id:
+                self._followup_id = None
+            self._gate.reset()
+        message = "Please say a complete request after Hey Meta, or use push-to-talk"
+        if self.on_unclear is not None:
+            try:
+                accepted = self.on_unclear(reason, followup_id=followup_id)
+            except Exception:
+                raise VoiceError("Clarification handler failed; the question was not confirmed queued") from None
+            message = ("Please repeat your request after the question" if accepted is not False
+                       else "Could not ask for clarification; check the connection")
+        self._feedback_message(message)
+        self._emit("idle", message)
 
     def _deliver(self, text, utterance, ptt, epoch):
         with self._lock:
             if self._stop.is_set() or epoch != self._epoch or (not ptt and not self._enabled):
                 return
+            followup_id = utterance.followup_id
+            if followup_id and (self._busy or followup_id != self._followup_id
+                                or not self._followup_from <= utterance.started_at < self._followup_until):
+                return
         now = time.monotonic()
-        if ptt:
+        invoked = ptt or bool(followup_id) or utterance.invoked or self._gate.armed(utterance.started_at)
+        if ptt or followup_id:
             text = text.strip()
             remainder = wake_remainder(text)
             request = text if remainder is None else remainder
@@ -546,7 +630,10 @@ class VoiceListener:
                 # this same retained audio; final recognition may omit it.
                 self._gate.reset()
                 request = text.strip()
-        if not request:
+        if not request or not any(character.isalnum() for character in request):
+            if invoked and (ptt or followup_id or wake_remainder(text) != ""):
+                self._clarify("empty", followup_id, epoch)
+                return
             if ptt:
                 message = "No request recognized; try push-to-talk again"
                 self._feedback_message(message)
@@ -561,6 +648,10 @@ class VoiceListener:
                 return
             busy = self._busy
         if CANCEL_PATTERN.fullmatch(request.strip()):
+            with self._lock:
+                self._followup_id = None
+                self._epoch += 1
+                self._changed.set()
             try:
                 accepted = self.on_cancel() if self.on_cancel is not None else False
             except Exception:
@@ -573,12 +664,16 @@ class VoiceListener:
             self._emit("wake_listening", "Working; say Hey Meta cancel build")
             return
         if re.sub(r"[^a-z ]", "", request.lower()).strip() in INCOMPLETE_REQUESTS:
-            message = "Please say a complete request after Hey Meta, or use push-to-talk"
-            self._feedback_message(message)
-            self._emit("idle", message)
+            self._clarify("incomplete", followup_id, epoch)
             return
+        with self._lock:
+            if self._stop.is_set() or epoch != self._epoch:
+                return
+            if followup_id:
+                self._followup_id = None  # Consume once, even if the host rejects or disconnects.
         try:
-            accepted = self.on_request(request)
+            accepted = (self.on_request(request, followup_id=followup_id) if followup_id
+                        else self.on_request(request))
         except Exception:
             raise VoiceError("Request handler failed; request was not confirmed queued") from None
         if accepted is False:

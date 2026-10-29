@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 from modulate.agent import AgentError
-from modulate.agent_provider import AgentProvider
+from modulate.agent_provider import AgentProvider, AgentProviderError
 from modulate.product import Product
 from tests.test_product import FakeBackend
 
@@ -21,9 +21,9 @@ class VoiceFlowTests(unittest.TestCase):
         self.addCleanup(self.product.cancel)
         self.product.last_seen = time.monotonic()
 
-    def queued(self, text='Make a blue game', source='microphone'):
+    def queued(self, text='Make a blue game', source='microphone', **options):
         with patch('modulate.product.threading.Thread') as thread:
-            result = self.product.request(text, source=source)
+            result = self.product.request(text, source=source, **options)
         return result['job_id'], thread.call_args.kwargs['target']
 
     def test_edit_holds_draft_and_only_edited_text_reaches_agent(self):
@@ -117,6 +117,110 @@ class VoiceFlowTests(unittest.TestCase):
         new, _ = self.queued(source='website')
         self.assertFalse(self.product.cancel(job)['cancelled'])
         self.assertTrue(self.product.running)
+
+    def ask(self, question='Should the meteors fall faster?'):
+        _, work = self.queued('Make the falling meteors faster', source='website')
+        def ask(text):
+            self.product.request_clarification(question)
+            return question
+        with patch.object(self.product.agent, 'run', side_effect=ask): work()
+        return self.product.state()['clarification']
+
+    def test_scoped_yes_preserves_goal_and_consumes_scope_without_granting_computer_approval(self):
+        question = self.ask()
+        self.product.computer_approved_action = {'action': 'synthetic old receipt'}
+        _, work = self.queued('yes', source='website', followup_id=question['id'])
+        self.assertIsNone(self.product.computer_approved_action)
+        with patch.object(self.product.agent, 'run', return_value='Done') as run: work()
+        self.assertIn('Make the falling meteors faster', run.call_args.args[0])
+        self.assertIn("User's reply (may replace the request): yes", run.call_args.args[0])
+        self.assertIsNone(self.product.conversation)
+        with self.assertRaisesRegex(AgentError, 'conversation has ended'):
+            self.product.request('yes', followup_id=question['id'])
+
+    def test_expired_or_cancelled_scope_never_becomes_a_fresh_request(self):
+        question = self.ask()
+        self.product.clarification['expires_at'] = time.time() - 1
+        with self.assertRaises(AgentError): self.product.request('yes', followup_id=question['id'])
+        self.assertIsNone(self.product.state()['clarification'])
+        self.assertIsNone(self.product.conversation)
+        question = self.ask()
+        self.product.cancel(question['job_id'])
+        with self.assertRaises(AgentError): self.product.request('yes', followup_id=question['id'])
+        self.assertFalse(self.product.running)
+
+    def test_missing_speech_asks_without_model_or_activation_and_limits_reprompts(self):
+        with patch.object(self.product.agent, 'run') as run:
+            result = self.product.unclear('empty')
+            for _ in range(4):
+                question = self.product.state()['clarification']
+                self.assertIsNotNone(question)
+                old = question['id']
+                self.product.unclear('empty', followup_id=old)
+                current = self.product.state()['clarification']
+                if current: self.assertNotEqual(current['id'], old)
+            run.assert_not_called()
+        self.assertIsNone(self.product.state()['clarification'])
+        self.assertIsNone(self.product.active)
+        self.assertIn('type it in Studio', self.product.response['text'])
+        with self.assertRaises(AgentError): self.product.unclear([])
+
+    def test_provider_failure_requires_human_reply_and_only_one_recovery(self):
+        _, first = self.queued('Original synthetic goal', source='website')
+        failure = AgentProviderError('Provider request failed or timed out.')
+        with patch.object(self.product.agent, 'run', side_effect=failure) as run:
+            first()
+            self.assertEqual(run.call_count, 1)
+        question = self.product.state()['clarification']
+        self.assertEqual(question['kind'], 'recovery')
+        self.assertIn('Check the connection', self.product.response['text'])
+        _, retry = self.queued('yes', source='website', followup_id=question['id'])
+        with patch.object(self.product.agent, 'run', side_effect=failure) as run:
+            retry()
+            self.assertIn('Original synthetic goal', run.call_args.args[0])
+        self.assertIsNone(self.product.state()['clarification'])
+        self.assertIn("stopped retrying", self.product.response['text'])
+        self.assertIsNone(self.product.active)
+
+    def test_unclear_then_real_goal_then_yes_keeps_original_intent(self):
+        self.product.unclear('empty')
+        first = self.product.state()['clarification']
+        _, work = self.queued('Make a game about catching falling stars', source='website', followup_id=first['id'])
+        def ask(text):
+            self.product.request_clarification('Should the stars get faster over time?')
+            return 'Should the stars get faster over time?'
+        with patch.object(self.product.agent, 'run', side_effect=ask): work()
+        second = self.product.state()['clarification']
+        _, answer = self.queued('yes', source='website', followup_id=second['id'])
+        with patch.object(self.product.agent, 'run', return_value='Done') as run: answer()
+        self.assertIn('Previous request: Make a game about catching falling stars', run.call_args.args[0])
+        self.assertIn('stars get faster over time', run.call_args.args[0])
+        self.assertIn("User's reply (may replace the request): yes", run.call_args.args[0])
+
+    def test_long_goal_and_reply_are_not_silently_truncated(self):
+        goal = 'a' * 3980 + 'KEEP_GOAL_END'
+        _, work = self.queued(goal, source='website')
+        def ask(text):
+            self.product.request_clarification('Which behavior should change?')
+            return 'Which behavior should change?'
+        with patch.object(self.product.agent, 'run', side_effect=ask): work()
+        question = self.product.state()['clarification']
+        answer = 'b' * 3980 + 'KEEP_REPLY_END'
+        _, work = self.queued(answer, source='website', followup_id=question['id'])
+        with patch.object(self.product.agent, 'run', return_value='Done') as run: work()
+        prompt = run.call_args.args[0]
+        self.assertIn('KEEP_GOAL_END', prompt)
+        self.assertIn('KEEP_REPLY_END', prompt)
+        self.assertLessEqual(len(prompt), 24000)
+
+    def test_budget_and_unexpected_failures_stop_without_raw_payload_or_retry_scope(self):
+        for error in (AgentError('The approved model budget cannot cover another reserved call'),
+                      RuntimeError('SECRET_PATH_OR_SCREEN_PAYLOAD')):
+            _, work = self.queued(source='website')
+            with patch.object(self.product.agent, 'run', side_effect=error): work()
+            self.assertIsNone(self.product.state()['clarification'])
+            self.assertNotIn('SECRET_PATH', self.product.response['text'])
+        self.assertFalse(self.product.running)
 
 if __name__ == '__main__':
     unittest.main()

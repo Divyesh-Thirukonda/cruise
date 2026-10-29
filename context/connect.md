@@ -79,7 +79,7 @@ multi-tenant provisioning is claimed.
 ### First link, without a Pi shell
 
 The preloaded runtime now includes a small HTTPS enrollment service on the
-device's IPv4 port 8790. It starts only when enrollment is absent. Small **A**
+device's TLS port 8790 (IPv4 and IPv6). It starts only when enrollment is absent. Small **A**
 opens a five-minute setup window and displays the current address, a 20-hex
 device certificate identity and an eight-digit **device setup code**. Network
 access must already work (configured Wi-Fi or Ethernet); this does not provision
@@ -87,9 +87,9 @@ Wi-Fi or turn a blank SD card into a Modulate image.
 
 The agent prepares Studio on the Mac using that current device address. It can
 find the Mac's route address with `python -m modulate.enroll --device-address
-<on-screen IPv4> --print-host-address` (no network payload). After Studio starts
+<on-screen address> --print-host-address` (no network payload). After Studio starts
 with the proper host/device addresses and the retained state/ledger, run
-`python -m modulate.enroll --device-address <on-screen IPv4> --state-dir
+`python -m modulate.enroll --device-address <on-screen address> --state-dir
 <existing state>`. The helper opens a loopback-only form at
 `http://127.0.0.1:8791`; enter the identity and device setup code there, not in
 chat or logs. Compare the displayed Mac/request on both screens, then press

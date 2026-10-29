@@ -435,6 +435,59 @@ class DeviceEnrollmentUITests(unittest.TestCase):
         self.assertTrue(self.controller.actions.empty())
         self.assertTrue(self.controller.setup_actions.empty())
 
+    def test_missing_network_can_be_rechecked_without_restarting_device(self):
+        service = self.bootstrap()
+        service.snapshot.return_value.update(address=None, error="No network address yet")
+        card = self.controller._setup_card()
+        self.assertEqual(card["title"], "Connect to your network")
+        self.controller.draw_setup(card)
+        self.press()
+        self.press(a=True)
+        service.open_window.assert_called_once_with()
+        service.confirm.assert_not_called()
+
+    def test_complete_ipv6_address_key_code_and_request_fit_without_overlap(self):
+        service = self.bootstrap(code="07873334")
+        real_draw = ImageDraw.Draw
+        addresses = ("192.168.100.123", "2001:db8:abcd:ffff:1234:5678:90ab:cdef",
+                     "2001:aaaa:aaaa:aaaa:aaaa:aaaa:aaaa:aaaa")
+        for address in addresses:
+            for confirming in (False, True):
+                with self.subTest(address=address, confirming=confirming):
+                    service.snapshot.return_value.update(address=address, pending=(
+                        {"id": "f" * 24 + "abcd1234", "host_address": address} if confirming else None))
+                    self.controller.status_key = None
+                    card = self.controller._setup_card()
+                    drawings = []
+                    def capture(image):
+                        drawing = Mock(wraps=real_draw(image))
+                        drawings.append(drawing)
+                        return drawing
+                    with patch("modulate.device.ImageDraw.Draw", side_effect=capture):
+                        self.controller.draw_setup(card)
+                    texts, address_fragments, boxes = [], [], []
+                    for call in drawings[0].text.call_args_list:
+                        (x, y), text = call.args
+                        texts.append(text)
+                        if y in (44, 56):
+                            address_fragments.append(text)
+                        left, top, right, bottom = call.kwargs["font"].getbbox(text)
+                        box = (x + left, y + top, x + right, y + bottom)
+                        self.assertGreaterEqual(box[0], 0)
+                        self.assertLess(box[2], 240, text)
+                        self.assertLess(box[3], 135, text)
+                        for previous in boxes:
+                            self.assertFalse(min(box[2], previous[2]) > max(box[0], previous[0]) and
+                                             min(box[3], previous[3]) > max(box[1], previous[1]), text)
+                        boxes.append(box)
+                    expected = address if confirming else (f"[{address}]:8790" if ":" in address else f"{address}:8790")
+                    self.assertEqual("".join(address_fragments), expected)
+                    if confirming:
+                        self.assertIn("ABCD1234", texts)
+                    else:
+                        self.assertIn("07873334", texts)
+                        self.assertIn("Key: 0123456789 ABCDEF0123", texts)
+
     def test_bootstrap_credentials_fit_screen_and_never_enter_telemetry(self):
         service = self.bootstrap(code="07873334")
         real_draw = ImageDraw.Draw

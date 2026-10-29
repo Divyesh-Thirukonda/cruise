@@ -14,6 +14,7 @@ import re
 import secrets
 import socket
 import ssl
+import subprocess
 import threading
 import time
 from urllib.parse import urlsplit
@@ -28,16 +29,19 @@ def device_address(value):
         address = ipaddress.ip_address(value)
     except ValueError:
         raise EnrollmentError("Use the network address shown on your Modulate.") from None
-    if address.version != 4 or address.is_loopback or address.is_unspecified or address.is_multicast or address.is_link_local:
-        raise EnrollmentError("Use the IPv4 address shown on your Modulate, on the same network as this Mac.")
+    if (address.is_loopback or address.is_unspecified or address.is_multicast or address.is_link_local
+            or getattr(address, "scope_id", None) is not None or getattr(address, "ipv4_mapped", None) is not None):
+        raise EnrollmentError("Use the reachable IPv4 or IPv6 address shown on your Modulate, without a zone suffix.")
     return str(address)
 
 
 def mac_address(device):
     """Ask the OS for the route's source address; sends no network payload."""
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as route:
-        route.connect((device_address(device), 8790))
-        return route.getsockname()[0]
+    target = device_address(device)
+    family = socket.AF_INET6 if ipaddress.ip_address(target).version == 6 else socket.AF_INET
+    with socket.socket(family, socket.SOCK_DGRAM) as route:
+        route.connect((target, 8790))
+        return device_address(route.getsockname()[0])
 
 
 def load_enrollment(directory, device):
@@ -49,7 +53,7 @@ def load_enrollment(directory, device):
         config = json.loads(path.read_text())
         host = urlsplit(config["host_url"])
         expected = mac_address(device)
-        if (host.scheme != "https" or host.hostname != expected or host.port != 8788
+        if (host.scheme != "https" or device_address(host.hostname) != expected or host.port != 8788
                 or host.path not in ("", "/") or host.username or host.password or host.query or host.fragment):
             raise EnrollmentError("Studio’s device endpoint does not match this Mac’s route to Modulate. Repair its address and certificate first.")
         certificate = (directory / config["ca_file"]).resolve()
@@ -63,7 +67,13 @@ def load_enrollment(directory, device):
             raise EnrollmentError("Studio’s public device certificate is invalid.")
         certificate_check = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         certificate_check.load_verify_locations(cadata=pem)
-    except (OSError, KeyError, TypeError, ValueError) as error:
+        identity_check = subprocess.run(["openssl", "x509", "-in", str(certificate), "-noout", "-checkip", expected],
+                                        capture_output=True, text=True, timeout=3)
+        # Some OpenSSL versions return zero even when the address does not match.
+        # Require the exact positive result as well as success before exporting it.
+        if identity_check.returncode != 0 or identity_check.stdout.strip() != f"IP {expected} does match certificate":
+            raise EnrollmentError("Studio’s device certificate does not match this Mac’s current address. Repair its certificate and enrollment first.")
+    except (OSError, KeyError, TypeError, ValueError, subprocess.SubprocessError) as error:
         if isinstance(error, EnrollmentError):
             raise
         raise EnrollmentError("Studio’s device enrollment is invalid; preserve its state and repair the configuration.") from None

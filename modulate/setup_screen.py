@@ -7,6 +7,19 @@ import re
 from .deployment import CONNECT_HOST, CONNECT_URL
 
 
+def setup_address_lines(address, port=None):
+    """Keep every address character; IPv6 wraps at a colon on the mini display."""
+    text = str(address)
+    if port is not None:
+        text = f"[{text}]:{port}" if ":" in text else f"{text}:{port}"
+    lines = []
+    while len(text) > 26:
+        boundary = text.rfind(":", 1, 26) + 1 or 26
+        lines.append(text[:boundary])
+        text = text[boundary:]
+    return lines + [text]
+
+
 class SetupScreen:
     def __init__(self, started):
         self.started = started
@@ -57,10 +70,10 @@ class SetupScreen:
             return {"kind": "guide", "title": "Connecting to your Mac", "lines": [
                 "Device details saved.", "Keep Modulate Studio open.", "Checking the connection..."],
                 "action": "next", "connect_url": CONNECT_URL}
-        if not setup.get("address") and not setup.get("error"):
+        if not setup.get("address") and setup.get("available") is True:
             return {"kind": "guide", "title": "Connect to your network", "lines": [
                 "Use configured Wi-Fi", "or plug in Ethernet.", "Put your Mac on that network.",
-                "Checking for an address..."], "action": "next", "connect_url": CONNECT_URL}
+                "A checks the network again."], "action": "open_enrollment", "connect_url": CONNECT_URL}
         if setup.get("available") is not True:
             return {"kind": "guide", "title": "Setup unavailable", "lines": [
                 "Restart your device.", "If setup stays unavailable,", "ask for a software update."],
@@ -69,6 +82,7 @@ class SetupScreen:
         pending = setup.get("pending")
         if type(pending) is dict and re.fullmatch(r"[0-9a-f]{32}", str(pending.get("id", ""))):
             return {"kind": "enrollment_confirm", "id": pending["id"], "title": "Link this Mac?",
+                    "host_address": str(pending.get("host_address", "")),
                     "lines": [str(pending.get("host_address", "")), "Match request on your Mac:",
                               pending["id"][-8:].upper(), "Only approve your request."],
                     "action": "confirm_enrollment", "connect_url": CONNECT_URL}

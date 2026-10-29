@@ -70,6 +70,7 @@ class AppLibrary:
         self.directory = Path(directory)
         self.records = self.directory / "packages"
         self.path = self.directory / "index.json"
+        self.preferences_path = self.directory / "preferences.json"
         self.clock = clock
         self.lock = threading.RLock()
         for path in (self.directory, self.records):
@@ -85,9 +86,38 @@ class AppLibrary:
                     raise AppLibraryError("App library index is missing; existing packages were preserved")
                 self._write(self.path, {"version": 1, "items": {}, "purged": []})
             index = self._load()
+            self._read_preferences()
             # Complete only deletions already committed to the durable index.
             for revision in index["purged"]:
                 self._unlink_record(revision)
+
+    def _read_preferences(self):
+        if not self.preferences_path.exists() and not self.preferences_path.is_symlink():
+            # Existing installations have no preferences file. Do not rewrite
+            # their catalogue or packages just to use the historical direction.
+            return {"encoder_direction": "forward"}
+        value = self._read(self.preferences_path, 4096)
+        if (type(value) is not dict or set(value) != {"version", "encoder_direction"}
+                or type(value["version"]) is not int or value["version"] != 1
+                or type(value["encoder_direction"]) is not str
+                or value["encoder_direction"] not in {"forward", "reversed"}):
+            raise AppLibraryError("Invalid library preferences; saved files were preserved")
+        return {"encoder_direction": value["encoder_direction"]}
+
+    def preferences(self):
+        """Return only trusted menu preferences, never a generated binding."""
+        with self._locked():
+            return self._read_preferences()
+
+    def set_encoder_direction(self, direction):
+        if type(direction) is not str or direction not in {"forward", "reversed"}:
+            raise AppLibraryError("Library encoder direction must be forward or reversed")
+        with self._locked():
+            current = self._read_preferences()
+            result = {"encoder_direction": direction}
+            if current != result:
+                self._write(self.preferences_path, {"version": 1, **result})
+            return result
 
     @contextmanager
     def _locked(self):

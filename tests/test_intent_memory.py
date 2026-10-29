@@ -112,6 +112,22 @@ class IntentMemoryTests(unittest.TestCase):
 
 
 class ObservedActionTests(unittest.TestCase):
+    def test_library_preference_undo_retains_only_saved_bounded_before_after(self):
+        change = {"saved": True, "before": {"encoder_direction": "forward", "private": "PRIVATE"},
+                  "after": {"encoder_direction": "reversed", "code": "UNTRUSTED"}}
+        result = {"preference_change": change, "items": [{"code": "UNTRUSTED"}]}
+        action = observed_action("app_library", {"action": "set_preferences", "encoder_direction": "reversed"}, result)
+        self.assertEqual(action["observed"], {"preference_change": {
+            "saved": True, "before": {"encoder_direction": "forward"}, "after": {"encoder_direction": "reversed"}}})
+        change["after"]["encoder_direction"] = "forward"
+        self.assertEqual(action["observed"]["preference_change"]["after"]["encoder_direction"], "reversed")
+        self.assertNotIn("PRIVATE", json.dumps(action))
+        self.assertNotIn("UNTRUSTED", json.dumps(action))
+        for invalid in ({**change, "saved": False}, {**change, "before": {}},
+                        {**change, "after": {"encoder_direction": ["reversed"]}}):
+            recorded = observed_action("app_library", {"action": "set_preferences"}, {"preference_change": invalid})
+            self.assertEqual(recorded["observed"], {})
+
     def test_speaker_before_after_and_mac_settings_keep_only_known_metadata(self):
         result = {"before": {"volume": 40, "muted": False}, "after": {"volume": 50, "muted": False},
                   "verified": True, "pcm": "PRIVATE_PCM", "screen": "PRIVATE_SCREEN"}
@@ -188,6 +204,42 @@ class ProductIntentContextTests(unittest.TestCase):
         self.assertEqual(context["recent"][-1]["actions"][-1]["observed"]["before"]["volume"], 40)
         self.assertEqual(messages[-1], {"role": "user", "content": "Again, the same amount"})
         self.assertEqual(self.backend.actions, [50])  # Context alone never repeats the side effect.
+
+    def test_launcher_preference_and_undo_reach_agent_without_rebuilding_app(self):
+        from tests.test_product import checks, game
+        from modulate.agent import digest
+        package = game("Preserved game")
+        self.product._commit({"revision": digest(package), "package": package,
+                              "report": checks(package), "activated_at": 100})
+        self.product.device_revision = self.product.revision
+        self.product.library_action({"action": "open"})
+        original = json.dumps(self.product.active, sort_keys=True)
+
+        def reverse(messages, tools):
+            context = context_in(messages)
+            self.assertTrue(context["library"]["open"])
+            self.assertEqual(context["library"]["preferences"], {"encoder_direction": "forward"})
+            schema = next(item["function"]["parameters"] for item in tools if item["function"]["name"] == "app_library")
+            self.assertIn("set_preferences", schema["properties"]["action"]["enum"])
+            return reply(("app_library", {"action": "set_preferences", "encoder_direction": "reversed"}))
+
+        def undo(messages, tools):
+            context = context_in(messages)
+            self.assertEqual(context["library"]["preferences"], {"encoder_direction": "reversed"})
+            before = context["recent"][-1]["actions"][-1]["observed"]["preference_change"]["before"]
+            return reply(("app_library", {"action": "set_preferences", **before}))
+
+        self.provider.script = [reply(("load_skill", {"name": "app-library"})), reverse,
+                                reply(content="Reversed the library knob."), undo,
+                                reply(content="Restored the library knob.")]
+        self.request("Reverse the knob here")
+        self.assertEqual(self.product.app_library.preferences(), {"encoder_direction": "reversed"})
+        self.request("Undo that")
+        self.assertEqual(self.product.app_library.preferences(), {"encoder_direction": "forward"})
+        self.assertEqual(json.dumps(self.product.active, sort_keys=True), original)
+        self.assertTrue(self.product.app_library.view["open"])
+        self.assertIsNone(self.product.pending)
+        self.assertEqual(self.backend.actions, [])
 
     def test_successful_action_followed_by_failed_request_is_not_recorded_as_success(self):
         self.pair()

@@ -13,7 +13,7 @@ from unittest.mock import Mock, patch
 
 from modulate.voice import (
     BLOCK_BYTES, BLOCK_SAMPLES, BLOCK_SECONDS, CAPTURE_BLOCK_SAMPLES, EnergyVAD, MAX_AUDIO_BYTES,
-    END_SILENCE_BLOCKS, PCMResampler, Utterance, VoiceError, VoiceListener, WakeGate,
+    END_SILENCE_BLOCKS, PREBUFFER_BLOCKS, PCMResampler, Utterance, VoiceError, VoiceListener, WakeGate,
     select_input_device, wake_remainder,
 )
 
@@ -79,11 +79,11 @@ class WakeTests(unittest.TestCase):
 
 
 class VADTests(unittest.TestCase):
-    def test_silence_memory_is_bounded_to_quarter_second(self):
+    def test_silence_memory_is_bounded_to_six_tenths_of_a_second(self):
         vad = EnergyVAD()
         for index in range(1000):
             self.assertIsNone(vad.feed(SILENCE, index * BLOCK_SECONDS))
-        self.assertEqual(len(vad.prebuffer), 10)
+        self.assertEqual(len(vad.prebuffer), PREBUFFER_BLOCKS)
         self.assertEqual(vad.chunks, [])
         self.assertFalse(vad.active)
 
@@ -97,8 +97,8 @@ class VADTests(unittest.TestCase):
             self.assertIsNone(vad.feed(SILENCE, 3))
         utterance = vad.feed(SILENCE, 4)
         self.assertEqual(utterance.started_at, 2)
-        self.assertEqual(len(utterance.audio), (9 + 4 + 120) * BLOCK_BYTES)
-        self.assertTrue(utterance.audio.startswith(SILENCE * 9))
+        self.assertEqual(len(utterance.audio), (10 + 4 + 120) * BLOCK_BYTES)
+        self.assertTrue(utterance.audio.startswith(SILENCE * 10))
         self.assertFalse(vad.active)
         self.assertEqual(vad.chunks, [])
 
@@ -143,8 +143,25 @@ class VADTests(unittest.TestCase):
             self.assertIsNone(vad.feed(noise, 32 + index * BLOCK_SECONDS, speaking=False))
         result = vad.feed(noise, 35, speaking=False)
         self.assertIsNotNone(result)
-        self.assertEqual(len(result.audio), (9 + 8 + 120) * BLOCK_BYTES)
+        self.assertEqual(len(result.audio), (PREBUFFER_BLOCKS - 1 + 8 + 120) * BLOCK_BYTES)
         self.assertFalse(vad.active)
+
+    def test_delayed_detection_preserves_a_soft_greeting_before_stronger_speech(self):
+        vad = EnergyVAD()
+        soft_onset = array("h", [220] * BLOCK_SAMPLES).tobytes()
+        for index in range(40):
+            vad.feed(SILENCE, index * BLOCK_SECONDS, speaking=False)
+        # 350ms of greeting before the speech detector becomes confident.
+        for index in range(14):
+            vad.feed(soft_onset, 1 + index * BLOCK_SECONDS, speaking=False)
+        for index in range(12):
+            vad.feed(SPEECH, 1.35 + index * BLOCK_SECONDS, speaking=True)
+        result = None
+        for index in range(END_SILENCE_BLOCKS):
+            result = vad.feed(SILENCE, 1.65 + index * BLOCK_SECONDS, speaking=False)
+        self.assertIsNotNone(result)
+        self.assertIn(soft_onset * 14 + SPEECH * 12, result.audio)
+        self.assertLessEqual(len(result.audio), MAX_AUDIO_BYTES)
 
 
 class FakeSoundDevice:
@@ -368,13 +385,37 @@ class ListenerTests(unittest.TestCase):
 
         numpy = SimpleNamespace(frombuffer=Mock(return_value=FakeArray()), int16="int16", float32="float32")
         self.listener._model = Mock()
-        self.listener._model.transcribe.return_value = ([SimpleNamespace(text="Hey Meta, make a kart")], None)
+        self.listener._model.transcribe.return_value = ([SimpleNamespace(
+            text="Hey Meta, make a kart", no_speech_prob=.1, avg_logprob=-.2)], None)
         with patch.dict("sys.modules", {"numpy": numpy}):
             self.assertEqual(self.listener._transcribe(SPEECH), "Hey Meta, make a kart")
         kwargs = self.listener._model.transcribe.call_args.kwargs
         self.assertEqual(kwargs["initial_prompt"], "Modulate, Meta, kart, knob, coins.")
         self.assertNotIn("Hey Meta", kwargs["initial_prompt"])
         self.assertFalse(kwargs["condition_on_previous_text"])
+        self.assertEqual(kwargs["no_speech_threshold"], .6)
+        self.assertEqual(kwargs["log_prob_threshold"], -1.0)
+
+    def test_a_decoded_wake_string_marked_as_low_confidence_silence_cannot_arm(self):
+        class FakeArray:
+            def astype(self, dtype):
+                return self
+
+            def __truediv__(self, value):
+                return self
+
+        numpy = SimpleNamespace(frombuffer=Mock(return_value=FakeArray()), int16="int16", float32="float32")
+        self.listener._model = Mock()
+        self.listener._model.transcribe.return_value = ([SimpleNamespace(
+            text="Hey Meta", no_speech_prob=.95, avg_logprob=-1.4)], None)
+        self.listener.set_enabled(True)
+        with patch.dict("sys.modules", {"numpy": numpy}):
+            text = self.listener._transcribe(SILENCE * 24)
+        self.assertEqual(text, "")
+        self.listener._deliver(text, Utterance(SILENCE * 24, time.monotonic()), False, self.listener._epoch)
+        self.assertEqual(self.requests, [])
+        self.assertFalse(self.listener._gate.armed(time.monotonic()))
+        self.assertFalse(any(status["state"] == "listening" for status in self.statuses))
 
     def test_worker_delivers_one_ptt_request_and_clears_transcription_state(self):
         delivered = threading.Event()
@@ -793,6 +834,35 @@ class ListenerTests(unittest.TestCase):
         self.listener._deliver(utterance.transcript, utterance, False, self.listener._epoch)
         self.assertEqual(self.requests, ["make a game"])
         transcribe.assert_called_once()
+
+    def test_soft_greeting_survives_delayed_vad_onset_in_live_capture_path(self):
+        native_soft = array("h", [220] * CAPTURE_BLOCK_SAMPLES).tobytes()
+        soft = array("h", [220] * BLOCK_SAMPLES).tobytes()
+        # The synthetic activity detector becomes positive only for the strong
+        # suffix. ASR can recover the wake only if all preceding greeting audio
+        # survived that delay; this failed with the old 250ms prebuffer.
+        blocks = ([NATIVE_SILENCE] * 40 + [native_soft] * 14 + [NATIVE_SPEECH] * 12
+                  + [NATIVE_SILENCE] * END_SILENCE_BLOCKS)
+        def recognize(audio):
+            return "Hey Meta make a game" if soft * 14 in audio else "Meta make a game"
+        utterance, reads, transcribe = self.capture_wake(blocks, recognize)
+        self.assertEqual(reads, len(blocks))
+        transcribe.assert_called_once()
+        self.assertTrue(utterance.invoked)
+        self.listener._deliver(utterance.transcript, utterance, False, self.listener._epoch)
+        self.assertEqual(self.requests, ["make a game"])
+
+    def test_more_capture_candidates_still_ignore_ordinary_speech(self):
+        blocks = [NATIVE_SPEECH] * 12 + [NATIVE_SILENCE] * 180
+        def hook(index):
+            if index == len(blocks) - 1:
+                self.listener.set_enabled(False)
+        utterance, _, transcribe = self.capture_wake(blocks, lambda _: "oh, ordinary conversation", hook)
+        self.assertIsNone(utterance)
+        transcribe.assert_called_once()
+        self.assertEqual(self.requests, [])
+        self.assertFalse(self.listener._gate.armed(time.monotonic()))
+        self.assertFalse(any(status["state"] == "listening" for status in self.statuses))
 
     def test_rejected_ambient_probe_does_not_hide_later_wake_before_three_second_pause(self):
         transcripts = iter(["ordinary background conversation", "Hey Meta make a game"])

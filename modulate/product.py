@@ -182,7 +182,8 @@ class Product(AssistantIO):
                     "hardware": self.hardware.inspect(),
                     "library": {"open": self.app_library.view["open"],
                                 "tab": self.app_library.view["tab"],
-                                "selected_id": self.app_library.selected()}}
+                                "selected_id": self.app_library.selected(),
+                                "preferences": self.app_library.preferences()}}
 
     def hardware_debug(self, action, label=None):
         if action != "cancel":
@@ -373,7 +374,8 @@ class Product(AssistantIO):
                     "hardware_debug": {"supported": self.permission_allowed("hardware") and self.hardware.inspect().get("supported", False),
                                        "guided_button_address_repair": True},
                     "paired_host": paired,
-                    "app_library": {"supported": True, "persistent": True, "voice_navigation": True},
+                    "app_library": {"supported": True, "persistent": True, "voice_navigation": True,
+                                    "menu_preferences": {"encoder_direction": ["forward", "reversed"]}},
                     "connection_setup": {"supported": True, "needs_pairing": paired is None,
                                          "actions": ["status", "show", "start_pairing", "create_browser_code"],
                                          "connect_url": "https://divy.live/connect"},

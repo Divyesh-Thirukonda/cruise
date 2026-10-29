@@ -130,3 +130,19 @@ helpers, existing tests and minimal standalone build files. Record source commit
 and file hashes; leave the current portfolio deployment intact. Exclude personal
 portfolio pages/assets, credentials and runtime state. Link the folder from the
 main README so judges can inspect the complete connection implementation.
+
+## October 29 — Quiet wake onsets and launcher control preferences
+
+Treat reversing launcher scrolling as an ordinary saved preference, not a reason
+to regenerate an app or edit drivers. Add a bounded trusted library operation and
+expose its current value and observed before/after values to the agent. When the
+library is open, an unqualified knob-direction request targets that menu; explicit
+game or host-control targets still win. Preserve the active package and controls
+outside the library, as well as stale-action and deletion safeguards.
+
+For missed wake phrases, increase local pre-roll from 250 to 600 ms and lower
+Silero speech onset/end thresholds from .50/.35 to .35/.20. Keep explicit anchored
+Hey Meta matching, recognizer silence rejection, the three-second request pause,
+speaker guards and cancellation. Microphone capture was already enabled at 75%
+with automatic gain control; do not increase gain blindly. Synthetic recovery of
+a delayed quiet onset is evidence for the capture fix, not measured wake accuracy.

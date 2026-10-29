@@ -20,8 +20,10 @@ class LibraryManager:
                      "tab": "all", "selected_id": None}
         self.confirmation = None
         self.launching = set()
+        self._preferences = {"encoder_direction": "forward"}
         try:
             self.store = AppLibrary(product.directory / "library")
+            self._preferences = self.store.preferences()
             self.store.import_active(product.active)
             self.store.import_history(product.directory / "requests")
         except (OSError, ValueError) as error:
@@ -54,12 +56,16 @@ class LibraryManager:
             self.confirmation = None
             self.view["version"] += 1
 
+    def preferences(self):
+        """Cheap, owned context for the agent; catalogue enumeration is separate."""
+        return dict(self._preferences)
+
     def device_state(self):
         self._expire()
         try:
             items = self.entries()
         except (OSError, ValueError, AgentError) as error:
-            return {**self.view, "selected_id": None, "entries": [], "purge_confirmation": None,
+            return {**self.view, "preferences": self.preferences(), "selected_id": None, "entries": [], "purge_confirmation": None,
                     "notice": str(error)[:120]}
         tab = self.view["tab"]
         items = [item for item in items if (item["trashed"] if tab == "trash" else
@@ -70,17 +76,18 @@ class LibraryManager:
             if selected != self.view["selected_id"]:
                 self.view.update(selected_id=selected, version=self.view["version"] + 1)
         fields = ("id", "title", "kind", "favorite", "trashed", "active", "protected")
-        return {**self.view, "entries": [{key: item[key] for key in fields} for item in items],
+        return {**self.view, "preferences": self.preferences(), "entries": [{key: item[key] for key in fields} for item in items],
                 "purge_confirmation": copy.deepcopy(self.confirmation)}
 
     def snapshot(self):
         try:
             items = self.entries()
         except (OSError, ValueError, AgentError) as error:
-            return {"items": [], "view": self.device_state(), "purge_confirmation": None,
+            return {"items": [], "view": self.device_state(), "preferences": self.preferences(), "purge_confirmation": None,
                     "error": str(error)[:240]}
         view = self.device_state()
-        return {"items": items, "view": view, "purge_confirmation": view["purge_confirmation"], "error": self.error}
+        return {"items": items, "view": view, "preferences": self.preferences(),
+                "purge_confirmation": view["purge_confirmation"], "error": self.error}
 
     def note_activation(self, record):
         if not record:
@@ -102,15 +109,17 @@ class LibraryManager:
         with self.product.lock:
             self.available()
             self._expire()
-            allowed = {"action", "entry_id", "tab", "favorite", "confirmation_id", "view_id", "version"}
+            allowed = {"action", "entry_id", "tab", "favorite", "confirmation_id", "view_id", "version", "encoder_direction"}
             if type(data) is not dict or set(data) - allowed:
                 raise AgentError("Invalid library action")
             action = data.get("action")
             entry_id = None
             actions = {"list", "open", "close", "select", "tab", "favorite", "trash", "restore",
-                       "launch", "purge", "confirm_purge", "cancel_purge"}
+                       "launch", "purge", "confirm_purge", "cancel_purge", "set_preferences"}
             if type(action) is not str or action not in actions:
                 raise AgentError("Unknown library action")
+            if action != "set_preferences" and "encoder_direction" in data:
+                raise AgentError("Encoder direction belongs to library preferences")
             if origin == "agent" and action == "confirm_purge":
                 raise AgentError("Permanent deletion needs a direct human confirmation")
             if origin == "device" and (not self.view["open"] or data.get("view_id") != self.view["id"]
@@ -120,6 +129,19 @@ class LibraryManager:
                 self.product.check_request_access()
             if self.product.running and origin in {"web", "device"} and action not in {"list", "close", "cancel_purge"}:
                 raise AgentError("Finish or cancel the current request before changing the library")
+            if action == "set_preferences":
+                if set(data) - {"action", "encoder_direction", "view_id", "version"}:
+                    raise AgentError("Library preferences cannot change app actions")
+                before = self.preferences()
+                after = self.store.set_encoder_direction(data.get("encoder_direction"))
+                self._preferences = after
+                if before != after:
+                    # A new version invalidates queued selection/delete actions
+                    # made under the previous navigation setting.
+                    self.view["version"] += 1
+                return {"library": self.device_state(), "preferences": self.preferences(),
+                        "preference_change": {"before": before, "after": self.preferences(), "saved": True},
+                        "changed_id": None}
             if action in {"open", "tab"}:
                 tab = data.get("tab", "all")
                 if type(tab) is not str or tab not in {"all", "favorites", "trash"}:

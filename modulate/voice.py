@@ -7,6 +7,8 @@ while capture continues; final recognition may pause capture. Ambient inference
 stays visually passive. Cached faster-whisper tiny.en weights must already exist.
 During computer-audio playback, bounded rolling wake probes do not require a
 silence gap. This remains transcript matching, not acoustic echo cancellation.
+Soft onsets retain 600 ms of pre-roll so delayed speech detection does not cut
+the "Hey" off the front of an otherwise recognizable wake phrase.
 
 The selected USB microphone captures native 48 kHz mono int16 in 25-ms blocks.
 PyAV/FFmpeg resamples on the worker to 16 kHz for bundled Silero VAD and Whisper; the microphone
@@ -38,12 +40,15 @@ CAPTURE_BLOCK_SAMPLES = 1200
 CAPTURE_BLOCK_BYTES = CAPTURE_BLOCK_SAMPLES * 2
 MAX_AUDIO_BYTES = SAMPLE_RATE * 2 * 25
 END_SILENCE_BLOCKS = 120
+PREBUFFER_BLOCKS = 24  # 600 ms; includes the first positively classified block.
 PTT_NO_SPEECH_BLOCKS = 320
 WAKE_PATTERN = re.compile(r"^[\W_]*hey[\s,!.:;\-–—]*met(?:a|ta)\b", re.IGNORECASE)
 PLAYBACK_WAKE_PATTERN = re.compile(r"(?<!\w)hey[\s,!.:;\-–—]*met(?:a|ta)\b", re.IGNORECASE)
 PLAYBACK_PROBE_BLOCKS = 120  # At most three seconds of recent 16 kHz audio.
 PLAYBACK_PROBE_INTERVAL_BLOCKS = 80  # No more than one start per two seconds.
 VOCABULARY_PROMPT = "Modulate, Meta, kart, knob, coins."
+NO_SPEECH_THRESHOLD = .6
+LOG_PROB_THRESHOLD = -1.0
 INPUT_LATENCY_SECONDS = 0.25
 CANCEL_PATTERN = re.compile(r"(?:cancel(?: (?:the )?(?:rebuild|build))?|stop(?: building)?)[.!?]*", re.IGNORECASE)
 INCOMPLETE_REQUESTS = frozenset({"oh", "um", "uh", "hmm", "ah", "make a", "make an",
@@ -121,13 +126,13 @@ def pcm_rms(audio):
 
 
 class EnergyVAD:
-    """25-ms blocks, 250-ms prebuffer, three-second silence, discard at 25s."""
+    """25-ms blocks, 600-ms prebuffer, three-second silence, discard at 25s."""
 
     def __init__(self, threshold=0.015):
         if type(threshold) not in (int, float) or not math.isfinite(threshold) or not 0 < threshold < 1:
             raise ValueError("RMS threshold must be between zero and one")
         self.threshold = threshold
-        self.prebuffer = deque(maxlen=10)
+        self.prebuffer = deque(maxlen=PREBUFFER_BLOCKS)
         self.chunks = []
         self.started_at = None
         self.silence = 0
@@ -445,10 +450,21 @@ class VoiceListener:
             waveform, language="en", beam_size=1, temperature=0,
             condition_on_previous_text=False, vad_filter=False,
             initial_prompt=VOCABULARY_PROMPT,
+            no_speech_threshold=NO_SPEECH_THRESHOLD, log_prob_threshold=LOG_PROB_THRESHOLD,
         )
         # Consume lazily generated segments here, on the single model owner.
         parts, size = [], 0
         for segment in segments:
+            # Keep Whisper's existing joint silence/low-confidence rejection
+            # explicit as capture sensitivity increases. A decoded wake string
+            # alone must not override a result the recognizer calls silence.
+            no_speech, log_prob = segment.no_speech_prob, segment.avg_logprob
+            if (type(no_speech) not in (int, float) or not math.isfinite(no_speech)
+                    or not 0 <= no_speech <= 1 or type(log_prob) not in (int, float)
+                    or not math.isfinite(log_prob)):
+                raise VoiceError("Local recognition confidence unavailable; recording discarded")
+            if no_speech > NO_SPEECH_THRESHOLD and log_prob <= LOG_PROB_THRESHOLD:
+                continue
             value = segment.text.strip()
             size += len(value) + 1
             if size > 2000:

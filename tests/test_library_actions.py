@@ -14,6 +14,7 @@ from unittest.mock import patch
 
 from modulate.agent import AgentError, digest
 from modulate.app_library import AppLibraryError
+from modulate.library import LibraryManager
 from modulate.product import Product
 from tests.test_assistant_io import FakeComputer, SyntheticProvider
 from tests.test_product import FakeBackend, checks, game
@@ -403,6 +404,70 @@ class LibraryActionTests(unittest.TestCase):
         self.assertEqual(self.product.progress["phase"], "ready")
         self.assertEqual(self.manager.store.list_items("trash"), [])
         self.assertEqual(self.provider.requests, [])
+
+    def test_agent_can_persist_menu_preference_without_rebuilding_or_changing_active_app(self):
+        active = self.save(active=True)
+        pointer = self.product.active_path.read_bytes()
+        opened = self.action("open")["library"]
+        result = self.product.library_action({"action": "set_preferences", "encoder_direction": "reversed"}, agent=True)
+        self.assertEqual(result["preference_change"], {
+            "before": {"encoder_direction": "forward"}, "after": {"encoder_direction": "reversed"}, "saved": True})
+        self.assertTrue(result["library"]["open"])
+        self.assertEqual(result["library"]["selected_id"], opened["selected_id"])
+        self.assertGreater(result["library"]["version"], opened["version"])
+        self.assertEqual(self.product.current_package(), active["package"])
+        self.assertEqual(self.product.active_path.read_bytes(), pointer)
+        self.assertEqual(self.product.revision, active["revision"])
+        self.assertIsNone(self.product.pending)
+        self.assertEqual(self.provider.requests, [])
+        self.assertEqual(self.heartbeat()["library"]["preferences"], {"encoder_direction": "reversed"})
+        restarted = LibraryManager(self.product)
+        self.assertEqual(restarted.preferences(), {"encoder_direction": "reversed"})
+
+    def test_repeating_absolute_menu_preference_is_idempotent_and_results_are_copies(self):
+        self.save()
+        self.action("open")
+        first = self.action("set_preferences", encoder_direction="reversed")
+        with patch.object(self.manager.store, "_write") as write:
+            again = self.action("set_preferences", encoder_direction="reversed")
+        write.assert_not_called()
+        self.assertEqual(first["library"]["version"], again["library"]["version"])
+        self.assertEqual(again["preference_change"]["before"], again["preference_change"]["after"])
+        again["library"]["preferences"]["encoder_direction"] = "forward"
+        again["preferences"]["encoder_direction"] = "forward"
+        self.manager.snapshot()["preferences"]["encoder_direction"] = "forward"
+        self.assertEqual(self.manager.preferences(), {"encoder_direction": "reversed"})
+
+    def test_preference_action_rejects_app_fields_unknown_values_and_stale_device_views(self):
+        saved = self.save()
+        opened = self.action("open")["library"]
+        for extra in ({"favorite": True}, {"entry_id": saved["revision"]}, {"tab": "trash"}, {"code": "x"}):
+            with self.subTest(extra=extra), self.assertRaises(AgentError):
+                self.action("set_preferences", encoder_direction="reversed", **extra)
+        for value in (True, -1, "reverse", "toggle", None):
+            with self.subTest(value=value), self.assertRaises(AppLibraryError):
+                self.action("set_preferences", encoder_direction=value)
+        with self.assertRaises(AgentError):
+            self.action("favorite", saved["revision"], favorite=True, encoder_direction="reversed")
+        self.assertEqual(self.manager.preferences(), {"encoder_direction": "forward"})
+        packet = {"action": "set_preferences", "encoder_direction": "reversed",
+                  "view_id": opened["id"], "version": opened["version"]}
+        self.product.library_action(packet, device=True)
+        with self.assertRaisesRegex(AgentError, "refreshed"):
+            self.product.library_action({**packet, "encoder_direction": "forward"}, device=True)
+        with self.assertRaisesRegex(AgentError, "refreshed"):
+            self.product.library_action({"action": "trash", "entry_id": saved["revision"],
+                                        "view_id": opened["id"], "version": opened["version"]}, device=True)
+        self.assertFalse(self.manager.store.list_items()[0]["trashed"])
+        self.assertEqual(self.manager.preferences(), {"encoder_direction": "reversed"})
+
+    def test_failed_preference_write_does_not_claim_saved_or_update_view(self):
+        opened = self.action("open")["library"]
+        with patch.object(self.manager.store, "set_encoder_direction", side_effect=OSError("synthetic storage failure")):
+            with self.assertRaises(OSError):
+                self.action("set_preferences", encoder_direction="reversed")
+        self.assertEqual(self.manager.preferences(), {"encoder_direction": "forward"})
+        self.assertEqual(self.manager.view["version"], opened["version"])
 
 
 if __name__ == "__main__":

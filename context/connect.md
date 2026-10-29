@@ -11,6 +11,8 @@
 
 The browser connection expires after eight hours and can be disconnected independently of the Pi's native Mac pairing. Local Studio can revoke every remote browser. A paired browser is a trusted administrator for this one Modulate hub. The access switches apply to the device as a whole, including its microphone requests; they are not separate per-browser sandboxes.
 
+Page reloads and companion restarts retain an unexpired browser session. During a companion outage the dashboard disables actions and retries automatically. Disconnect immediately clears the browser's private view; older polling responses cannot restore it. Reconnecting requires a fresh code because the original code was consumed.
+
 ## What the switches mean
 
 - **Computer control:** native screenshots, cursor, keyboard and app actions on the companion Mac. macOS Screen Recording and Accessibility permission must also be enabled for the companion's Python/native process.

@@ -18,5 +18,16 @@
     "last_reported_i2c_scan": "No addresses responded"
   },
   "physical_feature_trials_performed": false,
-  "pi_runtime_updated_this_task": false
+  "pi_runtime_updated_this_task": false,
+  "production": {
+    "url": "https://modulate-connect.vercel.app/connect/setup",
+    "deployment": "READY",
+    "commit": "6a3e597",
+    "download_matches": {
+      "modulate-setup.zip": true,
+      "modulate-setup-prompt.txt": true,
+      "modulate-setup.sha256": true
+    },
+    "browser_ui_verified": true
+  }
 }

@@ -17,8 +17,8 @@ divy.live trials in the evidence remain labeled with their original destination.
 4. Once connected, review the existing device access settings on the next screen. **Keep current access** opens Studio without a permission write; **Save & open Studio** sends only choices you changed. Connecting a browser itself does not reset device permissions.
 5. Use Studio for the running app and requests. **App library**, **Device** and **Access** have their own pages; expand **Developer tools** for agent activity or generated source/checks. The workspace sidebar appears after connection, and returning valid sessions open Studio directly.
 
-This guided flow is implemented in Next.js 16.4.3 and React 19.3.1. Production
-verification is pending in the [build log](build-log.md). It reorganizes the
+This guided flow is deployed in Next.js 16.4.3 and React 19.3.1; production
+verification is recorded in the [build log](build-log.md). It reorganizes the
 existing gateway/runtime operations; no new physical pairing is needed for the
 web update. Active work retains visible stop/cancel controls while visiting
 setup or access review.

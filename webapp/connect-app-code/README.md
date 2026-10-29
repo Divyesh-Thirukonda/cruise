@@ -5,8 +5,8 @@ The **Modulate connection webapp** at
 This repository is its production source; it no longer deploys through the portfolio. This folder contains
 only the connection flow and workspace, its server endpoints, tests and build
 setup. It now uses **Next.js 16.4.3 and React 19.3.1**, replacing the original
-Create React App shell. Production verification of the guided-flow update is
-pending; see the repository [build log](../../context/build-log.md).
+Create React App shell. The guided flow is deployed and verified; see the
+repository [build log](../../context/build-log.md).
 
 The 11 application/test files listed in [source-manifest.json](source-manifest.json)
 were extracted from portfolio commit

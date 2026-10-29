@@ -252,7 +252,8 @@ class ComputerController:
                 identifier = uuid.uuid4().hex
                 self.observation = {"id": identifier, "at": self.clock(), "width": width, "height": height}
                 self.error = None
-                return {"observation_id": identifier, "width": width, "height": height, "image_url": image_url}
+                return {"observation_id": identifier, "width": width, "height": height,
+                        "coordinate_space": "normalized_1000", "image_url": image_url}
             except ComputerError as error:
                 self.error = str(error)
                 raise
@@ -300,13 +301,19 @@ class ComputerController:
             raise ComputerError("Unknown computer action or arguments")
         result = dict(action)
         if kind in {"click", "double_click"}:
-            for coordinate, limit in (("x", observation["width"]), ("y", observation["height"])):
+            # Muse Spark grounds points on the exact image's 0–1000 grid:
+            # https://dev.meta.ai/docs/image-understanding#coordinate-system
+            # https://dev.meta.ai/docs/cookbook/computer-use-macos
+            for coordinate in ("x", "y"):
                 value = action[coordinate]
-                if type(value) not in (int, float) or not math.isfinite(value) or not 0 <= value < limit:
-                    raise ComputerError("Click is outside the observed window")
+                if type(value) is not int or not 0 <= value <= 1000:
+                    raise ComputerError("Click coordinates must be normalized integers from 0 to 1000")
             x, y, w, h = window["bounds"]
-            result.update(x=x + int(action["x"] * w / observation["width"]),
-                          y=y + int(action["y"] * h / observation["height"]))
+            # Map the cropped screenshot's proportions to logical window pixels.
+            # This also works for Retina/downscaled images; no display offset or
+            # screenshot-size correction belongs in the model's coordinates.
+            result.update(x=x + min(w - 1, round(action["x"] * w / 1000)),
+                          y=y + min(h - 1, round(action["y"] * h / 1000)))
         elif kind == "scroll":
             if any(type(action[key]) is not int or not -8 <= action[key] <= 8 for key in ("dx", "dy")):
                 raise ComputerError("Scroll must contain bounded integer ticks")

@@ -23,6 +23,7 @@ class FakeDesktop:
         self.calls = []
         self.inspections = 0
         self.on_capture = self.on_perform = None
+        self.image_size = (1280, 720)
 
     def inspect(self):
         self.inspections += 1
@@ -32,7 +33,7 @@ class FakeDesktop:
         self.calls.append(("capture", copy.deepcopy(window)))
         if self.on_capture:
             self.on_capture(cancelled)
-        return {"width": 1280, "height": 720, "image_url": "data:image/jpeg;base64," + base64.b64encode(b"synthetic").decode()}
+        return {"width": self.image_size[0], "height": self.image_size[1], "image_url": "data:image/jpeg;base64," + base64.b64encode(b"synthetic").decode()}
 
     def perform(self, window, action, cancelled):
         self.calls.append(("action", copy.deepcopy(window), dict(action)))
@@ -166,14 +167,35 @@ class ComputerTests(unittest.TestCase):
         self.assertFalse(self.controller.status()["enabled"])
         self.assertEqual([call[0] for call in self.desktop.calls], ["capture"])
 
-    def test_click_maps_observed_pixels_to_actual_window_coordinates(self):
+    def test_normalized_center_maps_to_actual_window_coordinates(self):
         identifier = self.observe()
-        result = self.controller.act(identifier, {"type": "click", "x": 640, "y": 360})
+        result = self.controller.act(identifier, {"type": "click", "x": 500, "y": 500})
         self.assertTrue(result["performed"])
         self.assertEqual(self.desktop.calls[-1][2], {"type": "click", "x": 900, "y": 500})
         self.assertIsNone(self.controller.observation)
         with self.assertRaises(ComputerError):
             self.controller.act(identifier, {"type": "click", "x": 1, "y": 1})
+
+    def test_normalized_edges_stay_inside_observed_window(self):
+        for x, y, expected in ((0, 0, (100, 50)), (1000, 1000, (1699, 949)),
+                               (1000, 0, (1699, 50)), (0, 1000, (100, 949))):
+            with self.subTest(x=x, y=y):
+                observed = self.controller.observe() if self.controller.grant else None
+                if observed is None:
+                    self.controller.enable()
+                    observed = self.controller.observe()
+                self.assertEqual(observed["coordinate_space"], "normalized_1000")
+                self.controller.act(observed["observation_id"], {"type": "click", "x": x, "y": y})
+                native = self.desktop.calls[-1][2]
+                self.assertEqual((native["x"], native["y"]), expected)
+
+    def test_normalized_click_is_invariant_under_retina_and_image_downscaling(self):
+        self.desktop.window["bounds"] = [100, 50, 800, 450]
+        for image_size in ((800, 450), (1280, 720), (640, 360)):
+            with self.subTest(image_size=image_size):
+                self.desktop.image_size = image_size
+                self.controller.act(self.observe(), {"type": "double_click", "x": 250, "y": 750})
+                self.assertEqual(self.desktop.calls[-1][2], {"type": "double_click", "x": 300, "y": 388})
 
     def test_stale_unknown_or_replaced_observation_cannot_act(self):
         identifier = self.observe()
@@ -217,7 +239,8 @@ class ComputerTests(unittest.TestCase):
     def test_invalid_actions_consume_observation_without_native_action(self):
         actions = [{"type": "shell", "command": "ignored"}, {"type": "click", "x": -1, "y": 2},
                    {"type": "click", "x": 1280, "y": 2}, {"type": "click", "x": 1, "y": float("nan")},
-                   {"type": "click", "x": True, "y": 2}, {"type": "scroll", "dx": 0, "dy": 9},
+                   {"type": "click", "x": True, "y": 2}, {"type": "click", "x": 500.5, "y": 2},
+                   {"type": "click", "x": 1, "y": 1001}, {"type": "scroll", "dx": 0, "dy": 9},
                    {"type": "key", "keys": ["command", "v"]},
                    {"type": "key", "keys": ["command", "shift", "j"]},
                    {"type": "type_text", "text": "javascript:alert(1)"},

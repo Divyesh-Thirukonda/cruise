@@ -186,6 +186,8 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
                         result = product.stop_computer_audio(data["session"])
                     elif path == "/device/heartbeat":
                         result = product.heartbeat(data)
+                    elif path == "/device/library":
+                        result = product.library_action(data, device=True)
                     elif path == "/device/request":
                         result = product.request(data.get("text"), source="microphone", followup_id=data.get("followup_id"))
                     elif path == "/device/unclear":
@@ -208,6 +210,8 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
                         return self.send(404, {"error": "Unknown device action"})
                 elif path == "/api/request":
                     result = product.request(data.get("text"), followup_id=data.get("followup_id"))
+                elif path == "/api/library":
+                    result = product.library_action(data)
                 elif path == "/api/remote/pairing":
                     if product.remote_access is None:
                         raise ValueError("The public connection gateway is not configured")

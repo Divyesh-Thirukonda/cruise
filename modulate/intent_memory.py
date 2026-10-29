@@ -96,6 +96,10 @@ def observed_action(name, arguments, result):
                 "observed": {k: result[k] for k in ("state", "running") if k in result}}
     if name == "activate_package":
         return {"tool": name, "observed": {k: result[k] for k in ("revision", "title", "kind", "activated") if k in result}}
+    if name == "app_library":
+        return {"tool": name, "action": arguments.get("action"),
+                "entry_id": result.get("changed_id", arguments.get("entry_id")),
+                "observed": {k: result[k] for k in ("revision", "title", "activated") if k in result}}
     if name == "computer_act":
         # Labels/typed contents are available only in the current observed UI.
         return {"tool": name, "action": (arguments.get("action") or {}).get("type"), "observed": "Action returned successfully; inspect current screen again"}

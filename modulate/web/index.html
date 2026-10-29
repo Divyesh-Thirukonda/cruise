@@ -17,6 +17,7 @@
       <span class="workspace-label">DEVICE STUDIO <span>/</span> LOCAL</span>
       <div class="header-actions">
         <span class="connection-badge" id="connection-badge" data-status="connecting"><span class="status-dot"></span><span id="connection-label">Connecting</span></span>
+        <button class="button button-quiet" id="library-open" type="button">App library</button>
         <button class="button button-quiet inspect-button" id="inspect-open" type="button"><span aria-hidden="true">&lt;/&gt;</span> Code &amp; checks</button>
       </div>
     </header>
@@ -145,6 +146,22 @@
       <footer class="studio-footer"><div><span class="footer-mark" aria-hidden="true">✳</span><span id="provider-label">Provider connecting</span><span class="footer-divider">/</span><span id="model-label">Awaiting model details</span></div><div><span id="budget-label">Budget unavailable</span><span class="footer-divider">·</span><span id="last-sync">Awaiting connection</span></div></footer>
     </main>
   </div>
+
+  <dialog class="drawer library-dialog" id="library-dialog" aria-labelledby="library-title">
+    <div class="drawer-heading"><div><p class="eyebrow">SAVED EXPERIENCES</p><h2 id="library-title">Your app library</h2></div><button class="icon-button" type="button" data-close="library-dialog" aria-label="Close app library">×</button></div>
+    <p class="library-intro">Say “Hey Meta, open my app library.” Use voice to open, favorite or delete apps, or navigate with connected controls.</p>
+    <p class="small danger-text" id="library-error" role="status" hidden></p>
+    <div class="library-toolbar"><div class="revision-tabs" role="group" aria-label="Library filter"><button type="button" class="selected" data-library-tab="all" aria-pressed="true">All apps</button><button type="button" data-library-tab="favorites" aria-pressed="false">Favorites</button><button type="button" data-library-tab="trash" aria-pressed="false">Trash</button></div><button type="button" class="button button-outline" id="library-device">Show on device</button></div>
+    <div id="library-entries" class="library-entries"></div>
+    <p class="drawer-footnote">Saved on your companion. Moving an app to Trash keeps its running version on the device. Running and recovery versions cannot be permanently deleted.</p>
+  </dialog>
+
+  <dialog class="pairing-dialog" id="library-purge-dialog" aria-labelledby="library-purge-title" aria-describedby="library-purge-description">
+    <div class="drawer-heading"><div><p class="eyebrow">PERMANENT DELETE</p><h2 id="library-purge-title">Delete this app forever?</h2></div></div>
+    <p class="library-intro" id="library-purge-description">This removes this saved version from your library and Trash. You cannot restore it afterward.</p>
+    <p class="small danger-text" id="library-purge-status"></p>
+    <div class="library-purge-actions"><button type="button" class="button button-outline" id="library-purge-cancel">Keep in Trash</button><button type="button" class="button button-danger" id="library-purge-confirm">Permanently delete</button></div>
+  </dialog>
 
   <dialog class="drawer" id="inspect-dialog" aria-labelledby="inspect-title">
     <div class="drawer-heading"><div><p class="eyebrow">UNDER THE SURFACE</p><h2 id="inspect-title">Code &amp; checks</h2></div><button class="icon-button" type="button" data-close="inspect-dialog" aria-label="Close code and checks">×</button></div>

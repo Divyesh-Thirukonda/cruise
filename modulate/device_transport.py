@@ -90,7 +90,7 @@ class Companion:
                                                  urllib.request.HTTPSHandler(context=context))
 
     def post(self, action, data):
-        if action not in {"heartbeat", "request", "pair", "rollback", "cancel", "unclear", "audio", "audio/stop", "setup"}:
+        if action not in {"heartbeat", "request", "pair", "rollback", "cancel", "unclear", "audio", "audio/stop", "setup", "library"}:
             raise TransportError("Unknown companion action")
         try:
             body = json.dumps(data, allow_nan=False).encode()
@@ -102,8 +102,8 @@ class Companion:
                     headers={"Content-Type": "application/json", "Authorization": "Bearer " + self.key})
         try:
             with self.opener.open(request, timeout=3) as response:
-                raw = response.read(256 * 1024 + 1)
-                if len(raw) > 256 * 1024:
+                raw = response.read(1024 * 1024 + 1)
+                if len(raw) > 1024 * 1024:
                     raise TransportError("Companion response is too large")
                 result = json.loads(raw, parse_constant=_invalid_constant)
                 if not isinstance(result, dict):

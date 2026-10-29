@@ -726,3 +726,26 @@ Native pairing and both cumulative ledgers were retained; the TLS key/certificat
 and enrollment are byte-identical. No model calls, new Mac grants or browser
 claims were made. Pi-only offline guidance wording is updated in factory source;
 the installed Pi runtime was not replaced during this web-flow change.
+
+
+## Cube logo and website palette — October 29, 2026
+
+- Corrected the logo direction: a generated monochrome impossible triangle sits
+  inside a rounded cube. Replaced header marks and favicon on Connect, plus local
+  Studio/setup branding. Original image-generation asset/prompt attribution is
+  recorded in `branding.md`; user-provided reference screenshots are not shipped.
+- Applied the requested red/blue/yellow palette to local Studio, pairing/setup,
+  interaction lab and the public Connect pages. Changes preserve UI structure and
+  generated-game rendering. The enrollment helper source has the new colors;
+  its existing completed process was deliberately not restarted.
+- Validation: 61 existing Studio/enrollment tests, 39 API tests and 29 React tests
+  passed; Next production build and source provenance checks passed. Browser
+  review covered local Studio, empty library, focused local setup and public
+  connection/setup layouts. No code was submitted or new session claimed.
+- Restarted only the Mac companion to serve its new logo asset. Device and native
+  pairing came back online; existing gateway remained enabled. Protected budget,
+  speech ledger, enrollment and device key/certificate files were byte-identical.
+  No model calls, fresh enrollment, permission changes or Pi update were needed.
+- Independent review found no behavioral, route or CSP blocker. The generated
+  PNG is retained at full resolution (628 KB) for now; smaller exports are a
+  potential future asset optimization.

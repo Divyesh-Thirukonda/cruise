@@ -53,13 +53,41 @@ The Pi's voice and build cards now use an **animated Muse-inspired companion**: 
 ## Remote Studio
 
 **Connection webapp source:** [webapp/connect-app-code](webapp/connect-app-code)
-contains the Modulate React dashboard, Vercel API routes and tests. It is the
+contains the Modulate React/Next.js app, server API routes and tests. It is the
 source for the dedicated `modulate-connect` Vercel project, built from this
 repository’s `main` branch. The source manifest preserves the original portfolio
 provenance alongside current standalone hashes; no portfolio pages or secrets
 are included.
 
 [Modulate Connect](https://modulate-connect.vercel.app/connect) adds a phone-friendly remote dashboard, a one-time browser connection code and enforced device access switches. It retains the native Mac companion and the current Pi runtime. Meta and ElevenLabs can use a server-only Vercel gateway without resetting the existing spending ledgers. Camera preview sharing is a separate opt-in. See [connection setup and current deployment limits](context/connect.md); this is one configured hub, not browser-only control of arbitrary phones or computers.
+
+The new web flow starts with a short introduction and an eight-digit connection
+code. After connecting, review the device's existing access settings, then enter
+Studio. The sidebar appears only in the connected workspace; **Device** and
+**Access** have their own pages, and activity/source inspection sits under
+**Developer tools**. Connecting preserves current permissions; the access step
+only saves choices the user changes. Returning sessions go straight to Studio.
+
+Need installation help? [Set up with Codex](https://modulate-connect.vercel.app/connect/setup)
+offers a copyable prompt and the downloadable [Modulate Setup plugin](plugins/modulate-setup).
+The skill checks and reuses existing software, guides native permission and
+physical steps, and preserves apps, pairing, credentials and spending history.
+It does not silently install native services or connect arbitrary Macs to the
+shared public hub. This guided-flow update is implemented locally; production
+verification is pending in the [build log](context/build-log.md).
+
+Develop the webapp with Node.js 22 or newer:
+
+```sh
+cd webapp/connect-app-code
+npm ci
+npm run dev
+```
+
+Open `http://localhost:3000/connect`. `npm run check` verifies source provenance,
+runs API/client tests and builds the Next.js app. `npm start` serves that production
+build. Real browser linking still needs HTTPS and the configured companion;
+local rendering does not bypass secure session requirements.
 
 The device has a local **setup mode** for missing enrollment, an unreachable companion or an unpaired Mac. Small screen **A** advances the guide; **B** dismisses it without deleting the saved app. Dismissal lasts for the current boot; restart, a recognized wake phrase while disconnected, or holding small A for one second can reopen it. When the companion is reachable, “Hey Meta, help me connect” uses the **connection-setup** skill to inspect access, display a browser code or prepare native pairing. Physical pairing confirmation and macOS permission grants still belong to the user. [Setup behavior and limits](context/connect.md#on-device-setup).
 

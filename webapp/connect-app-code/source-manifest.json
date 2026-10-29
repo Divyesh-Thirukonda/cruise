@@ -2,11 +2,11 @@
   "source_repository": "https://github.com/Divyesh-Thirukonda/portfolio",
   "source_commit": "1c190a4b4c2bad49eed09ee4bee5071c62a736da",
   "deployed_url": "https://modulate-connect.vercel.app/connect",
-  "note": "Original portfolio source is preserved as source_sha256 for provenance. sha256 records the current standalone files, including deployment migration changes. This repository is now the deployment source.",
+  "note": "Original portfolio source is preserved as source_sha256 for provenance. sha256 records the current versions of the eleven exported files, including the standalone deployment and Next.js guided-flow changes. Newly added standalone files are not claimed as portfolio exports. This repository is now the deployment source.",
   "files": [
     {
       "path": "src/modulate/Connect.js",
-      "sha256": "1acbccb07bc86546842443e351720d0bf420becb51ca101dd2848d47abedaea1",
+      "sha256": "3df6b9717211219ec43a2fa52cac2407179d8049883d4da110196dbd8a8433fd",
       "source_sha256": "1ad805892fde6366bc642f0bec239f4fc26ec096500cd7d2169a27d663675e67"
     },
     {
@@ -21,12 +21,12 @@
     },
     {
       "path": "src/modulate/connect.css",
-      "sha256": "97cf8d455433a2ad62cca936cb51a5ea5d40c278e13d01c5683c62db2f0f99de",
+      "sha256": "e3bb9e9af6957c858c65be0b19e00b3e7974a3e84f5d461c716f474c1382f94a",
       "source_sha256": "b96e8303ebbf1fbd0317c3efbc0fa53e03e7fb7bbee4b9d44825b6cc13db0de1"
     },
     {
       "path": "src/modulate/Connect.test.js",
-      "sha256": "5cf49f89907a4b00f0cc242f0af12483d73fa42d7d5f78ac1a937a2384339674",
+      "sha256": "1c7db8de1b1b61ed7e8fded718ce33aaec7b4d9cb623d4f8e4c08a3fcad6c46d",
       "source_sha256": "e8f902d09c5a2abd122030af6a2c0c0a0665e96ec0b6dd5c10afd446c3c7c598"
     },
     {

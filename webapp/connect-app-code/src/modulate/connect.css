@@ -25,7 +25,7 @@
 .mc-app h2 { font-size: 16px; line-height: 1.4; font-weight: 600; letter-spacing: -.025em; }
 .mc-app button, .mc-app input, .mc-app textarea { font: inherit; }
 .mc-app button, .mc-app a { -webkit-tap-highlight-color: transparent; }
-.mc-app button { cursor: pointer; }
+.mc-app button { cursor: pointer; color: inherit; border: 0; background: none; }
 .mc-app button:disabled { cursor: not-allowed; opacity: .4; }
 .mc-app button:focus-visible, .mc-app a:focus-visible, .mc-app summary:focus-visible, .mc-app pre:focus-visible { outline: 2px solid #6cafff; outline-offset: 4px; }
 .mc-app input:focus, .mc-app textarea:focus { outline: none; }

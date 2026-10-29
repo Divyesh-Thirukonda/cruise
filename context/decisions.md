@@ -162,3 +162,34 @@ Preserve original portfolio source hashes as provenance alongside current hashes
 After validating the standalone production path, revert only the portfolio's
 Modulate feature commits and redeploy its main branch. Do not reset shared Git
 history or discard unrelated portfolio work.
+
+## October 29 — Guided connection flow and Codex setup skill
+
+The user requested a simpler React/Next.js experience that exposes one useful
+step at a time. Use a minimal first-visit introduction and connection-code form,
+then a separate access review, then Studio. Do not show workspace navigation or
+permission switches before the browser connects. Returning valid sessions open
+Studio. Put native connections, hardware and sound in **Device**, choices in
+**Access**, saved apps in **App library**, and detailed activity/source under a
+**Developer tools** disclosure. Keep active cancellation/stop controls reachable
+even outside Studio.
+
+Browser linking must preserve the device's current access settings. The access
+step reads those settings and saves only changed values; keeping current access
+does not send a permission update. Changes still apply device-wide and do not
+substitute for macOS permissions. Reorganizing these screens does not justify
+re-enrollment, new native pairing or resetting existing libraries/ledgers.
+
+Replace the Create React App shell with Next.js 16.4.3 and React 19.3.1, retaining
+the current authenticated server gateway behind Next.js route adapters. Preserve
+original portfolio source hashes alongside current hashes. This remains the
+dedicated Modulate deployment, with no portfolio dependency.
+
+Put initial installation instructions on a separate setup page with a copyable
+Codex prompt and optional downloadable local plugin. The plugin discovers and
+repairs existing setup before creating replacements, preserves private state,
+and guides human hardware/OS steps. Downloading a plugin does not automatically
+install native services or grant access. The public site serves one configured
+hub; a different user's Mac/Pi needs its own runtime and remote deployment.
+Do not imply a signed installer, automatic permission grants or self-service
+multi-tenant enrollment.

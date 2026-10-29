@@ -130,7 +130,7 @@ class RemoteAccess:
     def claim(self, code, name="Connected browser", permissions=None):
         if type(name) is not str or not 1 <= len(name.strip()) <= 80 or not name.isprintable():
             raise RemoteAccessError("Name this browser in 1–80 characters")
-        requested = _permissions(permissions if permissions is not None else {})
+        requested = _permissions(permissions) if permissions is not None else None
         with self.lock:
             pairing = self.pairing
             if not pairing or pairing["expires_at"] <= self.clock() or pairing["attempts"] >= 6:
@@ -147,7 +147,10 @@ class RemoteAccess:
             self.state["sessions"][_hash(token)] = {"name": name.strip(), "expires_at": self.clock() + SESSION_SECONDS}
             self.pairing = None
             self._save()
-        self.set_permissions(requested)
+        # Linking another browser must not restore default grants or replay a
+        # snapshot over changes made by an existing browser during pairing.
+        if requested is not None:
+            self.set_permissions(requested)
         return {"token": token, **self.session(token)}
 
     def authenticate(self, token):

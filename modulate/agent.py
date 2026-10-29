@@ -50,6 +50,9 @@ Sprites reference package assets. Use clear first every frame. Coordinates may b
 floats. Avoid drawing a sprite at >8x scale. No canvas, DOM, callbacks, or eval APIs.
 Make an actual responsive game: motion, a goal/score, challenge, and restart.
 Prefer readable high-contrast art and a small, polished 2D game over large scope.
+Show a readable title and control instructions first, and wait for a deliberate
+available button press to start play. Do not let the player lose while waiting
+for generation to finish. Choose the start control from the actual capabilities.
 
 Alternatively a computer-control package has EXACT fields:
 {kind:'control',title:string, target: paired host's session_id,

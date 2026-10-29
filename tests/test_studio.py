@@ -23,7 +23,7 @@ class FakeProduct:
 
     def request(self, text, source="website"):
         self.calls.append(("request", text, source))
-        return {"accepted": True}
+        return {"accepted": True, "source": source, "job_id": "a" * 32}
 
     def cancel(self):
         self.calls.append(("cancel",))
@@ -168,6 +168,18 @@ class StudioTests(unittest.TestCase):
         product.preview_bytes = b""
         self.assertEqual(self.request(port, "/api/preview.png")[0], 404)
         self.assertEqual(self.request(port, "/api/candidate-preview.png")[0], 200)
+
+    def test_both_request_endpoints_return_immediate_job_identity(self):
+        _, port = self.start(csrf="synthetic-csrf", cookie="synthetic-session")
+        status, _, body = self.request(port, "/api/request", method="POST", body='{"text":"Synthetic request"}', headers=self.headers(port))
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)["job_id"], "a" * 32)
+        _, port = self.start(device=True, device_key="synthetic-device", peer="127.0.0.1")
+        status, _, body = self.request(port, "/device/request", method="POST", body='{"text":"Synthetic voice request"}',
+                                       headers={"Authorization": "Bearer synthetic-device", "Content-Type": "application/json"})
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)["job_id"], "a" * 32)
+        self.assertEqual(json.loads(body)["source"], "microphone")
 
 
 if __name__ == "__main__":

@@ -21,6 +21,17 @@ from .rendering import Renderer, png
 _SESSION = re.compile(r"[0-9a-f]{32}\Z")
 _REVISION = re.compile(r"[0-9a-f]{64}\Z")
 _CONTROLS = {"joystick", "encoder", "button_a", "button_b", "encoder_pressed"}
+_PHASES = {"queued", "planning", "coding", "checking", "previewing", "activating", "ready", "error", "cancelled"}
+_TOOL_PROGRESS = {
+    "inspect_capabilities": ("planning", "Reading the connected controls"),
+    "read_runtime_api": ("planning", "Checking what the controller supports"),
+    "read_current_package": ("coding", "Reading the current app"),
+    "write_package": ("coding", "Writing your app"),
+    "test_package": ("checking", "Checking your app"),
+    "preview_package": ("previewing", "Preparing a preview"),
+    "activate_package": ("activating", "Starting it on the controller"),
+    "delegate_task": ("planning", "Working with a specialist"),
+}
 
 
 def _save_json(path, value):
@@ -51,6 +62,11 @@ class Product:
         self.agent = Orchestrator(provider, self, self.directory / "requests", self.ledger)
         self.running = False
         self.summary = "Connect the controller, then say what it should become."
+        self.job_context = threading.local()
+        self.job_path = self.directory / "agent-job.json"
+        self.progress = {"job_id": None, "job_sequence": 0, "request_id": None, "phase": "ready", "title": "Ready",
+                         "tool": None, "role": None}
+        self._load_job()
         self.device = {"name": "Controller", "controls": [], "devices": [], "warnings": [], "button_sources": {}}
         self.last_seen = None
         self.input = {}
@@ -99,7 +115,87 @@ class Product:
     def event(self, entry):
         with self.lock:
             self.event_id += 1
-            self.events.append({"id": self.event_id, "at": time.time(), **entry})
+            worker_job = getattr(self.job_context, "job_id", None)
+            record = {"id": self.event_id, "at": time.time(), **entry}
+            if worker_job:
+                record["job_id"] = worker_job
+            self.events.append(record)
+            if self.running and worker_job and worker_job == self.progress["job_id"]:
+                self._progress_event(entry)
+
+    def _load_job(self):
+        if not self.job_path.exists():
+            return
+        try:
+            saved = json.loads(self.job_path.read_text())
+            sequence = saved.get("job_sequence", 0) if isinstance(saved, dict) else None
+            if (not isinstance(saved, dict) or not isinstance(saved.get("job_id"), str)
+                    or not _SESSION.fullmatch(saved["job_id"]) or type(saved.get("running")) is not bool
+                    or type(sequence) is not int or not 0 <= sequence < 2**53
+                    or saved.get("phase") not in _PHASES
+                    or any(not isinstance(saved.get(key), str) or len(saved[key]) > limit
+                           for key, limit in (("title", 100), ("summary", 500)))
+                    or saved.get("request_id") is not None and (
+                        not isinstance(saved["request_id"], str) or not _SESSION.fullmatch(saved["request_id"]))
+                    or any(saved.get(key) is not None and (not isinstance(saved[key], str) or len(saved[key]) > 80)
+                           for key in ("tool", "role"))):
+                raise ValueError
+            self.progress = {key: saved.get(key) for key in self.progress}
+            self.progress["job_sequence"] = sequence
+            self.summary = saved["summary"]
+            if saved["running"]:
+                self.progress.update(phase="error", title="Request interrupted", tool=None, role=None)
+                self.summary = "The companion restarted before this request finished. Please submit it again."
+                self._save_job()
+        except (OSError, ValueError, TypeError, KeyError):
+            raise AgentError("Saved request status is unreadable; refusing to replace its identity") from None
+
+    def _save_job(self):
+        _save_json(self.job_path, {**self.progress, "running": self.running, "summary": self.summary[:500]})
+
+    def agent_state(self):
+        with self.lock:
+            status = "running" if self.running else {
+                "error": "failed", "cancelled": "cancelled"}.get(self.progress["phase"], "completed")
+            return {**self.progress, "running": self.running, "status": status, "summary": self.summary[:500]}
+
+    def _progress_event(self, entry):
+        kind, request_id = entry.get("type"), entry.get("request_id")
+        if kind == "request_started" and self.progress["request_id"] is None:
+            if not isinstance(request_id, str) or not _SESSION.fullmatch(request_id):
+                return
+            self.progress["request_id"] = request_id
+        if not request_id or request_id != self.progress["request_id"]:
+            return
+        if self.progress["phase"] == "cancelled":
+            # Orchestrator initializes its cancellation event at run entry; a
+            # cancellation received while queued must survive that initialization.
+            self.agent.cancelled.set()
+            return
+        role = entry.get("role") if entry.get("role") in {"orchestrator", "coder", "artist", "reviewer"} else None
+        if kind == "request_started":
+            self.progress.update(phase="planning", title="Understanding your request", role=role, tool=None)
+        elif kind == "model_call":
+            phase, title = {"coder": ("coding", "Writing your app"), "artist": ("coding", "Creating the artwork"),
+                            "reviewer": ("checking", "Reviewing your app")}.get(role, ("planning", "Planning the next step"))
+            self.progress.update(phase=phase, title=title, role=role, tool=None)
+        elif kind in {"tool_started", "tool_finished"}:
+            tool = entry.get("tool")
+            phase, title = _TOOL_PROGRESS.get(tool, ("planning", "Working on your request"))
+            if kind == "tool_finished":
+                if entry.get("status") == "failed":
+                    phase, title = "planning", "Adjusting the app"
+                else:
+                    title = {"write_package": "App written", "test_package": "Reviewing check results",
+                             "preview_package": "Preview prepared", "activate_package": "Controller acknowledged",
+                             "delegate_task": "Specialist finished"}.get(tool, "Planning the next step")
+            self.progress.update(phase=phase, title=title, role=role, tool=tool if tool in _TOOL_PROGRESS else None)
+        elif kind == "request_failed":
+            cancelled = self.agent.cancelled.is_set()
+            self.progress.update(phase="cancelled" if cancelled else "error",
+                                 title="Request cancelled" if cancelled else "Could not finish", tool=None, role=role)
+        elif kind == "request_finished":
+            self.progress.update(phase="ready", title="Ready", tool=None, role=role)
 
     def preview(self, data):
         """A verifier preview is not evidence of the physical device's frame."""
@@ -182,23 +278,67 @@ class Product:
                 raise AgentError("The physical controller is not connected")
             if self.device_revision != self.revision:
                 raise AgentError("Wait for the controller and host to finish synchronizing")
+            job_sequence = self.progress["job_sequence"] + 1
+            if job_sequence >= 2**53:
+                raise AgentError("Request sequence limit reached")
             self.running = True
-            self.summary = "The agent is deciding what to build."
+            job_id = uuid.uuid4().hex
+            self.progress = {"job_id": job_id, "job_sequence": job_sequence, "request_id": None, "phase": "queued",
+                             "title": "Request received", "tool": None, "role": "orchestrator"}
+            self.summary = "Your request is queued."
+            try:
+                self._save_job()
+            except Exception:
+                self.running = False
+                self.progress.update(phase="error", title="Could not start")
+                self.summary = "The companion could not save the request status."
+                raise AgentError(self.summary) from None
 
         def work():
+            self.job_context.job_id = job_id
+            outcome = "ready"
+            summary = "The request stopped before returning a result."
             try:
-                self.summary = self.agent.run(text)
+                with self.lock:
+                    if self.progress["phase"] == "cancelled":
+                        raise AgentError("Cancelled by user")
+                result = self.agent.run(text)
+                summary = result if isinstance(result, str) else "Request finished."
             except Exception as error:
-                self.summary = str(error)[:500]
+                summary = str(error)[:500]
+                outcome = "error"
             finally:
                 with self.lock:
-                    self.running = False
-        threading.Thread(target=work, name="modulate-agent", daemon=True).start()
-        return {"accepted": True, "source": source}
+                    if self.progress["job_id"] == job_id:
+                        if self.progress["phase"] == "cancelled":
+                            outcome = "cancelled"
+                        self.running = False
+                        self.summary = summary[:500]
+                        self.progress.update(phase=outcome, title={"ready": "Ready", "error": "Could not finish",
+                                             "cancelled": "Request cancelled"}[outcome], tool=None, role="orchestrator")
+                        try:
+                            self._save_job()
+                        except Exception:
+                            self.progress.update(phase="error", title="Could not save request status")
+                            self.summary = "The request ended, but its status could not be saved."
+                        self.changed.notify_all()
+                del self.job_context.job_id
+        try:
+            threading.Thread(target=work, name="modulate-agent", daemon=True).start()
+        except Exception:
+            with self.lock:
+                self.running = False
+                self.progress.update(phase="error", title="Could not start")
+                self.summary = "The companion could not start this request."
+                self._save_job()
+            raise AgentError(self.summary) from None
+        return {"accepted": True, "source": source, "job_id": job_id, "job_sequence": job_sequence}
 
     def cancel(self):
         self.agent.cancelled.set()
         with self.changed:
+            if self.running:
+                self.progress.update(phase="cancelled", title="Stopping the request", tool=None)
             if self.pending and self.pending["phase"] not in {"confirmed", "abort"}:
                 self.pending.update(phase="abort", error="Cancelled by user")
                 self.changed.notify_all()
@@ -415,7 +555,8 @@ class Product:
                 if self.pending["phase"] == "stage":
                     pending["package"] = self.pending["package"]
             return {"activation": pending, "active_revision": self.revision, "wake": self.wake,
-                    "agent_running": self.running, "volume": self.volume, "paired": bool(self.capabilities()["paired_host"]),
+                    "agent_running": self.running, "agent_state": self.agent_state(),
+                    "volume": self.volume, "paired": bool(self.capabilities()["paired_host"]),
                     "failure_ack": ({key: failure[key] for key in ("revision", "restored_revision")} if failure is not None else None),
                     "pairing": (copy.deepcopy(self.pairing) if self.pairing and time.time() < self.pairing["expires_at"]
                                 and not self.capabilities()["paired_host"] else None)}
@@ -533,7 +674,7 @@ class Product:
                     "budget": self.ledger.status(), "device": {"connected": self.connected(), "name": self.device["name"],
                     "capabilities": self.capabilities(), "input": self.input, "telemetry": self.telemetry},
                     "active": self.active, "candidate": self.candidate,
-                    "agent": {"running": self.running, "request_id": self.agent.request_id, "summary": self.summary},
+                    "agent": self.agent_state(),
                     "events": list(self.events), "volume": self.volume,
                     "paired": bool(self.capabilities()["paired_host"]), "wake": self.wake,
                     "preview_version": self.preview_version,

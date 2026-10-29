@@ -37,11 +37,17 @@ class Controller:
         self.sequence = 0
         self.screen = Screen(self.directory / "screen.png")
         self.screen.status("Connecting", "Starting physical controls")
+        self.display_state = {"kind": "status", "title": "Connecting"}
         self.controls = Controls(self.screen)
         self.sample = neutral_input()
         self.encoder_pending = 0
         self.encoder_revision = None
         self.request_in_flight = False
+        self.build = None
+        self.job_sequence = 0
+        self.latest_job_id = None
+        self.finished_jobs = deque(maxlen=32)
+        self.feedback = None
         self.commands = []
         self.state = {"revision": None, "ack": None}
         self.voice_state = {"state": "idle", "message": "Starting voice"}
@@ -99,6 +105,12 @@ class Controller:
     def present(self, image):
         # Main thread is the only display owner; no disk writes at frame rate.
         self.screen.display.image(image, rotation=90)
+        with self.lock:
+            self.display_state = {"kind": "program", "title": "Program"}
+
+    def _displayed(self, kind, title):
+        with self.lock:
+            self.display_state = {"kind": kind, "title": str(title)[:40]}
 
     def voice_status(self, status):
         with self.lock:
@@ -107,19 +119,82 @@ class Controller:
 
     def request(self, text):
         with self.lock:
-            if self.request_in_flight or self.host.get("agent_running") or time.monotonic() - self.last_response > 4:
+            if self._busy():
+                self._feedback("Working", "Please wait for this build")
                 return False
-        try:
-            self.requests.put_nowait(text)
+            if time.monotonic() - self.last_response > 4:
+                self._feedback("Not connected", "Check the Mac connection\nRequest was not queued")
+                return False
+            try:
+                self.requests.put_nowait(text)
+            except queue.Full:
+                self._feedback("Working", "Please wait for this build")
+                return False
+            self.build = {"job_id": None, "phase": "queued", "title": "Request queued",
+                          "role": None, "tool": None, "awaiting_response": True}
+            self.feedback = None
+            self.encoder_pending = 0
             return True
-        except queue.Full:
-            return False
+
+    def _busy(self):
+        # Structured progress is ordered by job_sequence. A stale legacy flag
+        # alongside it must not resurrect work that has already finished.
+        legacy_busy = self.host.get("agent_running", False) and type(self.host.get("agent_state")) is not dict
+        return self.build is not None or self.request_in_flight or legacy_busy
+
+    def _feedback(self, title, detail):
+        self.feedback = {"title": title, "detail": str(detail)[:110], "until": time.monotonic() + 4}
+
+    def _feedback_card(self):
+        with self.lock:
+            return dict(self.feedback) if self.feedback and time.monotonic() < self.feedback["until"] else None
+
+    @staticmethod
+    def _job_id(value):
+        return type(value) is str and len(value) == 32 and all(c in "0123456789abcdef" for c in value)
+
+    @staticmethod
+    def _job_sequence(value):
+        return type(value) is int and value >= 0
+
+    def _update_build(self, response):
+        """Order jobs durably, including when an older terminal heartbeat was lost."""
+        state = response.get("agent_state")
+        if (type(state) is not dict or not self._job_id(state.get("job_id"))
+                or not self._job_sequence(state.get("job_sequence", 0))):
+            return
+        with self.lock:
+            identifier = state["job_id"]
+            sequence = state.get("job_sequence", 0)
+            if self.build and self.build.get("awaiting_response"):
+                return
+            if sequence < self.job_sequence or (sequence == self.job_sequence
+                    and self.latest_job_id is not None and identifier != self.latest_job_id):
+                return
+            if identifier in self.finished_jobs:
+                return
+            self.job_sequence, self.latest_job_id = sequence, identifier
+            if state.get("running") is True or state.get("status") == "running":
+                self.build = {"job_id": identifier, "job_sequence": sequence,
+                              "phase": str(state.get("phase", "planning"))[:30],
+                              "title": str(state.get("title", "Building"))[:40],
+                              "role": state.get("role"), "tool": state.get("tool"), "awaiting_response": False}
+                self.encoder_pending = 0
+            elif state.get("running") is False and state.get("status") in {"completed", "failed", "cancelled"}:
+                was_busy = self.build is not None
+                self.finished_jobs.append(identifier)
+                self.build = None
+                if was_busy and state["status"] != "completed":
+                    title = "Build cancelled" if state["status"] == "cancelled" else "Build failed"
+                    self._feedback(title, "See Studio for details")
+                elif was_busy:
+                    self.feedback = None
 
     def _network_step(self):
         try:
             with self.lock:
                 self.sequence += 1
-                delta = self.encoder_pending if self.encoder_revision == self.state.get("revision") else 0
+                delta = self.encoder_pending if not self._busy() and self.encoder_revision == self.state.get("revision") else 0
                 sample = {**self.sample, "encoder_delta": max(-100, min(100, delta))}
                 self.encoder_pending = 0  # Never replay uncertain physical actions after a timeout.
                 packet = {"session": self.session, "sequence": self.sequence, "name": "Modulate Pi 5",
@@ -128,6 +203,10 @@ class Controller:
                           "commands": self.commands if self.state.get("kind") == "game" else [],
                           "telemetry": {"fps": round(self.fps, 1), "voice": self.voice_state,
                                         "voice_history": list(self.voice_history),
+                                        "processing": {"busy": bool(self._busy()),
+                                                       **{key: (self.build or {}).get(key) for key in
+                                                          ("job_id", "job_sequence", "phase", "title")}},
+                                        "display": dict(self.display_state),
                                         "runtime": "physical", "error": self.state.get("error")}}
                 if self.state.get("failure"):
                     packet["failure"] = self.state["failure"]
@@ -156,9 +235,22 @@ class Controller:
                 with self.lock:
                     self.request_in_flight = True
                 try:
-                    self.companion.post("request", {"text": text})
+                    accepted = self.companion.post("request", {"text": text})
+                    if (accepted.get("accepted") is not True or not self._job_id(accepted.get("job_id"))
+                            or not self._job_sequence(accepted.get("job_sequence", 0))):
+                        raise TransportError("Companion did not confirm this request")
                     with self.lock:
+                        self.job_sequence = accepted.get("job_sequence", 0)
+                        self.latest_job_id = accepted["job_id"]
+                        self.build = {"job_id": accepted["job_id"], "job_sequence": self.job_sequence,
+                                      "phase": "queued", "title": "Request queued",
+                                      "role": None, "tool": None, "awaiting_response": False}
                         self.host["agent_running"] = True
+                except (TransportError, OSError, ValueError) as error:
+                    with self.lock:
+                        self.build = None
+                        self._feedback("Request not confirmed", "Check Studio before retrying\n" + str(error)[:65])
+                    raise
                 finally:
                     with self.lock:
                         self.request_in_flight = False
@@ -235,7 +327,12 @@ class Controller:
             if self.chord_start is None:
                 self.chord_start = started
             if not self.chord_fired and started - self.chord_start >= 0.75:
-                self.voice.request_ptt()
+                with self.lock:
+                    busy = self._busy()
+                    if busy:
+                        self._feedback("Working", "Please wait for this build")
+                if not busy:
+                    self.voice.request_ptt()
                 self.chord_fired = True
             sample.update(button_a=False, button_b=False)
         else:
@@ -250,9 +347,10 @@ class Controller:
                 return
             with self.lock:
                 self.host = response
-            self.voice.set_enabled(bool(response.get("wake")) and not response.get("agent_running", False))
             self.runtime.acknowledge_failure(response.get("failure_ack"))
             self.runtime.process(response.get("activation"))
+            self._update_build(response)
+            self.voice.set_enabled(bool(response.get("wake")) and not self._busy())
             if response.get("activation"):
                 self.status_key = None  # Commit/rollback may have presented a frame.
 
@@ -276,6 +374,7 @@ class Controller:
         key = title, detail
         if key != self.status_key:
             self.screen.status(title, detail)
+            self._displayed("status", title)
             self.status_key = key
 
     def draw_volume(self):
@@ -291,6 +390,36 @@ class Controller:
         linked = self.host.get("paired") and time.monotonic() - self.last_response < 4
         draw.text((10, 112), "Turn knob / Hey Meta..." if linked else "Pair the Mac in Studio", font=font(11), fill="#D6DFE7")
         self.present(image)
+        self._displayed("control", "Volume")
+
+    def draw_processing(self):
+        with self.lock:
+            job = dict(self.build) if self.build else None
+            connected = time.monotonic() - self.last_response < 4
+        if job is None:
+            return
+        step = int(time.monotonic() * 5) % 4 if connected else -1
+        title = job["title"] if connected else "Connection lost"
+        role = str(job.get("role") or "Meta").replace("_", " ").capitalize()
+        tool = str(job.get("tool") or "").replace("_", " ")
+        detail = (role + (" / " + tool if tool else "")) if connected else "Build status unknown"
+        footer = "Request received. Working..." if connected else "Checking the Mac connection"
+        key = ("processing", job.get("job_id"), title, detail, step)
+        if key == self.status_key:
+            return
+        image = Image.new("RGB", (240, 135), "#101820")
+        draw = ImageDraw.Draw(image)
+        draw.text((10, 9), "MODULATE / META", font=font(12), fill="#64E3B5")
+        for index in range(4):
+            x = 194 + index * 9
+            draw.ellipse((x, 13, x + 4, 17), fill="#64E3B5" if index == step else "#35434B")
+        draw.text((10, 39), title[:23], font=font(17), fill="white")
+        draw.text((10, 77), detail[:32], font=font(11), fill="#D6DFE7")
+        draw.line((10, 101, 230, 101), fill="#273943")
+        draw.text((10, 112), footer[:32], font=font(11), fill="#D6DFE7")
+        self.present(image)
+        self._displayed("processing", title)
+        self.status_key = key
 
     def run(self):
         self.voice.start()
@@ -306,24 +435,33 @@ class Controller:
                 previous = started
                 self.reload_pairing()
                 self._apply_responses()
+                self.voice.set_enabled(bool(self.host.get("wake")) and not self._busy())
                 input_revision = self.runtime.snapshot().get("revision")
                 sample = self._handle_buttons(self.controls.poll(), started)
                 voice = self.voice_state.get("state")
                 voice_message = self.voice_state.get("message", "")
                 voice_overlay = voice == "transcribing" or (voice == "listening" and
                                 voice_message.startswith(("Push-to-talk", "Wake phrase heard")))
-                overlay = self._offer() is not None or voice_overlay
+                busy = self.build is not None
+                feedback = self._feedback_card()
+                overlay = busy or feedback is not None or self._offer() is not None or voice_overlay
                 if overlay:
                     sample["encoder_delta"] = 0
                 # A modal pairing/voice card temporarily pauses the game rather
                 # than writing a game frame and an overlay to SPI every loop.
                 frame = None if overlay else self.runtime.tick(sample, dt)
                 current = self.runtime.snapshot()
+                if frame:
+                    self._displayed("game", current.get("title", "Game"))
                 self._publish(sample, frame, current, input_revision)
                 if frame:
                     self.status_key = None
                 offer = self._offer()
-                if offer:
+                if busy:
+                    self.draw_processing()
+                elif feedback:
+                    self.status(feedback["title"], feedback["detail"])
+                elif offer:
                     self.status("Link this Mac?", f"Code: {offer['code']}\nA: allow volume control\nB: decline")
                 elif voice_overlay:
                     self.status("Listening" if voice == "listening" else "Understanding",

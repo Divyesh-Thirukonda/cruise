@@ -7,3 +7,4 @@
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 .screen-placeholder[data-mode=volume] .pixel-symbol{display:none}.screen-placeholder[data-mode=volume] strong{font-family:var(--mono);font-size:clamp(24px,4.2vw,47px);font-weight:550;letter-spacing:-2px;color:var(--mint)}.screen-placeholder[data-mode=volume]>span:last-child{margin-top:11px}
 .wake-row>div{min-width:0;padding-right:12px}.wake-row small{line-height:1.5;overflow-wrap:anywhere}.wake-row .switch{flex-shrink:0}#wake-detail[data-state=error]{color:var(--red)}
+.agent-summary p.agent-current-step{font-family:var(--mono);font-size:9px;color:#acd5ba;line-height:1.6;margin-top:7px}

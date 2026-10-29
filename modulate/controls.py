@@ -188,7 +188,7 @@ class Controls:
             controls.extend(("encoder", "encoder_pressed"))
         if self._status["pitft_buttons"] == "ready" or self._status["qwiic_buttons"] == "ready":
             controls.extend(("button_a", "button_b"))
-        warnings = ["Joystick travel and axis direction, and encoder clockwise direction, still need a physical movement test."]
+        warnings = []
         if self._status["qwiic_buttons"] == "disabled_address_collision":
             warnings.append("Qwiic buttons are disabled until both 0x6e and 0x6f are independently identified; a shared 0x6f address is ambiguous.")
         for device, status in self._status.items():

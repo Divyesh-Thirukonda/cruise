@@ -141,10 +141,10 @@
     const kind = active?.kind || packageData?.kind;
     $("preview-placeholder").dataset.mode = kind === "control" ? "volume" : "empty";
     text("preview-title", active?.title || packageData?.title || "A blank canvas");
-    text("program-kind", active ? (kind === "control" ? "CONTROL MODE" : kind === "game" ? "GAME RUNNING" : "ACTIVE PROGRAM") : running ? "BUILDING" : "NO ACTIVE PROGRAM");
-    $("program-kind").dataset.status = active ? "active" : running ? "busy" : "idle";
+    text("program-kind", running ? (active ? "PROGRAM PAUSED" : "PROCESSING") : active ? (kind === "control" ? "CONTROL MODE" : kind === "game" ? "GAME RUNNING" : "ACTIVE PROGRAM") : "NO ACTIVE PROGRAM");
+    $("program-kind").dataset.status = running ? "busy" : active ? "active" : "idle";
     text("active-revision", active?.revision ? `REV ${String(active.revision).slice(0, 8).toUpperCase()}` : "REV —");
-    text("generation-note", running && active ? "Your current program keeps running while the next version is checked." : "A new request creates and checks a program before activation.");
+    text("generation-note", running ? (active ? "Your current program is preserved and paused on the Pi while this request is processed." : "The Pi shows progress while the agent creates and checks your program.") : "A new request creates and checks a program before activation.");
 
     if (!active) {
       ui.previewKey = null;
@@ -153,7 +153,7 @@
       $("preview-image").hidden = true;
       $("preview-image").removeAttribute("src");
       $("preview-placeholder").hidden = false;
-      setPlaceholder(running ? "An idea is taking shape." : "Ready for an idea.", running ? "Follow the agent’s progress alongside." : "Your program will appear here.");
+      setPlaceholder(running ? "Processing your request" : "Ready for an idea.", running ? "Follow the actual agent stages alongside." : "Your program will appear here.");
       text("preview-origin", "Host preview · awaiting a program");
       $("preview-dot").className = "status-dot";
       return;
@@ -170,7 +170,7 @@
       const current = ui.online && state.paired === true && state.device?.connected === true;
       setPlaceholder(hasVolume ? (volume.muted ? "Muted" : `${Math.round(volume.volume)}%`) : "Volume control",
         hasVolume ? `${current ? "This Mac" : "Last reported"} · system volume${volume.muted ? ` ${Math.round(volume.volume)}%` : ""}` : "Awaiting paired Mac volume status.");
-      text("preview-origin", current && hasVolume ? "Host status · actual Mac volume" : "Host status · awaiting connection");
+      text("preview-origin", current && hasVolume ? (running ? "Host status · controls paused" : "Host status · actual Mac volume") : "Host status · awaiting connection");
       $("preview-dot").className = current && hasVolume ? "status-dot live" : "status-dot";
       return;
     }
@@ -181,7 +181,7 @@
       $("preview-image").src = `/api/preview.png?v=${encodeURIComponent(key)}`;
     }
     if (!ui.previewLoaded && !ui.previewError) setPlaceholder("Loading the actual frame…", "Host preview from the running program.");
-    const suffix = !ui.online ? " · connection lost" : ui.previewError ? " · frame unavailable" : running ? " · current revision" : " · actual program output";
+    const suffix = !ui.online ? " · connection lost" : ui.previewError ? " · frame unavailable" : running ? " · program paused on Pi" : " · actual program output";
     text("preview-origin", `Host preview${suffix}`);
     $("preview-dot").className = ui.online && ui.previewLoaded && !ui.previewError ? "status-dot live" : "status-dot";
   }
@@ -253,14 +253,31 @@
     const lifecycle = [...events].reverse().find((event) =>
       ["request_started", "request_finished", "request_failed"].includes(event.type) &&
       (!agent.request_id || event.request_id === agent.request_id));
-    const failed = !agent.running && lifecycle?.type === "request_failed";
+    const hasTerminalStatus = ["completed", "failed", "cancelled"].includes(agent.status);
+    const failed = !agent.running && (hasTerminalStatus ? agent.status === "failed" : lifecycle?.type === "request_failed");
+    const cancelled = !agent.running && agent.status === "cancelled";
     $("agent-status").dataset.status = agent.running ? "running" : failed ? "error" : "idle";
     const badge = $("agent-status");
     const statusText = agent.running ? "WORKING" : failed ? "STOPPED" : "READY";
     if (badge.lastChild?.nodeType === Node.TEXT_NODE) badge.lastChild.textContent = statusText;
-    text("agent-summary-title", agent.running ? "Making your idea work." : failed ? "The last request stopped." : ui.state?.active ? "Ready for your next idea." : "An idea starts the process.");
-    text("agent-summary-detail", agent.summary ? String(agent.summary).slice(0, 400) : agent.running ? "Generating, checking, and refining the requested experience." : failed ? "Review the activity below, then adjust your request." : "Follow tool calls, specialist work, and checks as they happen.");
-    text("agent-footnote", agent.running ? "Live tool activity · current program preserved" : "Activity comes from the running agent.");
+    const phaseTitles = {queued: "Request accepted", planning: "Planning the change", coding: "Writing the program", checking: "Checking the package",
+      previewing: "Preparing the preview", activating: "Activating on your device", ready: "Finishing the request",
+      error: "The request encountered an error", cancelled: "Stopping the request"};
+    const phaseTitle = typeof agent.title === "string" && agent.title.trim() ? agent.title.slice(0, 200) : phaseTitles[agent.phase];
+    const activity = [...events].reverse().find((event) =>
+      ["model_call", "tool_started", "tool_finished"].includes(event.type) &&
+      (agent.request_id ? event.request_id === agent.request_id : agent.job_id && event.job_id === agent.job_id));
+    const hasApiActivity = "role" in agent || "tool" in agent;
+    const currentRole = hasApiActivity ? agent.role : activity?.role;
+    const currentTool = hasApiActivity ? agent.tool : activity?.tool;
+    const role = typeof currentRole === "string" ? human(currentRole) : "";
+    const tool = typeof currentTool === "string" ? human(currentTool) : "";
+    const step = [role, tool ? `${!hasApiActivity && activity?.type === "tool_finished" ? "Last tool: " : ""}${tool}` : role && ["planning", "coding"].includes(agent.phase) ? "Model is deciding" : ""].filter(Boolean).join(" · ");
+    text("agent-summary-title", agent.running ? "Processing your request" : failed ? "The last request stopped." : cancelled ? "The request was cancelled." : ui.state?.active ? "Ready for your next idea." : "An idea starts the process.");
+    text("agent-summary-detail", agent.running ? phaseTitle || "Waiting for the agent’s next step." : agent.summary ? String(agent.summary).slice(0, 400) : failed ? "Review the activity below, then adjust your request." : "Follow tool calls, specialist work, and checks as they happen.");
+    text("agent-current-step", step);
+    $("agent-current-step").hidden = !agent.running || !step;
+    text("agent-footnote", agent.running ? "Voice paused · wait for this request or cancel" : "Activity comes from the running agent.");
     renderEvents();
   }
 

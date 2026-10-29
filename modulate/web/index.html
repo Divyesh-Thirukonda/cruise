@@ -72,7 +72,7 @@
         <aside class="activity-column">
           <section class="agent-panel" aria-labelledby="agent-title">
             <div class="panel-heading"><h2 id="agent-title">Inside the agent</h2><span class="chip" id="agent-status" data-status="idle"><span class="status-dot"></span>READY</span></div>
-            <div class="agent-summary"><span class="agent-emblem" aria-hidden="true">✳</span><div><strong id="agent-summary-title">An idea starts the process.</strong><p id="agent-summary-detail">Follow tool calls, specialist work, and checks as they happen.</p></div><button type="button" id="cancel" class="button button-small button-danger" hidden>Cancel</button></div>
+            <div class="agent-summary"><span class="agent-emblem" aria-hidden="true">✳</span><div aria-live="polite" aria-atomic="true"><strong id="agent-summary-title">An idea starts the process.</strong><p id="agent-summary-detail">Follow tool calls, specialist work, and checks as they happen.</p><p id="agent-current-step" class="agent-current-step" hidden></p></div><button type="button" id="cancel" class="button button-small button-danger" hidden>Cancel</button></div>
             <div class="timeline-container"><ol class="timeline" id="timeline" aria-label="Agent activity"></ol><div id="timeline-empty" class="timeline-empty"><span class="empty-line" aria-hidden="true"></span><p>No activity yet</p><span>Your first request starts the timeline.</span></div></div>
             <div class="agent-footnote"><span class="status-dot"></span><span id="agent-footnote">Activity comes from the running agent.</span></div>
           </section>

@@ -502,6 +502,129 @@ class ProductTests(unittest.TestCase):
         self.assertEqual(self.product.events[-2]["at"], 1234.5)
         self.assertEqual(self.product.events[-1]["at"], "2026-10-28T12:34:56Z")
 
+    def deferred_request(self):
+        self.heartbeat()
+        with patch("modulate.product.threading.Thread") as thread:
+            accepted = self.product.request("Synthetic progress test", source="microphone")
+            work = thread.call_args.kwargs["target"]
+        return accepted, work
+
+    def test_job_identity_exists_before_worker_and_ignores_previous_request_events(self):
+        self.product.agent.request_id = "e" * 32
+        accepted, work = self.deferred_request()
+        self.product.event({"type": "request_finished", "request_id": "e" * 32})
+        state = self.heartbeat()["agent_state"]
+        self.assertEqual(state["job_id"], accepted["job_id"])
+        self.assertIsNone(state["request_id"])
+        self.assertEqual((state["phase"], state["status"], state["running"]), ("queued", "running", True))
+        self.assertEqual(self.product.state()["agent"], state)
+        with patch.object(self.product.agent, "run", return_value="Synthetic completion"):
+            work()
+        self.assertEqual(self.heartbeat()["agent_state"]["status"], "completed")
+
+    def test_current_job_events_report_actual_stages_with_fixed_titles(self):
+        accepted, work = self.deferred_request()
+
+        def run(text):
+            self.product.event({"type": "request_started", "request_id": "b" * 32, "role": "orchestrator"})
+            for tool, phase in (("write_package", "coding"), ("test_package", "checking"),
+                                ("preview_package", "previewing"), ("activate_package", "activating")):
+                self.product.event({"type": "tool_started", "request_id": "b" * 32,
+                                    "role": "orchestrator", "tool": tool, "title": "Untrusted generated label"})
+                state = self.product.agent_state()
+                self.assertEqual((state["job_id"], state["request_id"], state["phase"], state["tool"]),
+                                 (accepted["job_id"], "b" * 32, phase, tool))
+                self.assertNotEqual(state["title"], "Untrusted generated label")
+            self.product.event({"type": "tool_finished", "request_id": "b" * 32,
+                                "tool": "test_package", "status": "failed", "role": "orchestrator"})
+            self.assertEqual(self.product.agent_state()["status"], "running")
+            self.assertEqual(self.product.agent_state()["title"], "Adjusting the app")
+            self.product.event({"type": "request_finished", "request_id": "b" * 32, "role": "orchestrator"})
+            return "Synthetic completion"
+
+        with patch.object(self.product.agent, "run", side_effect=run):
+            work()
+        state = self.product.agent_state()
+        self.assertEqual((state["running"], state["phase"], state["status"]), (False, "ready", "completed"))
+        self.assertEqual(Product(self.directory, self.provider, backend=self.backend).agent_state()["job_id"], accepted["job_id"])
+
+    def test_cancelled_inflight_job_stays_busy_until_worker_returns(self):
+        accepted, work = self.deferred_request()
+
+        def run(text):
+            self.product.event({"type": "request_started", "request_id": "b" * 32, "role": "orchestrator"})
+            self.product.cancel()
+            self.product.event({"type": "model_call", "request_id": "b" * 32, "role": "orchestrator"})
+            state = self.product.agent_state()
+            self.assertEqual((state["running"], state["status"], state["phase"]), (True, "running", "cancelled"))
+            raise AgentError("Synthetic cancellation")
+
+        with patch.object(self.product.agent, "run", side_effect=run):
+            work()
+        state = self.heartbeat()["agent_state"]
+        self.assertEqual(state["job_id"], accepted["job_id"])
+        self.assertEqual((state["running"], state["status"]), (False, "cancelled"))
+
+    def test_queued_cancel_never_starts_the_agent(self):
+        accepted, work = self.deferred_request()
+        self.product.cancel()
+        with patch.object(self.product.agent, "run") as run:
+            work()
+        run.assert_not_called()
+        self.assertEqual(self.product.agent_state()["status"], "cancelled")
+
+    def test_host_restart_returns_matching_interrupted_job_identity(self):
+        accepted, _ = self.deferred_request()
+        reopened = Product(self.directory, self.provider, backend=self.backend)
+        state = reopened.agent_state()
+        self.assertEqual(state["job_id"], accepted["job_id"])
+        self.assertEqual((state["running"], state["status"], state["phase"], state["title"]),
+                         (False, "failed", "error", "Request interrupted"))
+
+    def test_failed_job_and_late_old_job_event_cannot_clear_new_queued_job(self):
+        first, work = self.deferred_request()
+        with patch.object(self.product.agent, "run", side_effect=AgentError("Synthetic provider failure")):
+            work()
+        self.assertEqual(self.product.agent_state()["status"], "failed")
+        second, second_work = self.deferred_request()
+        self.product.job_context.job_id = first["job_id"]
+        self.product.event({"type": "request_failed", "request_id": "b" * 32, "role": "orchestrator"})
+        del self.product.job_context.job_id
+        state = self.product.agent_state()
+        self.assertEqual((state["job_id"], state["phase"], state["running"]), (second["job_id"], "queued", True))
+        with patch.object(self.product.agent, "run", return_value="Done"):
+            second_work()
+
+    def test_job_sequence_is_monotonic_and_persists_before_worker_and_across_restart(self):
+        first, work = self.deferred_request()
+        self.assertEqual(first["job_sequence"], 1)
+        self.assertEqual(self.heartbeat()["agent_state"]["job_sequence"], 1)
+        self.assertEqual(json.loads(self.product.job_path.read_text())["job_sequence"], 1)
+        with patch.object(self.product.agent, "run", return_value="Done"):
+            work()
+        self.product = Product(self.directory, self.provider, backend=self.backend)
+        self.assertEqual(self.product.agent_state()["job_sequence"], 1)
+        second, second_work = self.deferred_request()
+        self.assertEqual(second["job_sequence"], 2)
+        self.assertNotEqual(first["job_id"], second["job_id"])
+        with patch.object(self.product.agent, "run", return_value="Done"):
+            second_work()
+
+    def test_legacy_saved_job_gets_sequence_zero_then_next_job_increments(self):
+        first, work = self.deferred_request()
+        with patch.object(self.product.agent, "run", return_value="Done"):
+            work()
+        saved = json.loads(self.product.job_path.read_text())
+        saved.pop("job_sequence")
+        self.product.job_path.write_text(json.dumps(saved))
+        self.product = Product(self.directory, self.provider, backend=self.backend)
+        self.assertEqual(self.product.agent_state()["job_id"], first["job_id"])
+        self.assertEqual(self.product.agent_state()["job_sequence"], 0)
+        accepted, work = self.deferred_request()
+        self.assertEqual(accepted["job_sequence"], 1)
+        with patch.object(self.product.agent, "run", return_value="Done"):
+            work()
+
 
 if __name__ == "__main__":
     unittest.main()

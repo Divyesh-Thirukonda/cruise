@@ -210,6 +210,166 @@ class ControllerTests(unittest.TestCase):
         self.assertTrue(self.controller.request("first"))
         self.assertFalse(self.controller.request("second"))
 
+    def job_response(self, identifier="a" * 32, *, sequence=1, running=True, status="running", phase="coding"):
+        return {"wake": True, "agent_running": running,
+                "agent_state": {"job_id": identifier, "job_sequence": sequence,
+                                "request_id": None, "running": running,
+                                "status": status, "phase": phase, "title": "Building your idea",
+                                "role": "coder", "tool": "write_package", "summary": "Synthetic progress"}}
+
+    def test_request_latches_loading_immediately_and_old_heartbeat_cannot_dismiss_it(self):
+        controller = self.controller
+        self.assertTrue(controller.request("synthetic request"))
+        self.assertEqual(controller.build["title"], "Request queued")
+        stale = self.job_response("b" * 32, running=False, status="completed", phase="ready")
+        self.Companion.post.side_effect = [stale, {"accepted": True, "job_id": "a" * 32, "job_sequence": 1}]
+        controller._network_step()
+        self.assertEqual(controller.build["job_id"], "a" * 32)
+        controller._apply_responses()
+        self.assertEqual(controller.build["job_id"], "a" * 32)
+        self.VoiceListener.set_enabled.assert_called_with(False)
+
+    def test_false_heartbeat_during_request_submission_keeps_local_queue_latch(self):
+        self.assertTrue(self.controller.request("synthetic request"))
+        self.controller.responses.put({"wake": True, "agent_running": False,
+                                       "agent_state": {"job_id": None, "running": False, "status": "completed"}})
+        self.controller._apply_responses()
+        self.assertTrue(self.controller.build["awaiting_response"])
+        self.assertEqual(self.controller.build["title"], "Request queued")
+
+    def test_only_matching_terminal_job_releases_loading_and_stale_running_cannot_resurrect_it(self):
+        self.controller._update_build(self.job_response())
+        self.controller._update_build(self.job_response("b" * 32, running=False, status="completed"))
+        self.assertIsNotNone(self.controller.build)
+        self.controller._update_build(self.job_response(running=False, status="completed", phase="ready"))
+        self.assertIsNone(self.controller.build)
+        self.controller._update_build(self.job_response())
+        self.assertIsNone(self.controller.build)
+
+    def test_cancelling_job_stays_busy_until_worker_reports_terminal_state(self):
+        self.controller._update_build(self.job_response())
+        self.controller._update_build(self.job_response(running=True, status="running", phase="cancelled"))
+        self.assertEqual(self.controller.build["phase"], "cancelled")
+        self.controller._update_build(self.job_response(running=False, status="cancelled", phase="cancelled"))
+        self.assertIsNone(self.controller.build)
+        self.assertEqual(self.controller._feedback_card()["title"], "Build cancelled")
+        self.assertNotIn("Previous program", self.controller._feedback_card()["detail"])
+
+    def test_newer_job_recovers_a_missed_terminal_and_rejects_old_or_equal_different_jobs(self):
+        controller = self.controller
+        controller._update_build(self.job_response(sequence=4))
+        controller._update_build(self.job_response("b" * 32, sequence=5))
+        self.assertEqual(controller.build["job_id"], "b" * 32)
+        for identifier, sequence in (("a" * 32, 4), ("c" * 32, 5)):
+            controller._update_build(self.job_response(identifier, sequence=sequence, running=False, status="completed"))
+            self.assertEqual(controller.build["job_id"], "b" * 32)
+        controller._update_build(self.job_response("b" * 32, sequence=5, running=False, status="completed"))
+        self.assertIsNone(controller.build)
+
+    def test_newer_terminal_recovers_missed_job_without_stale_running_disabling_voice(self):
+        controller = self.controller
+        controller._update_build(self.job_response(sequence=4))
+        controller.responses.put(self.job_response("b" * 32, sequence=5, running=False, status="completed"))
+        controller._apply_responses()
+        self.assertIsNone(controller.build)
+        controller.responses.put(self.job_response(sequence=4))
+        controller._apply_responses()
+        self.assertFalse(controller._busy())
+        self.assertIsNone(controller.build)
+        self.VoiceListener.set_enabled.assert_called_with(True)
+
+    def test_unconfirmed_local_request_ignores_even_newer_heartbeat_until_post_returns(self):
+        self.assertTrue(self.controller.request("synthetic request"))
+        self.controller._update_build(self.job_response("b" * 32, sequence=99))
+        self.assertTrue(self.controller.build["awaiting_response"])
+        self.assertIsNone(self.controller.build["job_id"])
+
+    def test_invalid_job_sequences_do_not_supersede_a_running_job(self):
+        self.controller._update_build(self.job_response(sequence=4))
+        for sequence in (-1, True, "5", None):
+            with self.subTest(sequence=sequence):
+                self.controller._update_build(self.job_response("b" * 32, sequence=sequence))
+                self.assertEqual(self.controller.build["job_id"], "a" * 32)
+
+    def test_busy_tft_chord_does_not_open_microphone(self):
+        self.controller._update_build(self.job_response())
+        self.buttons[0].current = self.buttons[1].current = False
+        self.controller._handle_buttons(neutral_input(), 10)
+        self.controller._handle_buttons(neutral_input(), 10.8)
+        self.VoiceListener.request_ptt.assert_not_called()
+        self.assertEqual(self.controller._feedback_card()["title"], "Working")
+
+    def test_request_http_failure_has_visible_feedback_without_an_eternal_loading_latch(self):
+        self.assertTrue(self.controller.request("synthetic request"))
+        self.Companion.post.side_effect = [{"wake": True, "agent_running": False},
+                                          TransportError("Synthetic request rejected")]
+        with patch("modulate.device.time.monotonic", return_value=100):
+            self.controller._network_step()
+            self.assertIsNone(self.controller.build)
+            self.assertEqual(self.controller._feedback_card()["title"], "Request not confirmed")
+        with patch("modulate.device.time.monotonic", return_value=103.9):
+            self.assertIsNotNone(self.controller._feedback_card())
+        with patch("modulate.device.time.monotonic", return_value=104):
+            self.assertIsNone(self.controller._feedback_card())
+
+    def test_disconnected_build_card_reports_unknown_without_animated_progress(self):
+        self.controller._update_build(self.job_response())
+        self.controller.last_response = 90
+        with patch("modulate.device.time.monotonic", return_value=100):
+            self.controller.draw_processing()
+        self.assertIn("Connection lost", self.controller.status_key)
+        self.assertIn("Build status unknown", self.controller.status_key)
+        self.assertEqual(self.controller.status_key[-1], -1)
+        draws = self.Screen.display.image.call_count
+        with patch("modulate.device.time.monotonic", return_value=105):
+            self.controller.draw_processing()
+        self.assertEqual(self.Screen.display.image.call_count, draws)
+        self.assertIsNotNone(self.controller.build)  # Retain identity for honest reconciliation.
+
+    def test_processing_dots_animate_without_displaying_a_percentage(self):
+        self.controller._update_build(self.job_response())
+        self.controller.last_response = 100
+        with patch("modulate.device.time.monotonic", return_value=100):
+            self.controller.draw_processing()
+            first = self.controller.status_key
+        with patch("modulate.device.time.monotonic", return_value=100.25):
+            self.controller.draw_processing()
+        self.assertNotEqual(first[-1], self.controller.status_key[-1])
+        self.assertNotIn("%", str(self.controller.status_key))
+
+    def test_heartbeat_reports_latched_job_and_last_rendered_display_without_images(self):
+        controller = self.controller
+        controller._update_build(self.job_response(sequence=4))
+        controller.draw_processing()
+        self.Companion.post.return_value = {}
+        controller._network_step()
+        telemetry = self.Companion.post.call_args.args[1]["telemetry"]
+        self.assertEqual(telemetry["processing"], {
+            "busy": True, "job_id": "a" * 32, "job_sequence": 4,
+            "phase": "coding", "title": "Building your idea",
+        })
+        self.assertEqual(telemetry["display"], {"kind": "processing", "title": "Building your idea"})
+        controller.status("Listening", "Speak your request")
+        self.assertEqual(controller.display_state, {"kind": "status", "title": "Listening"})
+        controller.draw_volume()
+        self.assertEqual(controller.display_state, {"kind": "control", "title": "Volume"})
+
+    def test_loading_card_pauses_game_tick_without_replacing_runtime(self):
+        self.controller._update_build(self.job_response())
+        self.Controls.poll.return_value = neutral_input()
+        self.DeviceActivation.snapshot.return_value = {"revision": "a" * 64, "kind": "game", "ack": None}
+        runtime = self.controller.runtime
+
+        def finish_iteration(timeout):
+            self.controller.stop.set()
+
+        with patch("modulate.device.threading.Thread"), \
+                patch.object(self.controller.stop, "wait", side_effect=finish_iteration):
+            self.controller.run()
+        self.DeviceActivation.tick.assert_not_called()
+        self.assertIs(self.controller.runtime, runtime)
+        self.assertEqual(self.controller.status_key[0], "processing")
+
 
 class FakeVolume:
     def __init__(self):

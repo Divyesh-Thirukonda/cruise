@@ -7,6 +7,7 @@ software render, not optical readback. No host action is executed here.
 from dataclasses import dataclass
 import hashlib
 import json
+import logging
 import os
 from pathlib import Path
 import re
@@ -14,13 +15,14 @@ import tempfile
 import threading
 import time
 
-from .game_runtime import Game, validate_package, verify
+from .game_runtime import Game, GameError, validate_package, verify
 from .rendering import Renderer
 
 
 TIMEOUT_SECONDS = 12
 _REVISION = re.compile(r"[0-9a-f]{64}\Z")
 _IDENTIFIER = re.compile(r"[A-Za-z0-9_-]{1,128}\Z")
+_LOG = logging.getLogger(__name__)
 
 
 class ActivationError(ValueError):
@@ -383,10 +385,36 @@ class DeviceActivation:
                     raise
             return self._snapshot()
 
-    def _runtime_failed(self):
+    @staticmethod
+    def _failure_category(stage, error):
+        """Keep arbitrary generated exception messages out of logs and state."""
+        if stage == "present":
+            return "display_error"
+        if stage == "render":
+            return "render_error"
+        if isinstance(error, GameError):
+            message = str(error)
+            known = {
+                "Game worker exceeded its wall-clock deadline": "worker_deadline",
+                "Game worker is closed": "worker_closed",
+                "Game worker exited without a result": "worker_exit",
+                "Game worker output is oversized": "worker_output_limit",
+                "Worker request is oversized": "worker_input_limit",
+                "Unexpected extra worker output": "worker_protocol",
+                "Worker response sequence mismatch": "worker_protocol",
+                "Invalid game worker response": "worker_protocol",
+            }
+            if message in known:
+                return known[message]
+            if message.split("\n", 1)[0] == "InternalError: interrupted":
+                return "engine_interrupt"
+            return "game_error"
+        return "step_error"
+
+    def _runtime_failed(self, diagnostic=""):
         failed = self._active
         if self._pending and self._pending["phase"] == "activated":
-            self._rollback_pending("Candidate runtime failed before confirmation")
+            self._rollback_pending("Candidate runtime failed before confirmation" + diagnostic)
             return
         if self._pending:
             self._rollback_pending("Current runtime failed while staging a candidate")
@@ -409,8 +437,8 @@ class DeviceActivation:
                 pass
         self._previous = None
         self._failure = {"revision": revision, "restored_revision": self._active.revision if self._active else None,
-                         "error": "Game runtime or display failed; previous verified package restored"
-                         if self._active else "Game runtime or display failed; no usable previous package"}
+                         "error": ("Game runtime or display failed; previous verified package restored"
+                         if self._active else "Game runtime or display failed; no usable previous package") + diagnostic}
         self._error = self._failure["error"]
         self._ack = None
         try:
@@ -423,14 +451,21 @@ class DeviceActivation:
             self._expire()
             if self._closed or self._active is None or self._active.game is None:
                 return None
+            stage = "step"
+            started = time.monotonic()
             try:
                 frame = self._active.game.step(input, dt)
+                stage, started = "render", time.monotonic()
                 image = self._active.renderer.render(frame["commands"])
+                stage, started = "present", time.monotonic()
                 self.present(image)
                 self._active.frame, self._active.image = frame, image
                 return _copy(frame)
-            except Exception:
-                self._runtime_failed()
+            except Exception as error:
+                elapsed_ms = max(0, min(60_000, round((time.monotonic() - started) * 1000)))
+                category = self._failure_category(stage, error)
+                _LOG.error("Game runtime failure stage=%s category=%s elapsed_ms=%d", stage, category, elapsed_ms)
+                self._runtime_failed(f" [stage={stage} category={category} elapsed_ms={elapsed_ms}]")
                 return None
 
     def acknowledge_failure(self, value):

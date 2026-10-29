@@ -13,6 +13,9 @@ UMask=0077
 NoNewPrivileges=yes
 Restart=on-failure
 RestartSec=3
+# Let the controller close its game worker before systemd terminates children.
+# Signalling both together can turn an intentional stop into persisted rollback.
+KillMode=mixed
 TimeoutStopSec=12
 
 [Install]

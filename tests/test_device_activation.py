@@ -9,6 +9,7 @@ import unittest
 from unittest.mock import patch
 
 from modulate.device_activation import DeviceActivation, digest
+from modulate.game_runtime import GameError
 
 
 def game(title="First", color="#112233"):
@@ -266,6 +267,55 @@ class DeviceActivationTests(unittest.TestCase):
         self.assertTrue(recovered.acknowledge_failure({key: failure[key] for key in ("revision", "restored_revision")}))
         self.assertIsNone(recovered.snapshot()["failure"])
         self.assertIsNone(self.saved()["failure"])
+
+    def test_runtime_diagnostic_distinguishes_step_render_and_present_without_exception_text(self):
+        for stage, category in (("step", "worker_deadline"), ("render", "render_error"), ("present", "display_error")):
+            with self.subTest(stage=stage):
+                self.activate(control())
+                self.activate(game("Diagnostic " + stage))
+                active = self.manager._active
+                target, method = ((active.game, "step") if stage == "step" else
+                                  (active.renderer, "render") if stage == "render" else (self.manager, "present"))
+                original = getattr(target, method)
+                calls = 0
+
+                def fail_once(*args):
+                    nonlocal calls
+                    calls += 1
+                    if calls == 1:
+                        self.now += 0.375
+                        if stage == "step":
+                            raise GameError("Game worker exceeded its wall-clock deadline")
+                        raise RuntimeError("private generated content must not appear")
+                    return original(*args)
+
+                with patch.object(target, method, side_effect=fail_once), \
+                        self.assertLogs("modulate.device_activation", level="ERROR") as logs:
+                    self.assertIsNone(self.manager.tick({}, 0.03))
+                diagnostic = f"stage={stage} category={category} elapsed_ms=375"
+                self.assertIn(diagnostic, logs.output[0])
+                self.assertIn(diagnostic, self.manager.snapshot()["failure"]["error"])
+                self.assertNotIn("private", str(logs.output) + json.dumps(self.saved()))
+                self.assertEqual(self.reopen().snapshot()["failure"], self.manager.snapshot()["failure"])
+                self.assertTrue(self.manager.acknowledge_failure(self.manager.snapshot()["failure"]))
+
+    def test_runtime_error_categories_are_allowlisted_and_timing_is_bounded(self):
+        self.activate(game())
+        self.assertEqual(self.manager._failure_category("step", GameError("InternalError: interrupted\n private")),
+                         "engine_interrupt")
+        self.assertEqual(self.manager._failure_category("step", GameError("private arbitrary program error")),
+                         "game_error")
+        self.assertEqual(self.manager._failure_category("step", GameError("Game worker exited without a result")),
+                         "worker_exit")
+
+        def delayed_failure(*args):
+            self.now += 1000
+            raise RuntimeError("private")
+
+        with patch.object(self.manager._active.game, "step", side_effect=delayed_failure), \
+                self.assertLogs("modulate.device_activation", level="ERROR"):
+            self.manager.tick({}, 0.03)
+        self.assertIn("elapsed_ms=60000", self.manager.snapshot()["failure"]["error"])
 
     def test_changed_saved_source_fails_integrity_before_starting_any_worker(self):
         self.activate(game())

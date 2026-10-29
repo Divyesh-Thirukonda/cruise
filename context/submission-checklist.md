@@ -28,6 +28,7 @@ Measurements are project evidence goals, not extra organizer requirements. Publi
 
 ## Code and live product
 
+- [x] Include the connection dashboard and server routes in this repository: [webapp/connect-app-code](../webapp/connect-app-code), with source manifest, standalone build, 20 UI/client tests and 30 API tests verified on October 29.
 - [ ] Repository is public and can be opened while signed out.
 - [ ] README states what exists, what is planned, how to run it, required hardware, and which parts require API access.
 - [ ] A new teammate can reproduce the setup from the README.

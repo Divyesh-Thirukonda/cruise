@@ -2,6 +2,13 @@
 
 `https://divy.live/connect` is the remote Studio for the existing Modulate hub. It is served by the existing portfolio project. The Mac companion remains the trusted runtime for the paired Pi, the agent, native computer tools, private state, and spending ledgers.
 
+The connection-specific web source is included in this hackathon repository at
+[webapp/connect-app-code](../webapp/connect-app-code). It contains the React
+dashboard, Vercel endpoints, tests and standalone build configuration, with a
+manifest identifying the exact deployed portfolio source commit. The portfolio
+remains the live deployment source; this copy does not introduce another server
+or change the current connection.
+
 ## Connect a browser
 
 1. Keep the Mac companion and its outbound connection running.

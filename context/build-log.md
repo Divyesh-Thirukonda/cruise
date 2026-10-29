@@ -294,3 +294,26 @@ be treated as completed; existing pairing/permissions remained intact and were
 not retested. [Sanitized evidence](evidence/app-library.json),
 [production screenshot](evidence/app-library-dashboard.jpg), and
 [usage and limits](app-library.md).
+
+## October 29: animated Muse transition screens
+
+Added a custom Muse-inspired cream/peach character, drawn in Pillow with stable
+fur texture, blinking, breathing, cupped-hand listening, speaking mouth/arms,
+building sparks, concern and a happy bounce. The local presentation uses the
+existing dependency and caches native frames; no model calls or provider assets
+are required for animation. State cards redraw at eight fps, keep actual stage
+text and page long explanations. Setup/library, generated apps and all existing
+buttons/cancellation paths are preserved.
+
+The success overlay requires a matching durable activation acknowledgement,
+deduplicates transactions, expires when blocked and yields to existing guidance.
+Queued/fetched audio cannot animate a talking mouth. Added 19 focused renderer
+and lifecycle tests; the full host suite passed 921 tests with 11 platform skips.
+The synthetic preview was inspected at native 240×135 size. These are software
+and illustration checks, not an optical or microphone reliability measurement.
+
+Visual reference: Meta's official Muse product artwork. The illustration and
+animation code were authored for Modulate during this event; no official source
+image or private user sketch is committed. Character design remains Meta's,
+with no claimed open asset license or official avatar-runtime integration.
+[Preview and provenance](muse-screens.md).

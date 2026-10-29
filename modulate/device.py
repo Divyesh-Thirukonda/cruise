@@ -12,7 +12,6 @@ from pathlib import Path
 import queue
 import signal
 import threading
-import textwrap
 import time
 import uuid
 from io import BytesIO
@@ -31,6 +30,7 @@ from .audio_receiver import AudioReceiver
 from .voice import VoiceListener
 from .setup_screen import SetupScreen
 from .library_screen import LibraryScreen
+from .muse_screen import render_card
 
 
 class Controller:
@@ -59,7 +59,7 @@ class Controller:
         self.session = uuid.uuid4().hex
         self.sequence = 0
         self.screen = Screen(self.directory / "screen.png")
-        self.screen.status("Connecting", "Starting physical controls")
+        self.screen.display.image(render_card("idle", "Waking up", "Getting your controls ready.", now=0), rotation=90)
         self.display_state = {"kind": "status", "title": "Connecting"}
         self.controls = Controls(self.screen)
         self.hardware_debugger = HardwareDevice(self.controls, self.directory / "hardware", self.session)
@@ -72,6 +72,8 @@ class Controller:
         self.latest_job_id = None
         self.finished_jobs = deque(maxlen=32)
         self.feedback = None
+        self.celebration = None
+        self.celebrated_activations = deque(maxlen=128)
         self.commands = []
         self.state = {"revision": None, "ack": None}
         self.voice_state = {"state": "idle", "message": "Starting voice"}
@@ -313,6 +315,7 @@ class Controller:
             self.build = {"job_id": None, "phase": "queued", "title": "Request queued",
                           "role": None, "tool": None, "awaiting_response": True}
             self.feedback = None
+            self.celebration = None
             self.encoder_pending = 0
             return True
 
@@ -320,6 +323,7 @@ class Controller:
         stopped_audio = self._stop_speech()
         stopped_audio = self._stop_computer_audio() or stopped_audio
         with self.lock:
+            self.celebration = None
             if self.build and self.build.get("awaiting_response"):
                 try:
                     self.requests.get_nowait()
@@ -402,6 +406,7 @@ class Controller:
                 self.finished_jobs.append(identifier)
                 self.build = None
                 if was_busy and state["status"] != "completed":
+                    self.celebration = None
                     if state["status"] == "failed" and type(response.get("clarification")) is dict:
                         self.feedback = None  # The actionable question takes precedence.
                     else:
@@ -741,8 +746,11 @@ class Controller:
                 return
             with self.lock:
                 self.host = response
+            activation = response.get("activation")
+            before = self.runtime.snapshot() if activation else None
             self.runtime.acknowledge_failure(response.get("failure_ack"))
-            self.runtime.process(response.get("activation"))
+            current = self.runtime.process(activation)
+            self._activation_celebration(activation, before, current)
             self._update_camera(response.get("camera_frame"))
             self._update_build(response)
             self._update_speech(response)
@@ -818,12 +826,68 @@ class Controller:
             if frame:
                 self.commands = frame["commands"]
 
-    def status(self, title, detail):
-        key = title, detail
+    def _activation_celebration(self, message, before, current):
+        """Celebrate a newly durable activation, never a model's success text."""
+        if type(message) is not dict or message.get("phase") != "confirmed":
+            return
+        if type(before) is not dict or type(current) is not dict:
+            return
+        previous_ack, ack = before.get("ack") or {}, current.get("ack") or {}
+        identifier, revision = message.get("id"), message.get("revision")
+        if (before.get("pending") != "activated" or previous_ack.get("phase") != "activated"
+                or previous_ack.get("id") != identifier or previous_ack.get("revision") != revision
+                or ack.get("phase") != "confirmed" or ack.get("id") != identifier
+                or ack.get("revision") != revision or current.get("revision") != revision
+                or revision == message.get("base_revision") or current.get("failure")
+                or current.get("error") or current.get("suspended")
+                or current.get("kind") not in {"game", "control"}):
+            return
+        with self.lock:
+            if identifier in self.celebrated_activations:
+                return
+            self.celebrated_activations.append(identifier)
+            self.celebration = {"revision": revision, "title": current.get("title") or "Your app",
+                                "queued_at": time.monotonic(), "until": None}
+
+    def _success_card(self, current, *, blocked, now):
+        """A short interlude yields to all existing instructions and real apps."""
+        with self.lock:
+            card = self.celebration
+            if card is None:
+                return None
+            if (current.get("revision") != card["revision"] or current.get("failure")
+                    or current.get("error") or current.get("suspended")
+                    or now - card["queued_at"] >= 8
+                    or (card["until"] is not None and now >= card["until"])):
+                self.celebration = None
+                return None
+            if blocked:
+                return None
+            if card["until"] is None:
+                card["until"] = now + 1.25
+            return dict(card)
+
+    def _card(self, mode, title, detail, footer="", *, kind="status", animate=True):
+        now = time.monotonic()
+        identity = kind, mode, title, detail, footer
+        if self.status_key is None or self.status_key[:-1] != identity:
+            self.status_started = now
+        step = int(max(0, now - self.status_started) * 8) if animate else -1
+        key = (*identity, step)
         if key != self.status_key:
-            self.screen.status(title, detail)
-            self._displayed("status", title)
+            self.present(render_card(mode, title, detail, footer=footer, now=step / 8 if animate else 0))
+            self._displayed(kind, title)
             self.status_key = key
+
+    def status(self, title, detail, *, mode="instructions", footer=""):
+        self._card(mode, title, detail, footer)
+
+    def draw_speech(self):
+        playing = self.speaker_state.get("state") == "speaking"
+        title = "Replying aloud" if playing else "Preparing reply"
+        self.status(title, "" if playing else "One moment...",
+                    mode="speaking" if playing else "thinking", footer="B: stop / Both buttons: talk")
+        self._displayed("speaker", title)
 
     def draw_volume(self):
         volume = self.host.get("volume") or {}
@@ -847,28 +911,13 @@ class Controller:
             connected = time.monotonic() - self.last_response < 4
         if job is None:
             return
-        step = int(time.monotonic() * 5) % 4 if connected else -1
         title = job["title"] if connected else "Connection lost"
         role = str(job.get("role") or "Meta").replace("_", " ").capitalize()
         tool = str(job.get("tool") or "").replace("_", " ")
         detail = (role + (" / " + tool if tool else "")) if connected else "Build status unknown"
         footer = '"Hey Meta, cancel rebuild"' if connected else "Checking the Mac connection"
-        key = ("processing", job.get("job_id"), title, detail, step)
-        if key == self.status_key:
-            return
-        image = Image.new("RGB", (240, 135), "#101820")
-        draw = ImageDraw.Draw(image)
-        draw.text((10, 9), "MODULATE / META", font=font(12), fill="#64E3B5")
-        for index in range(4):
-            x = 194 + index * 9
-            draw.ellipse((x, 13, x + 4, 17), fill="#64E3B5" if index == step else "#35434B")
-        draw.text((10, 39), title[:23], font=font(17), fill="white")
-        draw.text((10, 77), detail[:32], font=font(11), fill="#D6DFE7")
-        draw.line((10, 101, 230, 101), fill="#273943")
-        draw.text((10, 112), footer[:32], font=font(11), fill="#D6DFE7")
-        self.present(image)
-        self._displayed("processing", title)
-        self.status_key = key
+        self._card("building" if connected else "error", title, detail, footer,
+                   kind="processing", animate=connected)
 
     def draw_setup(self, card):
         key = ("setup", card.get("id"), card["title"], tuple(card["lines"]), card.get("code"), self.setup_in_flight)
@@ -945,9 +994,11 @@ class Controller:
                 setup_card = self._setup_card()
                 library_open = self._library_card()
                 overlay = streaming or speaking or busy or feedback is not None or self._offer() is not None or voice_overlay or bool(question) or hardware_wait or suspended or setup_card is not None or library_open
+                success = self._success_card(self.runtime.snapshot(), blocked=bool(overlay), now=started)
+                overlay = overlay or success is not None
                 if overlay:
                     sample["encoder_delta"] = 0
-                if library_open:
+                if library_open or success:
                     sample = neutral_input()
                     with self.lock:
                         self.encoder_pending = 0
@@ -965,27 +1016,30 @@ class Controller:
                     self.status_key = None
                 offer = self._offer()
                 if speaking:
-                    self.status("Replying aloud", "B: stop speaking\nBoth screen buttons: talk")
-                    self._displayed("speaker", "Replying aloud")
+                    self.draw_speech()
                 elif busy:
                     self.draw_processing()
                 elif feedback:
-                    self.status(feedback["title"], feedback["detail"])
+                    mode = "error" if any(word in feedback["title"].lower() for word in
+                                          ("failed", "error", "not confirmed", "not connected")) else "instructions"
+                    self.status(feedback["title"], feedback["detail"], mode=mode)
                 elif offer:
                     self.status("Link this Mac?", f"Code: {offer['code']}\nA: allow Mac control\nB: decline")
                 elif voice_overlay:
                     if voice_message.startswith("Listening for your answer"):
-                        self.status("Your answer", "Answer the question\nNo Hey Meta needed")
+                        self.status("Your answer", "Go ahead. I’m listening.", mode="listening", footer="No Hey Meta needed")
                     else:
                         self.status("Listening" if voice == "listening" else "Understanding",
-                                    "Speak your request" if voice == "listening" else "Local speech recognition")
+                                    "Tell me your idea." if voice == "listening" else "Making sense of that.",
+                                    mode="listening" if voice == "listening" else "thinking",
+                                    footer="Pause 3 sec to send" if voice == "listening" else "One moment...")
                 elif question:
                     speech = self.host.get("speech")
                     waiting = self.host.get("speech_pending") or (type(speech) is dict
                               and self._job_id(speech.get("id")) and speech["id"] not in self.speech_seen)
                     footer = ("Say Hey Meta to answer" if voice == "wake_listening" and not waiting
                               else "Reply after I finish speaking")
-                    self.status("Quick question", "\n".join(textwrap.wrap(question, 31)[:3]) + "\n" + footer)
+                    self.status("Quick question", question, mode="clarify", footer=footer)
                 elif hardware_wait:
                     phrase = hardware_wait.get("required_phrase") or "Continue in Studio"
                     self.status("Hardware setup", "Follow steps in Studio\nThen say Hey Meta:\n" + str(phrase)[:55])
@@ -1000,10 +1054,12 @@ class Controller:
                     self.status("Mac speaker", detail + "\nB: stop · Both buttons: talk")
                     self._displayed("computer_audio", "Mac speaker")
                 elif suspended:
-                    self.status("App saved", "A required control is missing\nSay Hey Meta:\nCheck my hardware")
+                    self.status("App saved", "A required control is missing\nSay Hey Meta:\nCheck my hardware", mode="error")
                     self._displayed("hardware_missing", "App saved")
                 elif self.host.get("agent_running") and not current.get("kind"):
-                    self.status("Reinventing...", "Meta is building and testing\nFollow progress in Studio")
+                    self.status("Reinventing...", "Meta is building and testing\nFollow progress in Studio", mode="building")
+                elif success:
+                    self._card("success", "Ready!", success["title"], "Opening your app", kind="success")
                 elif current.get("kind") == "control":
                     self.draw_volume()
                     self.status_key = None
@@ -1012,7 +1068,8 @@ class Controller:
                 else:
                     connected = time.monotonic() - self.last_response < 4
                     self.status("Ready to become" if connected else "Connecting to Mac",
-                                'Say "Hey Meta..."\nHold both screen buttons\nfor push-to-talk' if connected else self.link_state)
+                                'Say "Hey Meta..."\nHold both screen buttons\nfor push-to-talk' if connected else self.link_state,
+                                mode="idle" if connected else "thinking")
                 frames += int(frame is not None)
                 if started - measure_start >= 1:
                     self.fps = frames / (started - measure_start)

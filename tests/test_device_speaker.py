@@ -269,11 +269,12 @@ class DeviceSpeakerTests(unittest.TestCase):
         def finish(timeout):
             self.controller.stop.set()
         with patch("modulate.device.threading.Thread"), \
+                patch.object(self.controller, "status", wraps=self.controller.status) as status, \
                 patch.object(self.controller.stop, "wait", side_effect=finish):
             self.controller.run()
         self.DeviceActivation.tick.assert_not_called()
-        self.assertEqual(self.controller.display_state, {"kind": "speaker", "title": "Replying aloud"})
-        self.assertNotIn("PRIVATE_EMAIL_SUMMARY", str(self.Screen.status.call_args_list))
+        self.assertEqual(self.controller.display_state, {"kind": "speaker", "title": "Preparing reply"})
+        self.assertNotIn("PRIVATE_EMAIL_SUMMARY", str(status.call_args_list))
         self.assertEqual((self.speaker.started, self.speaker.stopped), (1, 1))
 
 

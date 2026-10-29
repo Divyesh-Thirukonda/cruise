@@ -48,6 +48,8 @@ Hardware setup now has its own **hardware-debugger** skill. Ask “Hey Meta, che
 
 Saved apps now have an **app library** with favorites, Trash and restore. Say “Hey Meta, open my app library,” then use voice or the connected knob/joystick and A/B buttons. Successfully activated revisions are saved automatically and rechecked when reopened. [Usage and storage details](context/app-library.md).
 
+The Pi's voice and build cards now use an **animated Muse-inspired companion**: a cupped hand while listening, moving mouth during playback, thinking/building poses, concerned explanations and a brief celebration after confirmed activation. Games and existing controls remain intact. [States, preview and visual attribution](context/muse-screens.md).
+
 ## Remote Studio
 
 [Modulate Connect](https://divy.live/connect) adds a phone-friendly remote dashboard, a one-time browser connection code and enforced device access switches. It retains the native Mac companion and the current Pi runtime. Meta and ElevenLabs can use a server-only Vercel gateway without resetting the existing spending ledgers. Camera preview sharing is a separate opt-in. See [connection setup and current deployment limits](context/connect.md); this is one configured hub, not browser-only control of arbitrary phones or computers.

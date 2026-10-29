@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-29",
+  "implementation_commit": "3807225",
+  "tests": {
+    "host": 644,
+    "host_skipped": 11,
+    "pi": 163,
+    "pi_skipped": 0
+  },
+  "start_trial": {
+    "input_mode": "typed Studio API",
+    "request": "Turn into a speaker for my computer.",
+    "meta_calls": 4,
+    "user_confirmed_pi_audio": true,
+    "capture_format": "pcm_s16le_48000_stereo",
+    "native_mac_mute_observed": true
+  },
+  "stop_trial": {
+    "input_mode": "hands-free microphone during playback",
+    "request": "Hey Meta, stop being a speaker.",
+    "meta_calls": 2,
+    "user_confirmed_mac_playback_returned": true,
+    "host_state": "stopped",
+    "receiver_enabled": false,
+    "receiver_frames_written": 2688000,
+    "receiver_error": null,
+    "native_mac_muted": false,
+    "wake_state": "wake_listening",
+    "retained_revision": "00157bb8ac8540913bd8734b62ab860533d9c3c4b751fa8454ccefa654573831"
+  },
+  "budget": {
+    "limit_dollars": 50.0,
+    "charged_or_reserved_dollars": 7.641056,
+    "calls": 278,
+    "halted": false
+  },
+  "limits": [
+    "No latency or fidelity benchmark",
+    "Transcript wake detection, not acoustic echo cancellation",
+    "Force-killing the host can leave its output muted"
+  ]
+}

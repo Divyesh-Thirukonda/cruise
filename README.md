@@ -42,6 +42,8 @@ The latest voice update keeps ambient transcription visually quiet. A wake-only 
 
 **Latest extension installed:** the paired session now authorizes requested Mac desktop/app actions, camera and supported volume/brightness controls, replacing separate Chrome grants. The agent chooses sensible defaults and asks only when needed. Generated camera apps combine the actual Mac camera image with effects and original interactive overlays; the camera stream stays local and outside model input/generated code. Native probes received a 240×135 JPEG and changed brightness 46 → 47 → 46, restoring the starting level. Final host validation ran 579 tests with 11 skips; the initial Pi suite passed all 184 focused checks. After a transport deadlock repair, the user confirmed live camera and effects work. A live Meta task operated native Calculator and produced 2+2 = 4, independently verified, with the camera app retained. [Contract and evidence](context/product-runtime.md#paired-mac-and-live-camera-extension).
 
+**Mac speaker mode is installed and user-confirmed:** “Hey Meta, turn into a speaker for my computer” streams local system audio through the Pi speaker. “Hey Meta, stop being a speaker,” screen button B or Studio’s **Stop computer audio** ends it and restores the Mac’s previous mute state when still owned. The current device app is retained. [Setup, live evidence and limits](context/product-runtime.md#mac-system-audio-capture-and-routing).
+
 ## Demonstration flow
 
 1. **Ask and generate.** Show a real spoken game request and the agent/check/activation path. Pixel Kart Sprint was created through text; the later Self Assembly game came through the voice endpoint. Label the particular run accurately.

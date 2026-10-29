@@ -12,7 +12,7 @@ from modulate import skills
 class RuntimeSkillTests(unittest.TestCase):
     def test_catalog_exposes_only_discovery_metadata_and_returns_fresh_values(self):
         first = skills.catalog()
-        self.assertEqual(len(first), 4)
+        self.assertEqual(len(first), 5)
         self.assertEqual(len({entry["id"] for entry in first}), len(first))
         for entry in first:
             self.assertEqual(set(entry), {"id", "description"})
@@ -59,7 +59,7 @@ class RuntimeSkillTests(unittest.TestCase):
     def test_catalog_does_not_read_instruction_bodies(self):
         # An invalid UTF-8, oversize body must not be decoded/read by discovery.
         self._tree(lambda identifier: self._document(identifier, b"\xff" * (skills.MAX_SKILL_BYTES + 1)))
-        self.assertEqual(len(skills.catalog()), 4)
+        self.assertEqual(len(skills.catalog()), 5)
         with self.assertRaises(skills.SkillError):
             skills.load_skill("games")
 

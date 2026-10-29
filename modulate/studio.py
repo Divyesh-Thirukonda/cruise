@@ -204,6 +204,10 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
                     result = product.request(data.get("text"), followup_id=data.get("followup_id"))
                 elif path == "/api/context/clear":
                     result = product.clear_context()
+                elif path == "/api/hardware/confirm":
+                    result = product.hardware_confirm(data.get("id"), data.get("step"))
+                elif path == "/api/hardware/cancel":
+                    result = product.hardware_debug("cancel")
                 elif path == "/api/cancel":
                     result = product.cancel()
                 elif path == "/api/draft":
@@ -282,7 +286,7 @@ def main():
     try:
         studio.serve_forever()
     except KeyboardInterrupt:
-        product.cancel()
+        product.cancel(shutdown=True)
     finally:
         product.stop_computer_audio()
         if product.camera:

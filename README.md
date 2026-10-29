@@ -44,6 +44,8 @@ The latest voice update keeps ambient transcription visually quiet. A wake-only 
 
 **Mac speaker mode is installed and user-confirmed:** “Hey Meta, turn into a speaker for my computer” streams local system audio through the Pi speaker. “Hey Meta, stop being a speaker,” screen button B or Studio’s **Stop computer audio** ends it and restores the Mac’s previous mute state when still owned. The current device app is retained. [Setup, live evidence and limits](context/product-runtime.md#mac-system-audio-capture-and-routing).
 
+Hardware setup now has its own **hardware-debugger** skill. Ask “Hey Meta, check my hardware” for driver, bus and device-health diagnostics, or describe a newly added Qwiic Button. Supported address repair guides isolation, a checked address change, a power-cycle check and reconnection through voice or Studio. The setup survives reboot, and missing controls pause the saved app. See [supported boards, wiring steps and verification limits](context/hardware-debugger.md).
+
 ## Demonstration flow
 
 1. **Ask and generate.** Show a real spoken game request and the agent/check/activation path. Pixel Kart Sprint was created through text; the later Self Assembly game came through the voice endpoint. Label the particular run accurately.

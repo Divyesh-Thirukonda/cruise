@@ -1,6 +1,7 @@
 """Physical input normalization/failure tests using fake read-only drivers."""
 
 from types import SimpleNamespace
+import threading
 import unittest
 from unittest.mock import Mock, patch
 
@@ -67,7 +68,7 @@ class ControlsTests(unittest.TestCase):
         self.assertIs(type(self.controls.poll()["joystick_x"]), float)
         self.assertEqual(self.controls.capabilities()["controls"],
                          ["joystick", "encoder", "encoder_pressed", "button_a", "button_b"])
-        self.assertEqual(self.statuses()["qwiic_buttons"], "disabled_address_collision")
+        self.assertEqual(self.statuses()["qwiic_buttons"], "unavailable")
         self.assertTrue(any("0x6f" in warning for warning in self.controls.capabilities()["warnings"]))
 
     def test_joystick_deadzone_and_asymmetric_endpoint_normalization(self):
@@ -121,6 +122,80 @@ class ControlsTests(unittest.TestCase):
         self.encoder.current = 400
         controls = Controls(self.screen)
         self.assertEqual(controls.poll()["encoder_delta"], 0)
+
+    def test_reinitialize_discards_accumulated_turns_without_reopening_healthy_encoder(self):
+        self.encoder.current = -100
+        self.controls.hardware_reinitialize()
+        self.assertEqual(self.controls.poll()["encoder_delta"], 0)
+        self.encoder.current = -101
+        self.assertEqual(self.controls.poll()["encoder_delta"], 1)
+        self.encoder_factory.assert_called_once()
+        self.bus.deinit.assert_not_called()
+
+    def test_reinitialize_replaces_failed_input_handles_and_drops_encoder_jump(self):
+        old_green, old_red = Mock(), Mock()
+        old_green.is_button_pressed.side_effect = OSError("stale button handle")
+        self.controls._external_buttons = (old_green, old_red)
+        self.encoder.error = self.joystick.error = True
+        self.controls.poll()
+        for name in ("encoder", "joystick", "qwiic_buttons"):
+            self.assertEqual(self.statuses()[name], "read_error")
+        encoder, joystick, green, red = Encoder(), Joystick(), Mock(), Mock()
+        encoder.current = -300
+        green.is_button_pressed.return_value = False
+        red.is_button_pressed.return_value = True
+        self.encoder_factory.return_value = (encoder, Button(), self.bus)
+        self.joystick_factory.return_value = joystick
+        self.external_factory.side_effect = None
+        self.external_factory.return_value = green, red
+        self.controls.hardware_reinitialize()
+        self.encoder_factory.assert_called_with(bus=self.bus)
+        self.assertEqual(self.controls.poll()["encoder_delta"], 0)
+        encoder.current = -301
+        self.assertEqual(self.controls.poll()["encoder_delta"], 1)
+        self.assertTrue(self.controls.poll()["button_b"])
+        for name in ("encoder", "joystick", "qwiic_buttons"):
+            self.assertEqual(self.statuses()[name], "ready")
+        self.bus.deinit.assert_not_called()
+
+    def test_failed_reopen_leaves_handles_neutral_and_bus_owned_until_close(self):
+        self.encoder.error = True
+        self.controls.poll()
+        self.encoder_factory.side_effect = OSError("still missing")
+        self.controls.hardware_reinitialize()
+        self.assertEqual(self.controls.poll()["encoder_delta"], 0)
+        self.assertEqual(self.statuses()["encoder"], "unavailable")
+        self.assertIsNone(self.controls._encoder)
+        self.bus.deinit.assert_not_called()
+        self.controls.close()
+        self.bus.deinit.assert_called_once()
+
+    def test_closed_controls_cannot_be_reinitialized_or_scanned_as_available(self):
+        self.controls.close()
+        with self.assertRaises(OSError):
+            self.controls.hardware_reinitialize()
+        self.assertFalse(self.controls.hardware_scan()["bus_available"])
+        self.encoder_factory.assert_called_once()
+
+    def test_capabilities_returns_cached_status_while_bus_is_locked_elsewhere(self):
+        locked, release, completed = threading.Event(), threading.Event(), threading.Event()
+        def hold_bus():
+            with self.controls.bus_lock:
+                locked.set()
+                release.wait(1)
+        holder = threading.Thread(target=hold_bus)
+        holder.start()
+        result = []
+        reader = threading.Thread(target=lambda: (result.append(self.controls.capabilities()), completed.set()))
+        try:
+            self.assertTrue(locked.wait(1))
+            reader.start()
+            self.assertTrue(completed.wait(.2), "Capability reads blocked cancellation delivery")
+            self.assertIn("encoder", result[0]["controls"])
+        finally:
+            release.set()
+            holder.join(1)
+            reader.join(1)
 
     def test_partial_joystick_failure_drops_both_axes_and_removes_capability(self):
         self.joystick.x, self.joystick.y = 0, 1023
@@ -241,6 +316,18 @@ class DriverSetupTests(unittest.TestCase):
             _open_encoder()
         bus.deinit.assert_called_once()
         device.pin_mode.assert_not_called()
+
+    def test_encoder_reopen_failure_does_not_close_the_borrowed_bus(self):
+        bus, device = Mock(), Mock()
+        device.get_version.side_effect = OSError("unplugged")
+        board_factory = Mock()
+        modules = {"board": SimpleNamespace(I2C=board_factory),
+                   "adafruit_seesaw": SimpleNamespace(seesaw=SimpleNamespace(Seesaw=Mock(return_value=device)),
+                                                       rotaryio=Mock(), digitalio=Mock())}
+        with patch.dict("sys.modules", modules), self.assertRaises(OSError):
+            _open_encoder(bus=bus)
+        board_factory.assert_not_called()
+        bus.deinit.assert_not_called()
 
     def test_joystick_setup_only_checks_presence_and_does_not_change_address(self):
         joystick = Mock()

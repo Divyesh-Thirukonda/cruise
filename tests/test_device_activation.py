@@ -328,6 +328,155 @@ class DeviceActivationTests(unittest.TestCase):
         self.assertEqual(len(FakeGame.instances), count)
         self.assertIn("could not", recovered.snapshot()["error"])
 
+    def test_boot_missing_controls_preserves_both_durable_packages_without_workers(self):
+        first = self.activate(game())
+        second = self.activate(game("Second"))
+        self.manager.close()
+        before = self.manager.path.read_bytes()
+        workers, verifies, presents = len(FakeGame.instances), self.verify.call_count, len(self.display.calls)
+        self.available = ["button_a", "button_b"]
+        recovered = self.reopen()
+        snapshot = recovered.snapshot()
+        self.assertEqual((snapshot["revision"], snapshot["title"], snapshot["kind"]),
+                         (second["revision"], "Second", "game"))
+        self.assertTrue(snapshot["suspended"])
+        self.assertEqual(snapshot["suspension_reason"], "required_controls_unavailable")
+        self.assertIsNone(snapshot["failure"])
+        for _ in range(50):
+            self.now += 0.01
+            self.assertIsNone(recovered.tick({"encoder_delta": 100}, 0.03))
+        self.assertEqual((len(FakeGame.instances), self.verify.call_count, len(self.display.calls)),
+                         (workers, verifies, presents))
+        self.assertEqual(self.manager.path.read_bytes(), before)
+        self.assertEqual(self.saved()["previous"]["revision"], first["revision"])
+        recovered.close()
+        self.assertEqual(self.manager.path.read_bytes(), before)
+        self.assertTrue(self.reopen().snapshot()["suspended"])
+
+    def test_suspended_retry_is_bounded_and_resumes_only_after_independent_verification(self):
+        active = self.activate(game())
+        self.manager.close()
+        self.available = []
+        recovered = self.reopen()
+        with patch.object(recovered, "_prepare", wraps=recovered._prepare) as prepare:
+            self.now += 1
+            for _ in range(20):
+                recovered.tick({}, 0.03)
+            self.assertEqual(prepare.call_count, 1)
+            self.available = ["encoder"]
+            self.now += 0.9
+            recovered.tick({}, 0.03)
+            self.assertTrue(recovered.snapshot()["suspended"])
+            self.now += 0.1
+            self.assertIsNone(recovered.tick({"encoder_delta": 100}, 0.03))
+            self.assertEqual(prepare.call_count, 2)
+        self.assertFalse(recovered.snapshot()["suspended"])
+        self.assertIsNone(recovered.snapshot()["error"])
+        self.assertEqual(recovered.snapshot()["revision"], active["revision"])
+        self.assertEqual(FakeGame.instances[-1].frame["state"]["ticks"], 0)
+        self.assertEqual(recovered.tick({"encoder_delta": 0}, 0.03)["state"]["ticks"], 1)
+        self.assertEqual(self.verify.call_count, 2)
+
+    def test_suspended_program_rejects_new_activation_and_keeps_predecessor(self):
+        self.activate(game())
+        active = self.activate(game("Second"))
+        self.manager.close()
+        before = self.manager.path.read_bytes()
+        self.available = []
+        recovered = self.reopen()
+        replacement = game("Replacement")
+        replacement["controls"] = []
+        message = self.transaction(replacement)
+        snapshot = recovered.process(message)
+        self.assertEqual(snapshot["ack"]["phase"], "failed")
+        self.assertEqual(snapshot["revision"], active["revision"])
+        self.assertTrue(snapshot["suspended"])
+        self.assertEqual(self.manager.path.read_bytes(), before)
+
+    def test_missing_hardware_does_not_hide_structurally_invalid_saved_package(self):
+        fallback = game("Fallback")
+        fallback["controls"] = []
+        first = self.activate(fallback)
+        self.activate(game("Broken"))
+        self.manager.close()
+        record = self.saved()
+        record["active"]["package"]["code"] = ""
+        record["active"]["revision"] = digest(record["active"]["package"])
+        self.manager.path.write_text(json.dumps(record))
+        self.available = []
+        recovered = self.reopen()
+        self.assertFalse(recovered.snapshot()["suspended"])
+        self.assertEqual(recovered.snapshot()["revision"], first["revision"])
+        self.assertEqual(recovered.snapshot()["failure"]["revision"], record["active"]["revision"])
+
+    def test_resume_verification_or_presentation_failure_still_rolls_back(self):
+        for failure in ("verification", "presentation"):
+            with self.subTest(failure=failure):
+                fallback = game("Fallback")
+                fallback["controls"] = []
+                first = self.activate(fallback)
+                second = self.activate(game("Second"))
+                self.manager.close()
+                self.available = []
+                recovered = self.reopen()
+                self.available = ["encoder"]
+                if failure == "verification":
+                    self.verify.side_effect = lambda package: {"passed": package["title"] != "Second"}
+                else:
+                    self.display.fail_once = True
+                self.now += 1
+                self.assertIsNone(recovered.tick({}, 0.03))
+                self.assertFalse(recovered.snapshot()["suspended"])
+                self.assertEqual(recovered.snapshot()["revision"], first["revision"])
+                self.assertEqual(recovered.snapshot()["failure"]["revision"], second["revision"])
+                self.assertEqual(self.saved()["active"]["revision"], first["revision"])
+                self.verify.side_effect = None
+                self.assertTrue(recovered.acknowledge_failure(recovered.snapshot()["failure"]))
+                self.manager = recovered
+
+    def test_interrupted_commit_recovery_retains_suspended_base_and_failure_ack(self):
+        first = self.activate(game())
+        second = self.transaction(game("Second"))
+        self.manager.process(second)
+        self.manager.process(self.phase(second, "commit"))
+        self.available = []
+        recovered = self.reopen()
+        snapshot = recovered.snapshot()
+        self.assertTrue(snapshot["suspended"])
+        self.assertEqual(snapshot["revision"], first["revision"])
+        self.assertEqual(snapshot["failure"]["revision"], second["revision"])
+        self.assertEqual(snapshot["failure"]["restored_revision"], first["revision"])
+        self.assertTrue(recovered.acknowledge_failure(snapshot["failure"]))
+        self.assertEqual(self.saved()["active"]["revision"], first["revision"])
+        self.assertIsNone(self.saved()["intent"])
+        self.assertIsNone(self.saved()["failure"])
+
+    def test_live_control_loss_closes_worker_before_any_step_without_changing_disk(self):
+        active = self.activate(game())
+        worker = FakeGame.instances[-1]
+        before = self.manager.path.read_bytes()
+        self.available = []
+        self.assertIsNone(self.manager.tick({"encoder_delta": 999}, 0.03))
+        self.assertTrue(worker.closed)
+        self.assertEqual(worker.frame["state"]["ticks"], 0)
+        self.assertTrue(self.manager.snapshot()["suspended"])
+        self.assertEqual(self.manager.snapshot()["revision"], active["revision"])
+        self.assertEqual(self.manager.path.read_bytes(), before)
+
+    def test_control_package_suspends_and_resumes_without_a_game_worker(self):
+        active = self.activate(control())
+        self.manager.close()
+        self.available = []
+        recovered = self.reopen()
+        self.assertEqual(recovered.snapshot()["kind"], "control")
+        self.assertTrue(recovered.snapshot()["suspended"])
+        self.available = ["encoder"]
+        self.now += 1
+        recovered.tick({}, 0.03)
+        self.assertFalse(recovered.snapshot()["suspended"])
+        self.assertEqual(recovered.snapshot()["revision"], active["revision"])
+        self.assertEqual(FakeGame.instances, [])
+
     def test_control_binding_is_strict_and_has_no_host_side_effect(self):
         for mutate in (lambda p: p.update(target="other-session"),
                        lambda p: p["bindings"][0].update(action="shell.run"),

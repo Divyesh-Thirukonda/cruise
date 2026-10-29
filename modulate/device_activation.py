@@ -29,6 +29,10 @@ class ActivationError(ValueError):
     pass
 
 
+class HardwareUnavailable(ActivationError):
+    """A valid package needs an input that is temporarily disconnected."""
+
+
 def digest(package):
     try:
         encoded = json.dumps(package, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
@@ -72,6 +76,8 @@ class DeviceActivation:
         self._active = self._previous = self._pending = None
         self._ack = self._failure = None
         self._error = None
+        self._suspended = False
+        self._resume_after = 0.0
         self._finished = set()
         self._closed = False
         self._load()
@@ -85,7 +91,7 @@ class DeviceActivation:
             if normalized.get("camera") and normalized["camera"]["target"] != self.paired_target():
                 raise ActivationError("Camera source is not the current paired Mac")
             if not set(normalized["controls"]) <= available:
-                raise ActivationError("A required game control is unavailable")
+                raise HardwareUnavailable("A required game control is unavailable")
             return normalized
         if set(package) != {"kind", "title", "target", "bindings"} or package.get("kind") != "control":
             raise ActivationError("Unsupported control package fields")
@@ -96,8 +102,6 @@ class DeviceActivation:
         target = package["target"]
         if type(target) is not str or not target or len(target) > 128 or target != self.paired_target():
             raise ActivationError("Control target does not match the current paired session")
-        if "encoder" not in available:
-            raise ActivationError("Encoder control is unavailable")
         bindings = package["bindings"]
         if type(bindings) is not list or len(bindings) != 1:
             raise ActivationError("Exactly one encoder binding is required")
@@ -106,7 +110,30 @@ class DeviceActivation:
                 or binding["control"] != "encoder" or binding["action"] not in {"volume.delta", "brightness.delta"}
                 or type(binding["scale"]) is not int or not 1 <= abs(binding["scale"]) <= 10):
             raise ActivationError("Only encoder to volume or brightness delta with nonzero scale -10 to 10 is allowed")
+        if "encoder" not in available:
+            raise HardwareUnavailable("Encoder control is unavailable")
         return _copy(package)
+
+    def _suspend(self, record):
+        # This is an integrity-checked, previously confirmed package, not a
+        # running worker. Keep both durable pointers intact during rewiring.
+        self._suspended = True
+        self._resume_after = time.monotonic() + 1.0
+        self._error = "Required controls unavailable; saved program paused"
+        return _Running(record["revision"], _copy(record["package"]), None, None, None, None)
+
+    def _restore_saved(self, record):
+        try:
+            active = self._prepare(record["package"])
+        except HardwareUnavailable:
+            return self._suspend(record)
+        try:
+            self.present(active.image)
+        except BaseException:
+            active.close()
+            raise
+        self._suspended = False
+        return active
 
     def _prepare(self, package):
         package = self._validate(package)
@@ -198,13 +225,7 @@ class DeviceActivation:
             if self._failure:
                 self._error = self._failure["error"]
             if record.get("active") is not None:
-                active = self._prepare(record["active"]["package"])
-                try:
-                    self.present(active.image)
-                except BaseException:
-                    active.close()
-                    raise
-                self._active = active
+                self._active = self._restore_saved(record["active"])
         except Exception:
             self._error = "Saved program could not be verified or presented"
             # Only a structurally valid, integrity-checked record can supply a
@@ -213,8 +234,7 @@ class DeviceActivation:
                 recovered = None
                 if self._previous:
                     try:
-                        recovered = self._prepare(self._previous["package"])
-                        self.present(recovered.image)
+                        recovered = self._restore_saved(self._previous)
                         self._active = recovered
                     except Exception:
                         if recovered:
@@ -319,6 +339,8 @@ class DeviceActivation:
             try:
                 phase = message["phase"]
                 if phase == "stage":
+                    if self._suspended:
+                        raise HardwareUnavailable("Saved program is paused; reconnect required controls before activation")
                     if self._failure is not None:
                         raise ActivationError("Host must acknowledge runtime recovery before another activation")
                     base = self._active.revision if self._active else None
@@ -416,6 +438,7 @@ class DeviceActivation:
 
     def _runtime_failed(self, diagnostic=""):
         failed = self._active
+        self._suspended = False
         if self._pending and self._pending["phase"] == "activated":
             self._rollback_pending("Candidate runtime failed before confirmation" + diagnostic)
             return
@@ -427,8 +450,7 @@ class DeviceActivation:
         recovered = None
         if self._previous is not None:
             try:
-                recovered = self._prepare(self._previous["package"])
-                self.present(recovered.image)
+                recovered = self._restore_saved(self._previous)
                 self._active = recovered
             except Exception:
                 if recovered:
@@ -452,7 +474,40 @@ class DeviceActivation:
     def tick(self, input, dt):
         with self._lock:
             self._expire()
-            if self._closed or self._active is None or self._active.game is None:
+            if self._closed or self._active is None:
+                return None
+            if self._suspended:
+                if time.monotonic() < self._resume_after:
+                    return None
+                self._resume_after = time.monotonic() + 1.0
+                resumed = None
+                try:
+                    resumed = self._prepare(self._active.package)
+                    self.present(resumed.image)
+                except HardwareUnavailable:
+                    return None
+                except Exception:
+                    if resumed:
+                        resumed.close()
+                    self._runtime_failed(" [stage=resume category=verification_or_display_error]")
+                    return None
+                self._active = resumed
+                self._suspended = False
+                self._error = self._failure["error"] if self._failure else None
+                # Discard the sample taken while suspended. Resume from a
+                # fresh hardware sample on the next normal frame.
+                return None
+            required = (self._active.package["controls"] if self._active.package["kind"] == "game"
+                        else ["encoder"])
+            if not set(required) <= set(self.controls()):
+                if self._pending:
+                    self._rollback_pending("Required controls disconnected during activation")
+                if self._active:
+                    record = self._active.record()
+                    self._active.close()
+                    self._active = self._suspend(record)
+                return None
+            if self._active.game is None:
                 return None
             stage = "step"
             started = time.monotonic()
@@ -491,6 +546,8 @@ class DeviceActivation:
                 "kind": active.package["kind"] if active else None,
                 "title": active.package["title"] if active else None,
                 "ack": _copy(self._ack), "error": self._error, "failure": _copy(self._failure),
+                "suspended": self._suspended,
+                "suspension_reason": "required_controls_unavailable" if self._suspended else None,
                 "pending": self._pending["phase"] if self._pending else None}
 
     def snapshot(self):

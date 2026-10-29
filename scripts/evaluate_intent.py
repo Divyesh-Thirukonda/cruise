@@ -21,12 +21,12 @@ import urllib.parse
 import urllib.request
 
 
-SKILLS = {"computer-use", "device-apps", "games", "hardware-controls"}
+SKILLS = {"computer-use", "device-apps", "games", "hardware-controls", "hardware-debugger"}
 CONTROLS = {"joystick", "encoder", "button_a", "button_b", "encoder_pressed"}
 TOOLS = {"load_skill", "read_recent_context", "inspect_capabilities", "read_runtime_api",
          "read_current_package", "write_package", "test_package", "preview_package",
          "activate_package", "delegate_task", "ask_user", "computer_observe", "computer_act",
-         "computer_audio", "camera_control", "system_control", "speaker_control"}
+         "computer_audio", "camera_control", "system_control", "speaker_control", "hardware_debug"}
 OPERATIONS = {"get", "set", "delta", "mute", "start", "stop", "status",
               "volume.get", "volume.set", "volume.delta", "volume.mute",
               "brightness.get", "brightness.set", "brightness.delta"}

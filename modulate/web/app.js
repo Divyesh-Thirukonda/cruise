@@ -520,6 +520,19 @@
     const list = document.createDocumentFragment();
     warnings.forEach((warning) => { const item = document.createElement("li"); item.textContent = String(warning); list.append(item); });
     $("hardware-warnings").replaceChildren(list);
+    const workflow = ui.state?.hardware?.workflow;
+    const repairVisible = workflow && !["complete", "completed", "cancelled"].includes(workflow.phase);
+    $("hardware-repair").hidden = !repairVisible;
+    const ready = ui.online && device.connected === true && !ui.state?.agent?.running;
+    $("hardware-check").disabled = !ready || ui.mutating.has("hardware-check");
+    if (repairVisible) {
+      text("hardware-repair-phase", human(workflow.phase));
+      text("hardware-repair-instructions", Array.isArray(workflow.instructions) ? workflow.instructions.join("\n") : workflow.instructions || "Continue the hardware setup with Modulate.");
+      text("hardware-repair-phrase", workflow.required_phrase ? `When finished, say “Hey Meta, ${workflow.required_phrase},” or confirm below.` : "");
+      $("hardware-confirm").hidden = !workflow.confirmation_step;
+      $("hardware-confirm").disabled = !ready || ui.mutating.has("hardware-confirm");
+      $("hardware-cancel").disabled = !ui.online || ui.mutating.has("hardware-cancel");
+    }
     $("wake-toggle").setAttribute("aria-checked", String(ui.state?.wake === true));
     const voice = device.telemetry?.voice;
     const voiceLabels = {error: "Microphone error", wake_listening: "Listening", wake_checking: "Listening for the wake phrase", listening: "Recording",
@@ -678,6 +691,13 @@
   $("memory-clear").addEventListener("click", () => action("memory", "/api/context/clear", {}));
   $("audio-stop").addEventListener("click", () => action("audio", "/api/audio/stop", {}));
   $("camera-stop").addEventListener("click", () => action("camera", "/api/camera/stop", {}));
+  $("hardware-check").addEventListener("click", () => action("hardware-check", "/api/request", {text: "Check my connected hardware and explain any problems. Do not change addresses."}));
+  $("hardware-confirm").addEventListener("click", () => {
+    const workflow = ui.state?.hardware?.workflow;
+    if (!$("hardware-confirm").disabled && workflow?.confirmation_step)
+      return action("hardware-confirm", "/api/hardware/confirm", {id: workflow.id, step: workflow.confirmation_step});
+  });
+  $("hardware-cancel").addEventListener("click", () => action("hardware-cancel", "/api/hardware/cancel", {}));
   $("computer-enable").addEventListener("click", () => computerAction("enable"));
   $("computer-revoke").addEventListener("click", () => computerAction("revoke"));
   $("computer-stop-live").addEventListener("click", () => computerAction("revoke"));

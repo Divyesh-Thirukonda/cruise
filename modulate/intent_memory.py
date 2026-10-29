@@ -60,7 +60,7 @@ class IntentMemory:
             self.records.append({"id": uuid.uuid4().hex, "at": self.clock(), "request": str(request)[:1600],
                                  "reply": str(reply)[:400], "outcome": outcome,
                                  "actions": copy.deepcopy(list(actions)[-12:]),
-                                 "skills": list(dict.fromkeys(skills))[:4], "private": bool(private)})
+                                 "skills": list(dict.fromkeys(skills))[:5], "private": bool(private)})
             self._prune()
             save_private(self.path, [r for r in self.records if not r["private"]])
 

@@ -20,6 +20,7 @@ from .rendering import Renderer, png
 from .assistant_io import AssistantIO
 from .intent_memory import IntentMemory
 from .speaker_volume import SpeakerVolume, SpeakerVolumeError
+from .hardware_debug import HardwareDebug
 
 
 _SESSION = re.compile(r"[0-9a-f]{32}\Z")
@@ -46,6 +47,7 @@ _TOOL_PROGRESS = {
     "camera_control": ("planning", "Connecting the Mac camera"),
     "computer_audio": ("planning", "Connecting computer audio"),
     "system_control": ("planning", "Adjusting the Mac"),
+    "hardware_debug": ("planning", "Checking the hardware"),
 }
 
 
@@ -74,6 +76,7 @@ class Product(AssistantIO):
         self.memory_generation = 0
         self.memory_error = None
         self.speaker_volume = SpeakerVolume()
+        self.hardware = HardwareDebug(self.directory / "hardware-repair.json")
         self.event_id = 0
         self.provider = provider
         self.ledger = Ledger(self.directory / "budget.json", budget)
@@ -149,7 +152,33 @@ class Product(AssistantIO):
                                 "pi_speaker": {key: value for key, value in self.speaker_volume.status().items()
                                                if key in {"volume", "muted", "available"}},
                                 "last_observed_mac_setting": copy.deepcopy(self.volume),
-                                "paired": bool(self._paired_session())}}
+                                "paired": bool(self._paired_session())},
+                    "hardware": self.hardware.inspect()}
+
+    def hardware_debug(self, action, label=None):
+        with self.lock:
+            if self.agent.cancelled.is_set() and action != "cancel":
+                raise AgentError("Hardware request cancelled")
+        # Device acknowledgements arrive on the network thread; never wait
+        # while holding Product.lock.
+        result = self.hardware.call(action, label=label)
+        with self.lock:
+            return {**result, "device_health": {
+                "connected": self.connected(),
+                "controls": copy.deepcopy(self.device),
+                "voice": copy.deepcopy(self.telemetry.get("voice", {})),
+                "speaker": copy.deepcopy(self.telemetry.get("speaker", {})),
+                "speaker_volume": self.speaker_volume.status(),
+                "display": copy.deepcopy(self.telemetry.get("display", {})),
+                "runtime_error": self.telemetry.get("error"),
+                "app_revision": self.revision}}
+
+    def hardware_confirm(self, identifier, step):
+        with self.lock:
+            if self.running:
+                raise AgentError("Finish or cancel the current request before confirming wiring")
+        self.hardware.confirm(identifier, step)
+        return self.request("Continue the current hardware repair using my confirmed physical step.")
 
     def clear_context(self):
         with self.lock:
@@ -287,6 +316,8 @@ class Product(AssistantIO):
                     "device_connected": self.connected(), "controls": list(self.device["controls"]) if self.connected() else [],
                     "devices": copy.deepcopy(self.device["devices"]), "warnings": list(self.device["warnings"]),
                     "button_sources": dict(self.device["button_sources"]),
+                    "hardware_debug": {"supported": self.hardware.inspect().get("supported", False),
+                                       "guided_button_address_repair": True},
                     "paired_host": paired,
                     "computer": {key: value for key, value in self.computer_status().items()
                                  if key in {"supported", "enabled", "scope"}},
@@ -492,6 +523,7 @@ class Product(AssistantIO):
                     request_text = self.voice_draft["text"] if self.voice_draft else text.strip()
                     self.voice_draft = None
                     self.draft_deadline = None
+                    raw_human_reply = request_text
                     if followup:
                         answer = request_text
                         if not self.conversation["original"]:
@@ -505,6 +537,10 @@ class Product(AssistantIO):
                         self.conversation["history"] = (self.conversation["history"] +
                             [{"question": followup["question"], "answer": answer}])[-_MAX_QUESTIONS:]
                     self.current_request = request_text
+                try:
+                    self.hardware.note_user(raw_human_reply)
+                except ValueError as error:
+                    request_text += "\nHardware step was not confirmed: " + str(error)[:300]
                 result = (self.agent.run(request_text, private=True) if followup and followup.get("private")
                           else self.agent.run(request_text))
                 summary = result if isinstance(result, str) else "Request finished."
@@ -597,8 +633,17 @@ class Product(AssistantIO):
             self.changed.notify_all()
             return {"accepted": True, "job_id": job_id, "action": action}
 
-    def cancel(self, job_id=None):
+    def cancel(self, job_id=None, *, shutdown=False):
         with self.changed:
+            if job_id is not None and job_id != self.progress["job_id"]:
+                return {"cancelled": False, "reason": "That request has already finished"}
+            if job_id is not None and not self.running and not (
+                    self.clarification and job_id == self.clarification["job_id"]):
+                return {"cancelled": False, "reason": "That request has already finished"}
+            if shutdown:
+                self.hardware.withdraw()
+            else:
+                self.hardware.call("cancel")
             if (not self.running and self.clarification
                     and (job_id is None or job_id == self.clarification["job_id"])):
                 self.clarification = None
@@ -787,6 +832,7 @@ class Product(AssistantIO):
             self.last_seen = time.monotonic()
             self.input, self.device_revision, self.telemetry = sample, revision, copy.deepcopy(telemetry)
             self.speaker_volume.observe(telemetry.get("speaker_volume"), session_id)
+            self.hardware.observe(telemetry.get("hardware"), session_id)
             if switching:
                 self.volume_token = None
                 self.volume = None
@@ -850,6 +896,8 @@ class Product(AssistantIO):
                 if self.pending["phase"] == "stage":
                     pending["package"] = self.pending["package"]
             return {**self._assistant_heartbeat(packet),
+                    "hardware_command": self.hardware.offer(session_id),
+                    "hardware_workflow": self.hardware.inspect().get("workflow"),
                     "speaker_volume": self.speaker_volume.offer(session_id),
                     "camera_frame": self._camera_packet(), "computer_audio": self.audio_offer(),
                     "activation": pending, "active_revision": self.revision, "wake": self.wake,
@@ -949,6 +997,7 @@ class Product(AssistantIO):
             self.intent_memory.clear()
             self.memory_generation += 1
             self.speaker_volume.disconnect()
+            self.hardware.call("cancel")
             self.bridge.revoke_all()
             self.volume_token = None
             self.volume = None
@@ -986,6 +1035,7 @@ class Product(AssistantIO):
                     "active": self.active, "candidate": self.candidate,
                     "agent": self.agent_state(),
                     "selected_skills": list(self.agent.loaded_skills),
+                    "hardware": self.hardware.inspect(),
                     "computer": self.computer_status(), "response": self._response_state(),
                     "camera": self.camera_status(), "computer_audio": self.audio_status(),
                     "speaker_volume": self.speaker_volume.status(),

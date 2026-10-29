@@ -228,7 +228,10 @@ def tool(name, description, properties=None, required=None):
 
 TOOLS = [
     tool("load_skill", "Read a bundled Modulate skill for the current task. Choose from the catalog in your instructions; skills guide decisions without granting extra tools or permissions.",
-         {"name": {"type": "string", "enum": ["computer-use", "device-apps", "games", "hardware-controls"]}}, ["name"]),
+         {"name": {"type": "string", "enum": ["computer-use", "device-apps", "games", "hardware-controls", "hardware-debugger"]}}, ["name"]),
+    tool("hardware_debug", "Inspect device health, scan the I2C bus, retry input drivers, or guide a factory Qwiic button address repair. Actions begin_button_repair and continue persist a workflow across power cycles. Only direct user confirmation can authorize an isolated write; tools cannot supply that confirmation. label is used only when beginning a repair.",
+         {"action": {"type": "string", "enum": ["inspect", "scan", "reinitialize", "begin_button_repair", "continue", "cancel"]},
+          "label": {"type": "string", "maxLength": 40}}, ["action"]),
     tool("read_recent_context", "Recover recent requests and confirmed actions. Set include_private only when continuing a computer task: those details expire after two minutes and enter private computer-task mode. Current state and the new request take precedence.",
          {"include_private": {"type": "boolean"}}),
     tool("speaker_control", "Read or change the Modulate Pi speaker's actual level, including streamed Mac audio and spoken replies. get needs no value; set is 0–100; delta is nonzero -10–10 percentage points; mute is boolean. Returns physical readback and before/after values.",
@@ -461,9 +464,24 @@ class Orchestrator:
             raise
 
     def loop(self, text, role, turns):
-        tools = TOOLS if role == "orchestrator" else [item for item in TOOLS if item["function"]["name"] not in {"delegate_task", "activate_package", "ask_user", "computer_observe", "computer_act", "camera_control", "computer_audio", "system_control", "speaker_control", "read_recent_context"}]
+        tools = TOOLS if role == "orchestrator" else [item for item in TOOLS if item["function"]["name"] not in {"delegate_task", "activate_package", "ask_user", "computer_observe", "computer_act", "camera_control", "computer_audio", "system_control", "speaker_control", "read_recent_context", "hardware_debug"}]
         prompt = SYSTEM if role == "orchestrator" else SYSTEM + f"\nYou are the {role} specialist. Return candidate IDs, observations and any missing user intent to the orchestrator. Never activate or ask the user directly."
         prompt += "\nAvailable Modulate skills (choose and load the relevant skill before acting):\n" + json.dumps(catalog())
+        prompt += """
+For missing modules, wiring, I2C conflicts or hardware faults, use hardware-debugger
+and hardware_debug. Hardware-controls is for settings and mappings. Inspect actual
+health before diagnosing a collision: identical devices at one address cannot be
+counted by scanning. A durable hardware workflow in context survives reboot and
+ordinary memory expiry. Continue it when the user reports completing its physical
+step, using hardware_debug continue. Physical confirmations come from the user,
+never from your own claims. The tool supplies the exact required phrase and
+instructions. Explain the next physical step and use ask_user to request that
+phrase when ready; end the turn instead of polling while the user rewires or reboots.
+Rewiring needs a normal shutdown then disconnected power. Preserve the working
+app and distinct existing addresses; never rewrite drivers or flash firmware to
+repair a module. Unknown modules may need identification or an unsupported driver;
+do not invent pinouts or claim a newly addressed button is a new supported input.
+"""
         prompt += """
 Use recent context to resolve references such as it, again, louder, reverse it,
 and undo that. Prefer the most recent relevant successfully affected target;
@@ -632,7 +650,7 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
                     or (expected.get("type") == "boolean" and type(value) is not bool)
                     or ("enum" in expected and value not in expected["enum"])):
                 raise AgentError("Tool argument has an invalid type or value")
-        if role != "orchestrator" and name in {"activate_package", "delegate_task", "ask_user", "computer_observe", "computer_act", "camera_control", "computer_audio", "system_control", "speaker_control", "read_recent_context"}:
+        if role != "orchestrator" and name in {"activate_package", "delegate_task", "ask_user", "computer_observe", "computer_act", "camera_control", "computer_audio", "system_control", "speaker_control", "read_recent_context", "hardware_debug"}:
             raise AgentError("Specialists cannot activate, ask the user, or spawn further specialists")
         if getattr(self, "clarification", None) is not None:
             raise AgentError("Waiting for the user's clarification")
@@ -651,6 +669,8 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
             return context
         if name == "speaker_control":
             return self.service.speaker_control(arguments["action"], arguments.get("value"))
+        if name == "hardware_debug":
+            return self.service.hardware_debug(arguments["action"], arguments.get("label"))
         if name == "computer_audio":
             return self.service.computer_audio(arguments["action"])
         if name == "camera_control":

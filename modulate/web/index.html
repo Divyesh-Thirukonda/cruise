@@ -96,6 +96,14 @@
             <div class="panel-heading"><h2 id="connections-title">Connected hardware</h2><span class="mini-label" id="device-name">NO DEVICE</span></div>
             <div id="control-list" class="control-list"><p class="muted small">Waiting for a device capability report.</p></div>
             <details class="hardware-notes" id="hardware-notes" hidden><summary id="hardware-notes-summary">Device notes</summary><ul id="hardware-warnings"></ul></details>
+            <button type="button" class="text-button" id="hardware-check">Check hardware</button>
+            <div class="hardware-repair" id="hardware-repair" role="status" aria-live="polite" hidden>
+              <span class="mini-label" id="hardware-repair-phase">HARDWARE SETUP</span>
+              <p id="hardware-repair-instructions"></p>
+              <p class="small muted" id="hardware-repair-phrase"></p>
+              <button type="button" class="button button-outline" id="hardware-confirm" hidden>I completed this physical step</button>
+              <button type="button" class="text-button danger-text" id="hardware-cancel">Cancel hardware setup</button>
+            </div>
             <div class="wake-row"><div><span>Wake listening</span><small id="wake-detail">Off · use push-to-talk</small></div><button type="button" role="switch" aria-checked="false" aria-label="Wake listening" class="switch" id="wake-toggle" disabled><span></span></button></div>
             <div class="speaker-row"><div><span>Speaker</span><small id="speaker-detail" role="status">Awaiting device status</small></div><div class="speaker-actions"><button type="button" class="text-button" id="speaker-test" disabled>Test speaker</button><button type="button" class="text-button danger-text" id="speaker-stop" disabled>Stop audio</button></div></div>
           </section>

@@ -26,6 +26,7 @@ from .hardware import Screen
 from .rendering import font
 from .speaker import Speaker
 from .speaker_volume import SpeakerVolumeDevice
+from .hardware_device import HardwareDevice
 from .audio_receiver import AudioReceiver
 from .voice import VoiceListener
 
@@ -49,6 +50,7 @@ class Controller:
         self.screen.status("Connecting", "Starting physical controls")
         self.display_state = {"kind": "status", "title": "Connecting"}
         self.controls = Controls(self.screen)
+        self.hardware_debugger = HardwareDevice(self.controls, self.directory / "hardware", self.session)
         self.sample = neutral_input()
         self.encoder_pending = 0
         self.encoder_revision = None
@@ -314,8 +316,17 @@ class Controller:
             state = self.host.get("agent_state") or {}
             identifier = (self.build or {}).get("job_id") or (state.get("job_id") if state.get("running") else None)
             if identifier is None:
-                identifier = (self.host.get("clarification") or {}).get("job_id")
+                question = self.host.get("clarification") or {}
+                expiry = question.get("expires_at")
+                if expiry is None or (type(expiry) in (int, float) and expiry > time.time()):
+                    identifier = question.get("job_id")
             if not self._job_id(identifier):
+                hardware = self.host.get("hardware_workflow")
+                if (type(hardware) is dict and hardware.get("phase") not in
+                        {"complete", "cancelled"}):
+                    # A physical setup outlives the conversational question and
+                    # its job token. Route cancellation as a fresh user request.
+                    return self.request("Cancel the current hardware setup.")
                 if stopped_audio:
                     self._feedback("Speech stopped", "Your current app stays active")
                     return True
@@ -398,6 +409,10 @@ class Controller:
             # Rendering owns the runtime lock before present() takes ours.
             # Read its camera revision before taking ours to keep that order.
             camera_fresh = self._live_camera_image() is not None
+            # Diagnostics serialize bus reads. Never wait on the bus while
+            # holding the lock needed by voice/UI callbacks.
+            capabilities = self.controls.capabilities()
+            hardware_snapshot = self.hardware_debugger.snapshot() if hasattr(self, "hardware_debugger") else {}
             with self.lock:
                 self.sequence += 1
                 delta = self.encoder_pending if not self._busy() and self.encoder_revision == self.state.get("revision") else 0
@@ -405,7 +420,7 @@ class Controller:
                 self.encoder_pending = 0  # Never replay uncertain physical actions after a timeout.
                 packet = {"session": self.session, "sequence": self.sequence, "name": "Modulate Pi 5",
                           "revision": self.state.get("revision"), "ack": self.state.get("ack"),
-                          "capabilities": self.controls.capabilities(), "input": sample,
+                          "capabilities": capabilities, "input": sample,
                           "commands": self.commands if self.state.get("kind") == "game" else [],
                           "telemetry": {"fps": round(self.fps, 1), "voice": self.voice_state,
                                         "camera": {"frames_received": self.camera_frames_received,
@@ -413,6 +428,7 @@ class Controller:
                                         "voice_history": list(self.voice_history),
                                         "speaker": dict(self.speaker_state),
                                         "speaker_volume": self.speaker_volume.snapshot() if hasattr(self, "speaker_volume") else {},
+                                        "hardware": hardware_snapshot,
                                         "computer_audio": self.computer_audio.snapshot() if hasattr(self, "computer_audio") else {},
                                         "processing": {"busy": bool(self._busy()),
                                                        **{key: (self.build or {}).get(key) for key in
@@ -428,6 +444,11 @@ class Controller:
                 if self.pairing.get("token"):
                     packet["volume_token"] = self.pairing["token"]
             response = self.companion.post("heartbeat", packet)
+            # Bus diagnostics can temporarily occupy the render/input thread.
+            # Deliver revocation directly so cancellation still reaches the
+            # worker before its final address-write check.
+            if hasattr(self, "hardware_debugger"):
+                self.hardware_debugger.offer(response.get("hardware_command"))
             # Every heartbeat carries the current transaction phase and retained
             # failure acknowledgment. Prefer fresh state to a backlog of stages.
             while True:
@@ -495,6 +516,8 @@ class Controller:
                     with self.lock:
                         self.pairing_in_flight = False
         except (TransportError, OSError, ValueError) as error:
+            if hasattr(self, "hardware_debugger"):
+                self.hardware_debugger.offer(None)
             if hasattr(self, "speaker_volume"):
                 self.speaker_volume.disconnect()
             with self.lock:
@@ -719,6 +742,7 @@ class Controller:
     def run(self):
         self.speaker.start()
         self.speaker_volume.start()
+        self.hardware_debugger.start()
         self.computer_audio.start()
         self.voice.start()
         worker = threading.Thread(target=self.network, name="modulate-link", daemon=True)
@@ -746,12 +770,19 @@ class Controller:
                 clarification = self.host.get("clarification")
                 question = clarification.get("question") if type(clarification) is dict else None
                 feedback = self._feedback_card()
-                overlay = streaming or speaking or busy or feedback is not None or self._offer() is not None or voice_overlay or bool(question)
+                hardware = self.host.get("hardware_workflow")
+                hardware_wait = (hardware if type(hardware) is dict and hardware.get("phase") not in
+                                 {"complete", "completed", "cancelled", "failed"} else None)
+                suspended = self.runtime.snapshot().get("suspended") is True
+                overlay = streaming or speaking or busy or feedback is not None or self._offer() is not None or voice_overlay or bool(question) or hardware_wait or suspended
                 if overlay:
                     sample["encoder_delta"] = 0
                 # A modal pairing/voice card temporarily pauses the game rather
                 # than writing a game frame and an overlay to SPI every loop.
-                frame = None if overlay else self.runtime.tick(sample, dt)
+                # A suspended app must keep checking for restored controls even
+                # while its missing-hardware card is visible. tick() verifies a
+                # resume before running any generated code.
+                frame = self.runtime.tick(sample, dt) if suspended or not overlay else None
                 current = self.runtime.snapshot()
                 if frame:
                     self._displayed("game", current.get("title", "Game"))
@@ -786,6 +817,13 @@ class Controller:
                     detail = audio.get("error") or ("Playing computer audio" if audio.get("playing") else "Waiting for computer audio")
                     self.status("Mac speaker", detail + "\nB: stop · Both buttons: talk")
                     self._displayed("computer_audio", "Mac speaker")
+                elif hardware_wait:
+                    phrase = hardware_wait.get("required_phrase") or "Continue in Studio"
+                    self.status("Hardware setup", "Follow steps in Studio\nThen say Hey Meta:\n" + str(phrase)[:55])
+                    self._displayed("hardware_setup", "Hardware setup")
+                elif suspended:
+                    self.status("App saved", "A required control is missing\nSay Hey Meta:\nCheck my hardware")
+                    self._displayed("hardware_missing", "App saved")
                 elif self.host.get("agent_running") and not current.get("kind"):
                     self.status("Reinventing...", "Meta is building and testing\nFollow progress in Studio")
                 elif current.get("kind") == "control":
@@ -804,6 +842,7 @@ class Controller:
                 self.stop.wait(max(0, 0.05 - (time.monotonic() - started)))
         finally:
             self.stop.set()
+            self.hardware_debugger.close()
             self.speaker_volume.stop()
             self.computer_audio.stop()
             self.speaker.stop()

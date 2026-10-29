@@ -35,7 +35,7 @@ function permissionShape(value) {
 function sameOrigin(req) {
   let origin;
   try { origin = new URL(req.headers.origin); } catch { throw new HttpError(403, 'Open this request from Modulate Connect.'); }
-  const allowed = [process.env.MODULATE_PUBLIC_ORIGIN || 'https://divy.live'];
+  const allowed = [process.env.MODULATE_PUBLIC_ORIGIN || 'https://modulate-connect.vercel.app'];
   if (process.env.VERCEL_URL) allowed.push(`https://${process.env.VERCEL_URL}`);
   if (origin.origin !== req.headers.origin || !allowed.includes(origin.origin) || origin.protocol !== 'https:') {
     throw new HttpError(403, 'Open this request from Modulate Connect.');

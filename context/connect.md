@@ -1,20 +1,24 @@
 # Modulate Connect
 
-`https://divy.live/connect` is the remote Studio for the existing Modulate hub. It is served by the existing portfolio project. The Mac companion remains the trusted runtime for the paired Pi, the agent, native computer tools, private state, and spending ledgers.
+`https://modulate-connect.vercel.app/connect` is the remote Studio for the existing Modulate hub. Its dedicated Vercel project is `modulate-connect`, linked to `Divyesh-Thirukonda/cruise` on GitHub with production branch `main` and root directory `webapp/connect-app-code`. The Mac companion remains the trusted runtime for the paired Pi, the agent, native computer tools, private state, and spending ledgers.
 
 The connection-specific web source is included in this hackathon repository at
 [webapp/connect-app-code](../webapp/connect-app-code). It contains the React
 dashboard, Vercel endpoints, tests and standalone build configuration, with a
-manifest identifying the exact deployed portfolio source commit. The portfolio
-remains the live deployment source; this copy does not introduce another server
-or change the current connection.
+manifest preserving the original portfolio source commit/hashes and the current
+standalone hashes. The portfolio is no longer the deployment source. Historical
+divy.live trials in the evidence remain labeled with their original destination.
 
 ## Connect a browser
 
 1. Keep the Mac companion and its outbound connection running.
 2. On that Mac, open `http://127.0.0.1:8787` and create a browser connection code.
-3. On a phone or computer, visit `https://divy.live/connect`, enter the single-use eight-digit code, and choose the device's access switches.
+3. On a phone or computer, visit `https://modulate-connect.vercel.app/connect`, enter the single-use eight-digit code, and choose the device's access switches.
 4. Use the dashboard to send requests, inspect the running program and checks, answer follow-up questions, edit voice drafts, cancel work, manage hardware, and control the existing paired Mac.
+
+Moving from divy.live to the new hostname requires one fresh browser connection
+code because Secure host-only cookies cannot move between domains. Existing
+Pi/native Mac pairing, saved apps, permissions and ledgers are retained.
 
 The browser connection expires after eight hours and can be disconnected independently of the Pi's native Mac pairing. Local Studio can revoke every remote browser. A paired browser is a trusted administrator for this one Modulate hub. The access switches apply to the device as a whole, including its microphone requests; they are not separate per-browser sandboxes.
 
@@ -56,7 +60,7 @@ Requests, dashboard state, and permitted previews pass through Vercel and the ou
 
 ## Run and recover
 
-The host accepts `--connect-env-file` in addition to the existing provider configuration. Store the connection file with mode 600 under ignored `context/private/`; use a different random value for `MODULATE_REMOTE_SECRET` and `MODULATE_CLOUD_KEY`. `MODULATE_CLOUD_URL` is the fixed provider gateway `https://divy.live/api/modulate-provider`.
+The host accepts `--connect-env-file` in addition to the existing provider configuration. Store the connection file with mode 600 under ignored `context/private/`; use a different random value for `MODULATE_REMOTE_SECRET` and `MODULATE_CLOUD_KEY`. `MODULATE_CLOUD_URL` is the fixed provider gateway `https://modulate-connect.vercel.app/api/modulate-provider`.
 
 The remote gateway binds to `127.0.0.1:8789`, separate from Studio on 8787 and the enrolled Pi endpoint on 8788. Start the companion using its normal state directory and existing host/device addresses, with `--connect-env-file context/private/connect.env`. Do not create another state directory just to enable remote access; doing so would discard pairing and spending history.
 
@@ -66,7 +70,7 @@ The current development connection uses the already-installed `cloudflared`:
 cloudflared tunnel --url http://127.0.0.1:8789 --no-autoupdate --protocol http2
 ```
 
-Set the resulting HTTPS origin as the portfolio project's production `MODULATE_COMPANION_URL`, and use the same `MODULATE_REMOTE_SECRET` in the companion and Vercel. The production provider function uses `MODULATE_CLOUD_KEY`, `MODULATE_META_API_KEY`, and `MODULATE_ELEVENLABS_API_KEY`. Changes to Vercel environment variables require a new deployment. None of these values use a browser-exposed prefix.
+Set the resulting HTTPS origin as the standalone project's production `MODULATE_COMPANION_URL`, and use the same `MODULATE_REMOTE_SECRET` in the companion and Vercel. The production provider function uses `MODULATE_CLOUD_KEY`, `MODULATE_META_API_KEY`, and `MODULATE_ELEVENLABS_API_KEY`. Changes to Vercel environment variables require a new deployment. None of these values use a browser-exposed prefix.
 
 Keep the companion, tunnel, Mac and Pi running. This development tunnel has no uptime guarantee and gets a different hostname after it is recreated; update the Vercel origin and redeploy then. A stable named tunnel is the next operational step. An offline companion produces an explicit offline state rather than a simulated dashboard or successful action.
 

@@ -13,7 +13,7 @@ function response(data, status = 200, headers = { 'Content-Type': 'application/j
 }
 function req(action, method = 'GET', body, authenticated = true) {
   return { method, query: { action }, body, headers: {
-    ...(method !== 'GET' ? { origin: 'https://divy.live', 'content-type': 'application/json', 'x-modulate-csrf': CSRF } : {}),
+    ...(method !== 'GET' ? { origin: 'https://modulate-connect.vercel.app', 'content-type': 'application/json', 'x-modulate-csrf': CSRF } : {}),
     cookie: `__Host-modulate_csrf=${CSRF}${authenticated ? '; __Host-modulate_session=' + SESSION : ''}`,
   } };
 }
@@ -26,6 +26,7 @@ function cloud(action, body) {
 }
 function completion() { return { model: 'muse-spark-1.3', messages: [{ role: 'user', content: 'Hi' }], max_completion_tokens: 100, stream: false }; }
 beforeEach(() => {
+  process.env.MODULATE_PUBLIC_ORIGIN = 'https://modulate-connect.vercel.app';
   process.env.MODULATE_COMPANION_URL = 'https://companion.example';
   process.env.MODULATE_REMOTE_SECRET = 'remote-test-only-'.repeat(4);
   process.env.MODULATE_CLOUD_KEY = 'cloud-test-only-'.repeat(4);
@@ -77,6 +78,12 @@ test('stale unauthenticated and rejected reads cannot erase a newly paired cooki
 test('cross-origin pairing is rejected even with matching csrf', async () => {
   const request = req('session', 'POST', { code: '12345678' }, false); request.headers.origin = 'https://evil.example';
   assert.equal((await run(gateway, request)).statusCode, 403); assert.equal(calls.length, 0);
+});
+test('the former portfolio origin cannot mutate the standalone app', async () => {
+  const request = req('command', 'POST', { path: '/api/cancel', payload: {} });
+  request.headers.origin = 'https://divy.live';
+  assert.equal((await run(gateway, request)).statusCode, 403);
+  assert.equal(calls.length, 0);
 });
 test('cross-site Fetch Metadata rejected even with spoofed origin', async () => {
   const request = req('command', 'POST', { path: '/api/cancel', payload: {} }); request.headers['sec-fetch-site'] = 'cross-site';
@@ -167,7 +174,7 @@ test('provider cannot be called using browser session cookies', async () => {
   assert.equal((await run(provider, request)).statusCode, 401); assert.equal(calls.length, 0);
 });
 test('provider rejects browser-origin request even if cloud key supplied', async () => {
-  const request = cloud('meta', completion()); request.headers.origin = 'https://divy.live';
+  const request = cloud('meta', completion()); request.headers.origin = 'https://modulate-connect.vercel.app';
   assert.equal((await run(provider, request)).statusCode, 403); assert.equal(calls.length, 0);
 });
 test('Meta proxy keeps usage and sends key only to fixed provider', async () => {

@@ -20,6 +20,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .agent import AgentError
 from .host_bridge import BridgeError
+from .deployment import CONNECT_URL
 
 
 PERMISSIONS = {"computer": True, "system": True, "camera": True, "audio": True,
@@ -103,7 +104,7 @@ class RemoteAccess:
 
     def local_status(self):
         with self.lock:
-            return {"enabled": self.gateway_enabled, "url": "https://divy.live/connect",
+            return {"enabled": self.gateway_enabled, "url": CONNECT_URL,
                     "permissions": dict(self.state["permissions"]),
                     "browsers": [{"name": value["name"], "expires_at": value["expires_at"]}
                                  for value in self.state["sessions"].values()
@@ -115,7 +116,7 @@ class RemoteAccess:
         with self.lock:
             code = f"{secrets.randbelow(100_000_000):08d}"
             self.pairing = {"hash": _hash(code), "expires_at": self.clock() + PAIR_SECONDS, "attempts": 0}
-            return {"code": code, "expires_at": self.pairing["expires_at"], "url": "https://divy.live/connect"}
+            return {"code": code, "expires_at": self.pairing["expires_at"], "url": CONNECT_URL}
 
     def pairing_active(self, code, expires_at):
         """Check a device-only display offer without exporting the stored credential."""

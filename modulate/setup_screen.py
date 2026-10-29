@@ -4,7 +4,7 @@ from __future__ import annotations
 import math
 import re
 
-CONNECT_URL = "https://divy.live/connect"
+from .deployment import CONNECT_HOST, CONNECT_URL
 
 
 class SetupScreen:
@@ -77,19 +77,19 @@ class SetupScreen:
     def _local_card(self, reason, host, enrolled, fresh):
         if not enrolled:
             title = "Set up Modulate"
-            lines = (["Open on your computer:", "divy.live/connect", "Follow the setup guide."] if self.page == 0 else
+            lines = (["Open on your computer:", CONNECT_HOST, "/connect", "Follow the setup guide."] if self.page == 0 else
                      ["Start the Mac companion.", "Enroll this Pi once.", "Then restart Modulate."])
             action = "next"
         elif not fresh:
             title = "Reconnect your Mac"
             lines = (["Open Modulate Studio", "on your Mac. Check Wi-Fi", "on both. Retrying..."] if self.page == 0 else
-                     ["Guide: divy.live/connect", "Keep the companion open.", "Your saved app is safe."])
+                     ["Setup guide:", CONNECT_HOST, "/connect", "Keep the companion open."])
             action = "next"
         else:
             title = "Link your computer" if reason == "pairing" else "Connection setup"
             action = self._action(host)
             if action == "create_browser_code":
-                lines = ["Open divy.live/connect", "on your phone or Mac.", "A shows a one-use code."]
+                lines = [CONNECT_HOST, "/connect", "on your phone or Mac.", "A shows a one-use code."]
             elif action == "start_pairing":
                 lines = ["Browser connected." if (host.get("setup_status") or {}).get("browser_count") else "Mac companion found.",
                          "A starts Mac pairing.", "Confirm on the next screen."]

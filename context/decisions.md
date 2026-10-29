@@ -146,3 +146,19 @@ Hey Meta matching, recognizer silence rejection, the three-second request pause,
 speaker guards and cancellation. Microphone capture was already enabled at 75%
 with automatic gain control; do not increase gain blindly. Synthetic recovery of
 a delayed quiet onset is evidence for the capture fix, not measured wake accuracy.
+
+## October 29 — Dedicated connection deployment
+
+The user requested that Modulate leave the personal portfolio and deploy directly
+from this GitHub repository. Use Vercel project `modulate-connect`, production
+branch `main`, root `webapp/connect-app-code`, at
+`https://modulate-connect.vercel.app/connect`. Preserve the same dashboard and
+server routes. Keep the provider destination explicitly pinned, update host/Pi
+setup links together, and retain the existing companion, tunnel, app library,
+pairing state and spending ledgers. The new hostname needs a new host-only browser
+cookie; it does not require re-enrolling the Pi or resetting native permissions.
+
+Preserve original portfolio source hashes as provenance alongside current hashes.
+After validating the standalone production path, revert only the portfolio's
+Modulate feature commits and redeploy its main branch. Do not reset shared Git
+history or discard unrelated portfolio work.

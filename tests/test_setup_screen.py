@@ -8,7 +8,10 @@ import time
 import unittest
 from unittest.mock import Mock, patch
 
+from PIL import ImageDraw
+
 from modulate.controls import neutral_input
+from modulate.deployment import CONNECT_HOST
 from modulate.device import Controller
 from modulate.device_transport import Companion, PendingCompanion, TransportError, save_private
 from modulate.setup_screen import CONNECT_URL, SetupScreen
@@ -95,7 +98,8 @@ class SetupScreenTests(unittest.TestCase):
         offer = {"id": "a" * 32, "kind": "browser_code", "title": "Connect a browser",
                  "lines": [], "connect_url": CONNECT_URL, "code": "12345678", "expires_at": 1200}
         invalid = ({"expires_at": 1000}, {"expires_at": float("nan")}, {"expires_at": 1601},
-                   {"connect_url": "https://untrusted.invalid"}, {"code": "https://x"},
+                   {"connect_url": "https://untrusted.invalid"},
+                   {"connect_url": "https://divy.live/connect"}, {"code": "https://x"},
                    {"lines": ["bad\nline"]}, {"id": "../private"})
         for change in invalid:
             with self.subTest(change=change):
@@ -163,6 +167,36 @@ class PendingCompanionTests(unittest.TestCase):
 class SetupControllerTests(unittest.TestCase):
     # Reuse the mocks without inheriting and rerunning the original test methods.
     setUp = device_fixtures.ControllerTests.setUp
+
+    def test_new_deployment_address_and_code_fit_the_physical_display(self):
+        screen = SetupScreen(started=0)
+        guide = screen.update(enrolled=False, fresh=False, host={}, now=1, wall=1000)
+        code = {"kind": "browser_code", "id": "a" * 32, "title": "Connect this browser",
+                "lines": [CONNECT_HOST, "/connect"], "code": "12345678", "action": "next"}
+        real_draw = ImageDraw.Draw
+        for card in (guide, code):
+            with self.subTest(kind=card["kind"]):
+                drawings = []
+                def capture(image):
+                    drawing = Mock(wraps=real_draw(image))
+                    drawings.append(drawing)
+                    return drawing
+                with patch("modulate.device.ImageDraw.Draw", side_effect=capture):
+                    self.controller.draw_setup(card)
+                texts = [call.args[1] for call in drawings[0].text.call_args_list]
+                self.assertIn(CONNECT_HOST, texts)
+                self.assertIn("/connect", texts)
+                for call in drawings[0].text.call_args_list:
+                    (x, y), text = call.args
+                    left, top, right, bottom = call.kwargs["font"].getbbox(text)
+                    self.assertGreaterEqual(x + left, 0)
+                    self.assertLess(x + right, 240, text)
+                    self.assertLess(y + bottom, 135, text)
+                    if text in (CONNECT_HOST, "/connect"):
+                        self.assertLess(y + bottom, 111, text)
+                    if text == code["code"]:
+                        self.assertGreaterEqual(y, 74)
+                        self.assertLess(y + bottom, 111)
 
     def show_unpaired(self):
         self.controller.host = {"paired": False, "wake": True,

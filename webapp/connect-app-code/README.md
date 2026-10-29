@@ -1,15 +1,16 @@
 # Connect app code
 
-The complete **Modulate connection webapp** deployed at
-[divy.live/connect](https://divy.live/connect), extracted from the portfolio
-project so the hackathon submission includes its source. This folder contains
+The complete **Modulate connection webapp** at
+[modulate-connect.vercel.app/connect](https://modulate-connect.vercel.app/connect).
+This repository is its production source; it no longer deploys through the portfolio. This folder contains
 only the connection dashboard, its server endpoints, tests and build setup.
 
 The 11 application/test files listed in [source-manifest.json](source-manifest.json)
-are unchanged copies from portfolio commit
+were extracted from portfolio commit
 `1c190a4b4c2bad49eed09ee4bee5071c62a736da`. The standalone entry point, HTML,
 minimal package, Vercel configuration and verification script were added for
-this export. The portfolio remains the current deployment source.
+the original export. `source_sha256` preserves that baseline; `sha256` verifies
+the current standalone code after migration.
 
 ## Read the implementation
 
@@ -45,7 +46,8 @@ not run the Vercel functions, make a synthetic pairing, or bypass HTTPS cookie
 requirements. Full linking needs an HTTPS deployment of the included functions
 and the configured running companion. No live device is needed for the tests.
 
-To compare every copied file with the portfolio checkout:
+To verify the preserved baseline against a portfolio checkout at the recorded
+source commit (not the restored portfolio main branch):
 
 ```sh
 npm run verify:source -- /path/to/portfolio
@@ -53,15 +55,15 @@ npm run verify:source -- /path/to/portfolio
 
 ## Hosting and secrets
 
-This export can be built with `npm run build`. Its Vercel project root would be
-`webapp/connect-app-code`; `vercel.json` retains the two API routes and SPA
-fallback, with connection security headers applying to all pages. This export
-does **not** change the existing `divy.live` deployment.
+Build with `npm run build`. Vercel project **modulate-connect** tracks this
+repository’s `main` branch with root `webapp/connect-app-code` and Node.js 22.
+`vercel.json` retains both API routes and the SPA fallback, with security headers
+applying to all pages. Both `/` and `/connect` open the same dashboard.
 
 Configure these only in the server environment; no secret values are included:
 
 - `MODULATE_COMPANION_URL`: fixed HTTPS companion gateway origin.
-- `MODULATE_PUBLIC_ORIGIN`: exact HTTPS web origin (`https://divy.live` in production).
+- `MODULATE_PUBLIC_ORIGIN`: exact HTTPS web origin (`https://modulate-connect.vercel.app` in production).
 - `MODULATE_REMOTE_SECRET`: shared Vercel-to-companion gateway credential.
 - `MODULATE_CLOUD_KEY`: companion-to-provider-gateway credential.
 - `MODULATE_META_API_KEY` and `MODULATE_ELEVENLABS_API_KEY`: provider credentials.

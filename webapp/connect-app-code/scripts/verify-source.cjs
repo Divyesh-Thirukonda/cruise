@@ -1,5 +1,6 @@
 'use strict';
-// Check the submitted source snapshot. Optionally compare with a portfolio
+// Check the standalone source. Optionally verify the original portfolio baseline
+// (checkout the recorded source_commit first) against its preserved hashes in a portfolio
 // checkout at the documented commit: npm run verify:source -- /path/to/portfolio
 const { createHash } = require('node:crypto');
 const { readFileSync } = require('node:fs');
@@ -14,7 +15,7 @@ for (const entry of manifest.files) {
     if (!filename.startsWith(directory + path.sep)) throw new Error('Invalid manifest path');
     try {
       const digest = createHash('sha256').update(readFileSync(filename)).digest('hex');
-      if (digest !== entry.sha256) throw new Error('source differs from recorded snapshot');
+      if (digest !== (label === 'portfolio' ? entry.source_sha256 : entry.sha256)) throw new Error('source differs from recorded snapshot');
     } catch (error) {
       console.error(`${label}/${entry.path}: ${error.code === 'ENOENT' ? 'file missing' : 'source verification failed'}`);
       failed = true;
@@ -22,4 +23,4 @@ for (const entry of manifest.files) {
   }
 }
 if (failed) process.exitCode = 1;
-else console.log(`Verified ${manifest.files.length} connection source files${source ? ' against portfolio and manifest' : ' against manifest'} (${manifest.source_commit}).`);
+else console.log(`Verified ${manifest.files.length} connection source files${source ? ' against current manifest and original portfolio baseline' : ' against current manifest'} (${manifest.source_commit}).`);

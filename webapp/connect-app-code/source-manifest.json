@@ -1,52 +1,64 @@
 {
   "source_repository": "https://github.com/Divyesh-Thirukonda/portfolio",
   "source_commit": "1c190a4b4c2bad49eed09ee4bee5071c62a736da",
-  "deployed_url": "https://divy.live/connect",
-  "note": "These application files are byte-for-byte copies of the deployed portfolio source. The standalone entry point, minimal package/config, and source-verification script were added for this export.",
+  "deployed_url": "https://modulate-connect.vercel.app/connect",
+  "note": "Original portfolio source is preserved as source_sha256 for provenance. sha256 records the current standalone files, including deployment migration changes. This repository is now the deployment source.",
   "files": [
     {
       "path": "src/modulate/Connect.js",
-      "sha256": "1ad805892fde6366bc642f0bec239f4fc26ec096500cd7d2169a27d663675e67"
+      "sha256": "d31218eebcb8eb2acc45d9064ea676b3ffc2608cb4323afbee06c49649ddffdd",
+      "source_sha256": "1ad805892fde6366bc642f0bec239f4fc26ec096500cd7d2169a27d663675e67"
     },
     {
       "path": "src/modulate/Library.js",
-      "sha256": "6020e8becc6219ff428fe8d656f477efcb62d4fccad853c533a9e671d0b1567e"
+      "sha256": "6020e8becc6219ff428fe8d656f477efcb62d4fccad853c533a9e671d0b1567e",
+      "source_sha256": "6020e8becc6219ff428fe8d656f477efcb62d4fccad853c533a9e671d0b1567e"
     },
     {
       "path": "src/modulate/api.js",
-      "sha256": "9bfae8ccc16a2d690797b4728afd1749bc2402d470296f751f4e8b9f1eb0bd64"
+      "sha256": "9bfae8ccc16a2d690797b4728afd1749bc2402d470296f751f4e8b9f1eb0bd64",
+      "source_sha256": "9bfae8ccc16a2d690797b4728afd1749bc2402d470296f751f4e8b9f1eb0bd64"
     },
     {
       "path": "src/modulate/connect.css",
-      "sha256": "b96e8303ebbf1fbd0317c3efbc0fa53e03e7fb7bbee4b9d44825b6cc13db0de1"
+      "sha256": "b96e8303ebbf1fbd0317c3efbc0fa53e03e7fb7bbee4b9d44825b6cc13db0de1",
+      "source_sha256": "b96e8303ebbf1fbd0317c3efbc0fa53e03e7fb7bbee4b9d44825b6cc13db0de1"
     },
     {
       "path": "src/modulate/Connect.test.js",
-      "sha256": "e8f902d09c5a2abd122030af6a2c0c0a0665e96ec0b6dd5c10afd446c3c7c598"
+      "sha256": "e8f902d09c5a2abd122030af6a2c0c0a0665e96ec0b6dd5c10afd446c3c7c598",
+      "source_sha256": "e8f902d09c5a2abd122030af6a2c0c0a0665e96ec0b6dd5c10afd446c3c7c598"
     },
     {
       "path": "src/modulate/Library.test.js",
-      "sha256": "18c660fc1d7026ce9c0b52b099d2ff3ecf3f67e45889e320ae9b23fad36b1282"
+      "sha256": "18c660fc1d7026ce9c0b52b099d2ff3ecf3f67e45889e320ae9b23fad36b1282",
+      "source_sha256": "18c660fc1d7026ce9c0b52b099d2ff3ecf3f67e45889e320ae9b23fad36b1282"
     },
     {
       "path": "src/modulate/api.test.js",
-      "sha256": "ed30e74c5fe396ec443db110a74d0c1f414e2f56d4199b852b302e940439b9b6"
+      "sha256": "ed30e74c5fe396ec443db110a74d0c1f414e2f56d4199b852b302e940439b9b6",
+      "source_sha256": "ed30e74c5fe396ec443db110a74d0c1f414e2f56d4199b852b302e940439b9b6"
     },
     {
       "path": "api/modulate.js",
-      "sha256": "c2848958c2d8c6a8e01e1b42c5634b222e650f9f5792573578b2f4e82d4f0924"
+      "sha256": "650286da65b5da49dbcb10e994d1f05e6570b9e1816a868fe92429bfa558381d",
+      "source_sha256": "c2848958c2d8c6a8e01e1b42c5634b222e650f9f5792573578b2f4e82d4f0924"
     },
     {
       "path": "api/modulate-provider.js",
-      "sha256": "987bfae1422ddff687d79ac4f0dadab2e52d42b9e980234fda3d4e965294e7fc"
+      "sha256": "987bfae1422ddff687d79ac4f0dadab2e52d42b9e980234fda3d4e965294e7fc",
+      "source_sha256": "987bfae1422ddff687d79ac4f0dadab2e52d42b9e980234fda3d4e965294e7fc"
     },
     {
       "path": "server/modulate-http.cjs",
-      "sha256": "2e5c03271f42aeab0420331ca55aaff6c69491394e6d8783404a4efe15e5b83f"
+      "sha256": "2e5c03271f42aeab0420331ca55aaff6c69491394e6d8783404a4efe15e5b83f",
+      "source_sha256": "2e5c03271f42aeab0420331ca55aaff6c69491394e6d8783404a4efe15e5b83f"
     },
     {
       "path": "tests/modulate-api.test.cjs",
-      "sha256": "f5aef417faa673c62ba6150a1f4043d6c317aba48a9150a72b0abb6e6d6f4243"
+      "sha256": "e492500f68c9b83af81a2a12f6fec982d5161c152a7fa7f162752eb5d35d8872",
+      "source_sha256": "f5aef417faa673c62ba6150a1f4043d6c317aba48a9150a72b0abb6e6d6f4243"
     }
-  ]
+  ],
+  "original_deployed_url": "https://divy.live/connect"
 }

@@ -396,3 +396,25 @@ small B before physical menu testing. The user subsequently confirmed that the
 spoken “Hey Meta, reverse the knob here” was heard and physical menu scrolling
 reversed. This establishes that trial, not general wake/noise reliability.
 [Sanitized evidence](evidence/wake-library-preferences.json).
+
+## October 29: standalone Modulate Connect migration
+
+Created the dedicated `modulate-connect` Vercel project linked to this repository's
+GitHub source, with `webapp/connect-app-code` as the root and Node.js 22. The
+connection app's production address is `https://modulate-connect.vercel.app/connect`.
+Server-only configuration was installed in the new project; the existing companion
+tunnel and ledgers remain. An initial production build reached Ready, returned
+the app and live unpaired companion metadata, and rejected unauthenticated private
+state. The portfolio is retained until the new runtime path is verified.
+
+Updated the exact provider URL pin and centralized host/Pi setup URLs. The new
+hostname and `/connect` fit on separate lines of the 240×135 display. Preserved
+portfolio source hashes in the manifest, adding current hashes for the adapted
+standalone files. The dashboard layout/functionality is unchanged apart from its
+connection label. The retired portfolio origin is rejected for mutations.
+
+Pre-release validation: **942 Python tests with 13 dependency skips**, **31 API
+tests**, **20 React/client tests**, source verification, and a successful web
+production build. Portfolio rollback was prepared separately and passed its
+**10 tests** and production build; its existing source-map warnings were retained.
+Live cutover and portfolio restoration results follow after deployment.

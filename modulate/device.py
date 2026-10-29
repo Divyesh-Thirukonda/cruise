@@ -31,6 +31,7 @@ from .voice import VoiceListener
 from .setup_screen import SetupScreen
 from .library_screen import LibraryScreen
 from .muse_screen import render_card
+from .deployment import CONNECT_HOST
 
 
 class Controller:
@@ -928,8 +929,9 @@ class Controller:
         draw.text((9, 6), "MODULATE / SETUP", font=font(10), fill="#469DFF")
         draw.text((9, 24), card["title"][:25], font=font(15), fill="white")
         if card["kind"] == "browser_code":
-            draw.text((9, 46), "divy.live/connect", font=font(12), fill="#CCD5E0")
-            draw.text((9, 65), card["code"], font=font(28), fill="#74B8FF")
+            draw.text((9, 46), CONNECT_HOST, font=font(11), fill="#CCD5E0")
+            draw.text((9, 60), "/connect", font=font(10), fill="#CCD5E0")
+            draw.text((9, 74), card["code"], font=font(26), fill="#74B8FF")
             footer = "A: next step   B: hide code"
         else:
             for index, line in enumerate(card["lines"][:4]):

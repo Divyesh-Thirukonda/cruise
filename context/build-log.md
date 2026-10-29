@@ -526,6 +526,20 @@ production build. Browser checks exercised code → access → Studio and Device
 using an isolated synthetic companion; the copy-prompt control also worked.
 The live companion was reloaded while idle and retained the current app, access
 settings, wake state, pairing state and spending ledger. Production deployment
-verification is pending. No live hardware re-pairing or new provider request was
+verification is recorded below. No live hardware re-pairing or new provider request was
 needed for this work. Reused dependencies include Next.js, React, Jest,
 Testing Library and Lucide; the existing CC0 Simple Icons Meta symbol remains.
+
+
+Production verification: commit `9f93000` deployed as
+`dpl_FXg9pQZS2pjAWUfkv383upQZVYfv` reached READY and was assigned
+`modulate-connect.vercel.app`. Browser inspection confirmed the new first-visit
+page, separate setup screen, working Copy Codex prompt, and return navigation.
+The production plugin ZIP returned 200 and exactly matched the reviewed archive.
+Public pages returned 200 with fresh script nonces and no-store responses;
+unauthenticated private state returned 401 and the provider GET route returned
+405. Connected-flow browser checks used only an isolated synthetic companion;
+no production browser was re-paired for verification. The browser viewport
+override did not apply during this run, so mobile layout was not visually
+re-verified. Local test servers were stopped; the real Studio companion remains
+running.

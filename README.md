@@ -73,8 +73,8 @@ offers a copyable prompt and the downloadable [Modulate Setup plugin](plugins/mo
 The skill checks and reuses existing software, guides native permission and
 physical steps, and preserves apps, pairing, credentials and spending history.
 It does not silently install native services or connect arbitrary Macs to the
-shared public hub. This guided-flow update is implemented locally; production
-verification is pending in the [build log](context/build-log.md).
+shared public hub. The guided flow is deployed and verified; see the
+[build log](context/build-log.md).
 
 Develop the webapp with Node.js 22 or newer:
 

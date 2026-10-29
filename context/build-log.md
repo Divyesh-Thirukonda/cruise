@@ -450,3 +450,16 @@ project. Redeployed the same restoration commit as
 Ready, `divy.live` points to it, and the live root title is `Divyesh Portfolio`.
 Provider credentials were not revoked and historical deployments were not erased.
 [Migration evidence](evidence/standalone-connect-migration.json).
+
+### Connect sidebar cleanup — October 29
+
+Removed the dashboard top bar and moved its live companion connection status into
+the bottom-left sidebar, replacing the privacy/version footer. Kept the same
+connecting, online, offline, and unlinked states. Mobile navigation now opens from
+the page heading and has a close button inside the sidebar; the Permissions page
+remains accessible through navigation. Updated the standalone source hashes.
+
+Validation: all **20 React/client tests** pass, source verification passes, and
+the production build succeeds. Browser checks at desktop size and 390×844 confirm
+the header is gone, the footer status is visible, and mobile navigation opens,
+closes, and dismisses after selecting a page. No device or pairing state changed.

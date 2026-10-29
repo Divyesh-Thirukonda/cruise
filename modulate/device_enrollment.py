@@ -28,9 +28,10 @@ MAX_ATTEMPTS = 5
 
 
 class EnrollmentError(Exception):
-    def __init__(self, message, status=400):
+    def __init__(self, message, status=400, reason="invalid_enrollment"):
         super().__init__(message)
         self.status = status
+        self.reason = reason
 
 
 def _address(value):
@@ -131,6 +132,7 @@ class EnrollmentServer:
         self.generation = 0
         self.pending = None
         self.receipt = None
+        self.closed_reason = "setup_closed"
 
     def start(self):
         with self.lock:
@@ -199,6 +201,7 @@ class EnrollmentServer:
                 self._record("expired")
             self.pending = None
             self.code = None
+            self.closed_reason = "setup_expired"
         if self.receipt and self.clock() >= self.receipt["until"]:
             self.receipt = None
 
@@ -227,6 +230,7 @@ class EnrollmentServer:
             self.pending = None
             self.receipt = None
             self.attempts = 0
+            self.closed_reason = "setup_closed"
             family = socket.AF_INET if self.server.address_family == socket.AF_INET else socket.AF_UNSPEC
             self.address = self.address_override or local_address(family)
             if self.address and family == socket.AF_INET and _address(self.address).version != 4:
@@ -239,31 +243,38 @@ class EnrollmentServer:
             self.error = None
             return self.snapshot()
 
-    def _record(self, status):
+    def _record(self, status, reason=None):
         if self.pending:
             self.receipt = {"id": self.pending["id"], "peer": self.pending["host_address"],
                             "code": self.code, "status": status, "until": self.clock() + WINDOW_SECONDS}
+            if reason:
+                self.receipt["reason"] = reason
 
-    def close_window(self):
+    def close_window(self, reason="setup_closed"):
         with self.lock:
-            self._record("rejected")
+            self._record("rejected", reason)
             self.pending = None
             self.code = None
+            self.closed_reason = reason
             self.generation += 1
 
     def _failed_attempt(self):
         self.attempts += 1
         if self.attempts >= MAX_ATTEMPTS:
-            self.close_window()
+            self.close_window("attempts_exhausted")
             self.error = "Too many attempts. Press A for a new setup code."
 
     def _authorize(self, code):
         self._expire()
-        if self.code is None or self.server is None or _exists(self.enrollment_path):
-            raise EnrollmentError("Open setup on the device first", 409)
+        if _exists(self.enrollment_path):
+            raise EnrollmentError("This device is already linked", 409, "already_enrolled")
+        if self.code is None or self.server is None:
+            reason = self.closed_reason if self.server is not None else "setup_closed"
+            raise EnrollmentError("Open setup on the device first", 409, reason)
         if type(code) is not str or not secrets.compare_digest(code, self.code):
             self._failed_attempt()
-            raise EnrollmentError("Setup code not accepted", 403)
+            reason = "attempts_exhausted" if self.attempts >= MAX_ATTEMPTS else "wrong_code"
+            raise EnrollmentError("Setup code not accepted", 403, reason)
 
     def malformed(self):
         with self.lock:
@@ -275,7 +286,7 @@ class EnrollmentServer:
         with self.lock:
             self._authorize(body.get("code") if type(body) is dict else None)
             if self.pending:
-                raise EnrollmentError("A setup request is already waiting on the device", 409)
+                raise EnrollmentError("A setup request is already waiting on the device", 409, "request_pending")
             generation = self.generation
         try:
             if type(body) is not dict or set(body) != {"code", "enrollment"}:
@@ -287,7 +298,7 @@ class EnrollmentServer:
         with self.lock:
             self._authorize(body["code"])
             if generation != self.generation or self.pending:
-                raise EnrollmentError("Setup window changed; try the current code", 409)
+                raise EnrollmentError("Setup window changed; try the current code", 409, "setup_closed")
             request_id = secrets.token_hex(16)
             self.pending = {"id": request_id, "host_address": host_address, "enrollment": enrollment}
             return {"id": request_id, "status": "awaiting_confirmation"}
@@ -304,7 +315,7 @@ class EnrollmentServer:
                     or url.path not in ("", "/") or url.query or url.fragment):
                 raise ValueError()
             if host != usable_address(peer):
-                raise EnrollmentError("Companion address must match the connecting Mac", 403)
+                raise EnrollmentError("Companion address must match the connecting Mac", 403, "source_mismatch")
         except (ValueError, TypeError):
             raise EnrollmentError("Use the Mac's HTTPS device endpoint on port 8788") from None
         key, pem = data["device_key"], data["ca_pem"]
@@ -343,12 +354,15 @@ class EnrollmentServer:
             if (receipt and secrets.compare_digest(body["id"], receipt["id"])
                     and secrets.compare_digest(body["code"], receipt["code"] or "")
                     and peer == receipt["peer"]):
-                return {"id": receipt["id"], "status": receipt["status"]}
+                result = {"id": receipt["id"], "status": receipt["status"]}
+                if receipt.get("reason"):
+                    result["reason"] = receipt["reason"]
+                return result
             self._authorize(body["code"])
             if self.pending and body["id"] == self.pending["id"] and peer == self.pending["host_address"]:
                 return {"id": body["id"], "status": "awaiting_confirmation"}
             self._failed_attempt()
-            raise EnrollmentError("Setup receipt not found", 404)
+            raise EnrollmentError("Setup receipt not found", 404, "receipt_not_found")
 
     def confirm(self, request_id):
         """Commit one exact, unexpired proposal after a fresh physical press."""
@@ -387,7 +401,7 @@ class EnrollmentServer:
                     except OSError:
                         pass  # An orphan public certificate grants no access.
                 self.error = "Setup could not be saved. Keep the current configuration and try again."
-                self._record("rejected")
+                self._record("rejected", "save_failed")
                 self.pending = None
                 self.code = None
                 return False
@@ -483,11 +497,11 @@ def _handler(owner):
                 action = owner.propose if self.path == "/enroll" else owner.status
                 self.send(200, action(body, str(_address(self.client_address[0]))))
             except EnrollmentError as error:
-                self.send(error.status, {"error": str(error)})
+                self.send(error.status, {"error": str(error), "reason": error.reason})
             except (ValueError, TypeError, RecursionError, OSError):
                 owner.malformed()
                 try:
-                    self.send(400, {"error": "Expected a bounded setup request"})
+                    self.send(400, {"error": "Expected a bounded setup request", "reason": "invalid_enrollment"})
                 except OSError:
                     pass
     return Handler

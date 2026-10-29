@@ -141,6 +141,26 @@ class ConnectionSetupTests(unittest.TestCase):
         self.assertIsNone(reopened.setup_offer)
         self.assertEqual(reopened.remote_access.local_status()["permissions"], before)
 
+    def test_local_pairing_completes_without_remote_gateway_and_offline_is_not_ready(self):
+        self.remote.gateway_enabled = False
+        self.product.connection_setup("start_pairing")
+        self.product.pair(self.product.pairing["code"], "Synthetic physical confirmation")
+        status = self.product.connection_setup("status")
+        self.assertTrue(status["local_ready"])
+        self.assertFalse(status["remote_enabled"])
+        self.assertEqual(status["local_studio_url"], "http://127.0.0.1:8787")
+        self.assertTrue(any(status["local_studio_url"] in line for line in status["instructions"]))
+        self.assertFalse(any("vercel.app" in line for line in status["instructions"]))
+        self.product.connection_setup("show")
+        self.assertNotIn("code", self.product.setup_offer)
+        self.assertIsNone(self.remote.pairing)
+        self.product.last_seen = time.monotonic() - 5
+        status = self.product.connection_setup("status")
+        self.assertTrue(status["pairing_saved"])
+        self.assertFalse(status["paired_mac"])
+        self.assertFalse(status["local_ready"])
+        self.assertFalse(status["device_connected"])
+
     def test_only_orchestrator_can_prepare_setup_and_arguments_are_bounded(self):
         agent = self.product.agent
         for role in ("coder", "artist", "reviewer"):

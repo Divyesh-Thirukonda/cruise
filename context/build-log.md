@@ -648,3 +648,46 @@ onboarding trial was deliberately left to the user rather than consuming the
 fresh reset. The user subsequently confirmed that the physical gadget displays
 “Set up on your Mac.” This verifies the new screen, not completed enrollment or
 Mac/browser pairing.
+
+## October 29 — Agent-led setup audit and recovery
+
+Audited the user's separate setup-chat report against source and live state.
+Confirmed a real missing-code defect: device-initiated native pairing was absent
+from local Studio's dialog. The authenticated local pending-pairing read now
+shows it without rotating the code, and clears stale codes after completion or
+expiry. Saved pairing is distinguished from a fresh online link.
+
+Portable setup package 0.3.0 now delegates authorized Mac/browser work to the
+agent, checks current state before every retry/handoff, and finishes locally
+without requiring an unconfigured remote gateway. The helper has explicit
+stages, a clear Mac-access handoff, masked code input, stale-response protection,
+and bounded recovery reasons. It identifies physical identity-character positions
+without trusting a replacement from the network. Legacy ambiguous failures stay
+uncertain; they are not falsely attributed to expiry or a user decline.
+
+Independent agent review caught and fixed two additional issues: ambiguous
+legacy rejected receipts, and a probe that confused paired with enabled computer
+control. The safe live probe now separates OS permissions, paused control, online
+pairing and voice/hardware warnings. A separate agent rehearsed both complete
+local setup and delegated-entry/error/stale-retry cases; this is a simulation,
+not a new physical onboarding trial. See the [forward trial](evidence/agent-setup-forward-trial.md).
+
+Validation: the full Python suite passed 1,027 tests with 13 skips before final
+review fixes; the final affected enrollment/device tests passed 60 checks and
+helper/probe tests passed 48 checks. Five package checks, four Studio pairing
+UI tests, 39 web API tests, 24 web client tests, source checks and the Next.js
+production build passed. No model calls were used.
+
+Restarted local Studio with its existing configuration and private verified
+backup. Process-list output had canonicalized the virtualenv interpreter, so the
+first launch lacked Pillow; the existing project virtualenv restored service.
+Fresh telemetry and saved pairing recovered without re-pairing. Both spending
+ledgers, TLS keys/certificate and enrollment remain byte-identical. The currently
+complete enrollment helper was not restarted. Pi source has clearer setup
+wording/reasons and native-first ordering, but the installed Pi remains 77544fc;
+no further developer-shell access was used.
+
+[Live checks](evidence/agent-setup-live-check.json) also expose existing feature
+limits: the Pi reports no unique USB input and its latest I2C report has no
+responding modules. These are separate from the successful Mac connection and
+are not presented as verified voice or hardware readiness.

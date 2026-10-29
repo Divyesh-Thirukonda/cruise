@@ -1,0 +1,22 @@
+{
+  "studio_restarted": true,
+  "device_online": true,
+  "pairing_saved": true,
+  "agent_running": false,
+  "remote_enabled": false,
+  "no_pending_pairing": true,
+  "state_files_unchanged": {
+    "budget.json": true,
+    "tts-character-ledger.json": true,
+    "device-cert.pem": true,
+    "device-key.pem": true,
+    "device-enrollment.json": true
+  },
+  "observed_feature_warnings": {
+    "voice_state": "error",
+    "ui_microphone_message": "Choose an explicit microphone index: exactly one USB input was not found",
+    "last_reported_i2c_scan": "No addresses responded"
+  },
+  "physical_feature_trials_performed": false,
+  "pi_runtime_updated_this_task": false
+}

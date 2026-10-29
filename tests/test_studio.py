@@ -62,6 +62,10 @@ class FakeProduct:
         self.calls.append(("create_pairing",))
         return {"code": "12345678", "expires_at": 12345}
 
+    def local_pairing(self):
+        self.calls.append(("local_pairing",))
+        return {"code": "12345678", "expires_at": 12345}
+
     def pair(self, code, name):
         self.calls.append(("pair", code, name))
         return {"paired": True}
@@ -299,6 +303,29 @@ class StudioTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(product.calls, [("create_pairing",)])
         self.assertEqual(json.loads(body)["host_url"], "https://test.invalid:8788")
+
+    def test_existing_comparison_code_is_local_session_only_and_does_not_mint(self):
+        product, port = self.start(csrf="synthetic-csrf", cookie="synthetic-session", host_url="https://test.invalid:8788")
+        good = {"X-CSRF-Token": "synthetic-csrf", "Cookie": "modulate=synthetic-session"}
+        for headers in ({}, {"Cookie": good["Cookie"]}, {"X-CSRF-Token": good["X-CSRF-Token"]},
+                        {**good, "Origin": "https://other.example"},
+                        {**good, "Host": "other.example"}, {**good, "Sec-Fetch-Site": "cross-site"},
+                        {**good, "Sec-Fetch-Site": "same-site"}):
+            self.assertEqual(self.request(port, "/api/pairing", headers=headers)[0], 403)
+        self.assertEqual(product.calls, [])
+        status, _, body = self.request(port, "/api/pairing", headers=good)
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body), {"pending": {
+            "code": "12345678", "expires_at": 12345, "host_url": "https://test.invalid:8788"}})
+        self.assertEqual(product.calls, [("local_pairing",)])
+        product.local_pairing = lambda: None
+        self.assertEqual(json.loads(self.request(port, "/api/pairing", headers=good)[2]), {"pending": None})
+
+    def test_device_listener_cannot_read_local_pairing_route(self):
+        product, port = self.start(device=True, peer="127.0.0.1", device_key="synthetic-device")
+        status, _, _ = self.request(port, "/api/pairing", headers={"Authorization": "Bearer synthetic-device"})
+        self.assertEqual(status, 403)
+        self.assertEqual(product.calls, [])
 
     def test_candidate_and_live_preview_routes_are_separate(self):
         product, port = self.start(csrf="synthetic-csrf", cookie="synthetic-session")

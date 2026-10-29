@@ -1,6 +1,6 @@
 {
   "name": "modulate-setup",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Set up or repair a Modulate Mac companion and Raspberry Pi connection with your coding agent.",
   "author": { "name": "Modulate" },
   "homepage": "https://modulate-connect.vercel.app/connect/setup",

@@ -98,7 +98,7 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
             self.end_headers()
             self.wfile.write(data)
 
-        def authorized(self, *, mutation=False):
+        def authorized(self, *, mutation=False, sensitive=False):
             if device:
                 try:
                     if not device_key or not isinstance(device_key, str):
@@ -115,10 +115,12 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
             request_origin = self.headers.get("Origin")
             if request_origin is not None and request_origin not in {origin, f"http://localhost:{port}"}:
                 return False
-            if mutation:
+            if mutation or sensitive:
                 if not csrf or not cookie:
                     return False
-                if self.headers.get("Origin") not in {origin, f"http://localhost:{port}"}:
+                if mutation and self.headers.get("Origin") not in {origin, f"http://localhost:{port}"}:
+                    return False
+                if self.headers.get("Sec-Fetch-Site") in {"cross-site", "same-site"}:
                     return False
                 jar = SimpleCookie()
                 try:
@@ -134,6 +136,11 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
             if device or not self.authorized():
                 return self.send(403, {"error": "Forbidden"})
             path = urlparse(self.path).path
+            if path == "/api/pairing":
+                if not self.authorized(sensitive=True):
+                    return self.send(403, {"error": "Forbidden"})
+                pairing = product.local_pairing()
+                return self.send(200, {"pending": ({**pairing, "host_url": host_url} if pairing else None)})
             if path == "/api/state":
                 return self.send(200, product.state())
             if path == "/api/csrf":

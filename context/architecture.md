@@ -35,7 +35,7 @@ The model generates application code for a fixed runtime, not new firmware, shel
 
 | Component | Current implementation and boundary |
 | --- | --- |
-| Voice | Native 48 kHz USB capture, PyAV resampling and local faster-whisper tiny.en. A wake-only check begins after 0.5 seconds of silence while capture continues; full wake/PTT requests end after three seconds of silence. Audio at 25 seconds is discarded. Ambient recognition stays visually passive; busy listening accepts local cancellation only. Final recognition can still pause capture; room-noise reliability remains unmeasured. |
+| Voice | Native 48 kHz USB capture, PyAV resampling and local faster-whisper tiny.en. Installed repair uses Silero VAD bundled in pinned faster-whisper 1.2.1 instead of RMS silence detection, without a new model download. Wake probes follow 0.5 s non-speech; requests end after 3 s silence and discard at 25 s. Negative probes can retry after later speech, with results bound to their originating buffer. Pi tests passed and service reports `wake_listening`; physical wake confirmation remains pending. |
 | Orchestration | Host-side model/tool loop; credentials remain on the host. Current provider adapters are Meta, Fireworks and local Ollama. No silent provider/preset fallback. |
 | Verification | Fixed Python checks plus actual isolated worker execution. A model-written assertion cannot mark a package passed. |
 | Game execution | Maintained QuickJS-NG binding in a persistent subprocess, bounded engine resources, parent wall timeout and platform OS restrictions. No generated host callbacks or I/O. |
@@ -43,7 +43,7 @@ The model generates application code for a fixed runtime, not new firmware, shel
 | Companion | Loopback-served HTML/CSS/JavaScript, actual preview/events/checks, typed fallback, pairing, cancel, revoke and rollback. No external frontend dependency or browser microphone capture. |
 | Native bridge | Fixed macOS volume scripts with validated values, revocable hashed-token sessions, serialized actions and sequence rejection. Other operating systems report unsupported. |
 | Computer tasks | Independent native Python helper for one granted Chrome window, with fresh screenshots and bounded actions. Typed local-form and spoken latest-email readout trials succeeded; earlier failures remain recorded. |
-| Spoken replies | Local eSpeak NG synthesis piped to the selected USB output via paplay; transient text/audio, microphone pause and physical interruption. Studio's speaker test and the live local-form task's final reply were user-confirmed audible. |
+| Spoken replies | Local eSpeak NG synthesis piped to the selected USB output via paplay; transient text/audio, microphone pause and physical interruption. Audible replies were demonstrated. The installed repair prevents unavailable-output retries from invalidating wake capture and orders status callbacks; physical wake confirmation remains pending. |
 
 The joystick at `0x20` has user-confirmed steering, with X reaching −1 and 1 in live samples. Encoder deltas at `0x36` were subsequently captured while changing native Mac volume; the user confirmed direction. Green `0x6E` and red `0x6F` buttons independently reported firmware 259 after power cycling and worked in the game. Green OR PiTFT A supplies logical `button_a`; red OR PiTFT B supplies `button_b`. Pairing/PTT use physical PiTFT buttons only. Bluetooth microphone, gesture, IMU and hot swapping are not current capabilities.
 

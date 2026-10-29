@@ -463,3 +463,20 @@ Validation: all **20 React/client tests** pass, source verification passes, and
 the production build succeeds. Browser checks at desktop size and 390×844 confirm
 the header is gone, the footer status is visible, and mobile navigation opens,
 closes, and dismisses after selecting a page. No device or pairing state changed.
+
+### Single connection card and Meta footer mark — October 29
+
+Consolidated the sidebar's duplicate device and companion badges into one compact
+connection card. It shows Connecting, Not connected, Companion offline, Device
+offline, or Connected, with one relevant hint and the existing connect/disconnect
+action. Authenticated outages keep Disconnect available. Removed the redundant
+connection text from the page footer and replaced its star with the Meta symbol.
+The symbol is pre-existing Simple Icons artwork distributed under CC0, rendered
+in monochrome; source and Meta trademark attribution are in the webapp README.
+
+All **20 React/client tests**, source verification, and the production build pass.
+Existing connection recovery assertions now target the single card. The first
+test run exposed CRA's React-19-incompatible SVG component mock; serving the logo
+as a normal SVG image resolved it without dependency changes. Browser inspection
+at 1280×720 and 390×844 confirmed the card and action fit, the Meta symbol renders,
+and the mobile connect action closes navigation. No pairing or device state changed.

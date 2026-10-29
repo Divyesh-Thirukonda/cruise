@@ -1,6 +1,6 @@
 # Modulate build plan
 
-Proposed schedule, revised October 28, 2026 in `America/New_York`. The first [voice-to-number prototype](number-prototype.md) proves PiTFT rendering, USB microphone capture, local speech recognition, live Meta generation, bounded code execution and activation. This partially satisfies early milestones; generated games, external controls and paired-computer actions remain unimplemented. The broader direction remains voice-driven games and computer control.
+Proposed schedule, revised October 28, 2026 in America/New_York. The [product](product-runtime.md) demonstrates typed/spoken Meta-to-game creation, physical controls, paired native Mac volume, PTT/hands-free refinements and UI rollback. Initial audio failures and fixes remain recorded. Next: repeated recovery/revocation, noise/performance trials, unfamiliar refinements, user-impact validation and demo evidence. The [number prototype](number-prototype.md) retains separate evidence.
 
 ## Build order
 
@@ -11,7 +11,7 @@ Proposed schedule, revised October 28, 2026 in `America/New_York`. The first [vo
 5. **Connect one computer action.** Select one host OS and implement a trusted system-volume bridge. Pair through a functional companion website, expose only granted capabilities, and verify revocation and disconnect. Then let the agent map the knob to this action.
 6. **Refine and recover.** Show a fresh spoken game or binding change, rejected unsupported requests, failed verification, failed activation, and recovery. Add wake detection only after capture/transcription and the main loop are dependable.
 
-The [architecture](architecture.md) defines the proposed contract and failure boundaries. A model's own success message cannot replace independent execution checks.
+The [architecture](architecture.md) records implemented contracts and remaining checks. The build order above is now a repeatable verification sequence; successful live trials do not establish reliability. A model success message cannot replace independent checks.
 
 ## Milestones
 
@@ -30,7 +30,7 @@ These are planning targets, not guarantees. Reassess scope at each unproven depe
 
 ## Scope cuts and disclosed fallbacks
 
-- Use encoder steering until joystick inventory and readings are confirmed. Do not buy hardware to satisfy the sketch without instruction.
+- Use the physically confirmed joystick/buttons for the game and encoder for volume. Do not buy hardware to satisfy the sketch without instruction.
 - Reduce game complexity to a readable small 2D racer before dropping play on the actual device screen. A host preview does not prove the on-device claim.
 - Use push-to-talk before wake detection. A host microphone is acceptable as a visibly identified prototype input; typed text is a debug path and does not fulfill the voice target.
 - Use one provider, one runtime, one game, one host OS, and one computer action. Defer phone-game integration, additional applications, training, generated drivers, and firmware flashing.

@@ -23,6 +23,8 @@ One of each item below, including one cable kit:
 | Bluetooth wireless speaker with microphone, model unspecified | Candidate voice input and audio output; microphone/profile compatibility untested |
 | USB PnP microphone, confirmed attached October28 | Tested capture at16kHz mono through ALSA `plughw:CARD=Device,DEV=0`; successful local transcription in the number prototype |
 
+Subsequent device evidence: joystick `0x20` has center readings (516, 504), user-confirmed steering and captured X endpoints −1 and 1. Both logical buttons appeared in a 240-sample game window. Later native-volume traces captured encoder `0x36` deltas and OS volume effects; the user confirmed direction. Green `0x6E` and red `0x6F` independently reported firmware 259 after power cycling and both large buttons worked. Green OR PiTFT A supplies `button_a`; red OR PiTFT B supplies `button_b`. Pairing/PTT remain physical PiTFT controls. These are subsequent device observations, separate from the original inventory.
+
 ## On hold
 
 The user marked these **on hold**, so they are not available for the initial assembly:
@@ -40,18 +42,18 @@ Do not include those parts in the device's capabilities or make them a prerequis
 
 ## Requested capabilities still to establish
 
-The October 28 product revision adds voice requests, generated games on the device's own screen, and control of a paired computer. It does not establish additional owned or working hardware.
+The October 28 product revision adds voice requests, generated games on the device's own screen, and control of a paired computer. Later USB microphone and joystick observations are recorded separately from the original inventory above.
 
-- **Joystick:** requested as a possible game control, but absent from the confirmed inventory. Begin with encoder steering and buttons for game actions. Add a joystick to the manifest only after the user confirms one is available and its axes/buttons pass a bench test; no purchase is assumed.
+- **Joystick:** detected at `0x20`, with user-confirmed game steering and captured X endpoints. Repeated full-axis/latency measurements remain; no purchase is assumed.
 - **Microphone:** the user subsequently attached a USB PnP microphone. Its capture and local Whisper transcription worked in the October28 number prototype. Bluetooth microphone support remains untested; the working USB path does not depend on it.
-- **Voice activation:** voice is a core demo target. Start with push-to-talk while proving transcription; “Hey Meta” is the proposed wake phrase, with detection and false-trigger testing still to implement. It is not evidence of an official Meta voice-assistant integration. Typed prompts are a disclosed debugging fallback.
-- **Computer connection:** the website is intended to pair the device and show its permitted actions. Actual PC system-volume control requires a tested host bridge for the selected operating system; browser media volume alone does not prove it. Advertise only the connected target and actions the bridge reports.
+- **Voice activation:** direct 16 kHz capture and initial overflows failed. Native 48 kHz capture, resampling, 0.25 s buffering and retry fixes preceded successful PTT/hands-free control refinements and a spoken Self Assembly game. Noise/false-trigger reliability remains unmeasured; this is not an official Meta assistant integration. The first kart used text.
+- **Computer connection:** enrolled TLS and the macOS bridge now carry real encoder-to-system-volume actions, confirmed through native reads and user feedback. Generated control refinements and UI rollback also worked. Revocation/disconnect fault behavior still needs broader live testing.
 
 “Modular” means the design can use supported plug-in peripherals and update its capability manifest. Hot swapping is not established; continue to power down before changing this assembly.
 
 ## Smallest useful assembly
 
-Start with **Pi 5 + Mini PiTFT + encoder + two Qwiic buttons**, plus microphone bring-up using the owned speaker. Add the APDS9960 and IMU only after a reliable physical input changes the on-device game or a paired host action.
+The current product uses **Pi 5 + Mini PiTFT + joystick + encoder + green/red Qwiic buttons + USB microphone**. Distinct button addresses survived a power cycle; game input, encoder volume effects and spoken control refinements are confirmed. Leave APDS9960 and IMU out until they serve a tested interaction.
 
 The [Mini PiTFT documentation](https://www.adafruit.com/product/4393) describes a 1.14-inch, 135×240 SPI display, two onboard buttons, and a bottom STEMMA QT/Qwiic connector. That connector provides the I2C path for the external peripherals, so a separate Qwiic SHIM is unnecessary for this proposed arrangement. Target a simple original 2D kart racer on this screen, with short mode names, labels, values, and connection state when controlling the PC. Test orientation, game legibility, frame delivery, input-to-display latency, and sustained operation on the physical display before promising playability or frame rates. A host preview is useful for development but does not prove on-device play. Put full transcripts, code/check results, and configuration previews on the host UI. Do not assume the PiTFT is a touchscreen.
 
@@ -67,7 +69,7 @@ Pi device service → bounded input API → isolated game runtime
 Isolated game runtime → bounded drawing API → Pi device service → PiTFT
 Pi device service ↔ authenticated local connection ↔ paired PC bridge
 Host website → pairing, transcript, code/check results, and preview
-Owned speaker microphone → Pi voice input, only after capture is verified
+USB microphone → local Pi speech recognition
 ```
 
 This is a proposed daisy-chain topology, not a tested wiring diagram. Switch off power before attaching boards or changing cables. Confirm orientation, board revision, connector access, and that the display clears the Pi's cooling hardware. Leave the Servo pHAT out rather than assuming both header boards can stack with the supplied connectors.
@@ -90,7 +92,7 @@ Both button colors share the factory address. Configure the **green button alone
 4. Shut down and power-cycle with the green button still isolated. Verify it responds at `0x6E` and its press/LED operation works.
 5. Shut down and unplug again, then connect the full encoder → red → green chain. Verify the red button at `0x6F` and green at `0x6E` independently.
 
-The proposed addresses avoid the other listed devices. An address scan alone does not prove identity or correct operation. See the [SparkFun hookup guide](https://learn.sparkfun.com/tutorials/sparkfun-qwiic-button-hookup-guide/all). These steps are documented guidance, not evidence that the user's hardware has been configured.
+The addresses avoid the other listed devices. An address scan alone does not prove identity or correct operation. See the [SparkFun hookup guide](https://learn.sparkfun.com/tutorials/sparkfun-qwiic-button-hookup-guide/all). On October 28 the user's green `0x6E` and red `0x6F` boards were independently identified after power cycling, each returning firmware 259, and both were confirmed working in the game. Do not repeat an address write on the already configured assembly.
 
 ## Bring-up order and evidence
 
@@ -98,12 +100,12 @@ The proposed addresses avoid the other listed devices. An address scan alone doe
 2. **Verify buses and display.** Follow [current Pi 5 Blinka setup](https://learn.adafruit.com/circuitpython-on-raspberrypi-linux/installing-circuitpython-on-raspberry-pi), enable I2C/SPI, and render a test label using the [PiTFT Python/ST7789 approach](https://learn.adafruit.com/adafruit-mini-pitft-135x240-color-tft-add-on-for-raspberry-pi/python-setup). Record OS and library versions. Pi 5 can report a busy chip-enable line; use Adafruit's [current SPI guidance](https://learn.adafruit.com/circuitpython-on-raspberrypi-linux/spi-sensors-devices) for OS configuration if encountered. Do not assume old GPIO libraries or framebuffer instructions work unchanged, or attempt to move the board's fixed chip-select wiring.
 3. **Prove the encoder.** Read clockwise/counterclockwise movement and press. The [encoder guide](https://learn.adafruit.com/adafruit-i2c-qt-rotary-encoder?view=all) notes the preassembled encoder's direction differs from a conventional loose encoder; check the sign rather than guessing.
 4. **Add buttons individually.** Resolve the address collision, verify presses and LEDs, then attach both. Add their stable IDs to the manifest only after successful reads.
-5. **Prove voice capture.** Pair the owned speaker with the Pi and check microphone capture before marking voice input available. Test push-to-talk, transcription, noisy-room behavior, and audio playback separately. Record whether capture is on the Pi or an explicitly disclosed host-microphone fallback; test the proposed wake phrase only after capture works.
+5. **Prove product voice capture.** Use the USB microphone already tested in the number prototype. Test the new worker's push-to-talk, transcription, noisy-room behavior and wake phrase separately. Bluetooth audio remains optional and unverified. Record the actual microphone and invocation method.
 6. **Complete the on-device interaction.** Use encoder and button events to steer and brake in a small test scene on the PiTFT. Record physical input and visible effect together; measure frame delivery and input-to-display latency. A manually written scene proves I/O only. Live generated-game evidence additionally requires the isolated execution and verification path in the [architecture](architecture.md).
-7. **Prove the paired PC action.** Pair one computer through the proposed website/bridge flow, grant the volume action, and show the encoder changing that computer's actual system volume. Verify the displayed target, reported volume, disconnect behavior, and revocation. A browser-only audio demo must be labeled as such.
+7. **Prove the paired PC action.** Pair the Mac through the implemented local companion/bridge flow, grant the volume action, and show the encoder changing actual system volume. Verify the displayed target, reported volume, disconnect behavior and revocation. A browser-only audio demo must be labeled as such.
 8. **Add sensing if useful.** Test repeatable gesture and motion events, thresholds, and false activations before enabling them in generated mappings. APDS9960 readings are not camera images; IMU readings are not proof of position tracking.
 
-Meta inference remains a separate provider integration. Owning an 8 GB Pi does not establish that the intended model runs locally. Keep keys on the trusted service and physical event handling/rendering independent of inference. Generated game code must use the bounded runtime described in the [architecture](architecture.md); direct GPIO access and firmware flashing are not part of the first demo.
+Meta inference is a separate host-side provider integration. The first live `muse-spark-1.3` game now runs on the Pi, with 13.4 fps observed in that run; it does not establish a sustained minimum frame rate. Keep API keys on the trusted host and physical event handling/rendering independent of inference. Generated game code uses the bounded runtime described in the [architecture](architecture.md); direct GPIO access and firmware flashing are not part of this build.
 
 ## Proposed mapping that uses these parts
 
@@ -115,4 +117,4 @@ Meta inference remains a separate provider integration. Owning an 8 GB Pi does n
 | Green button | Start/pause | Push-to-talk trigger, once voice input works |
 | PiTFT | Original 2D game, score/status, short control hints | Paired target, volume, mapping, and connection state |
 
-These are candidate mappings, not implemented controls. A strong follow-up is “make the steering less sensitive,” followed by visible game behavior, or “make each turn change the volume by a smaller amount,” followed by a measured PC-volume change. The agent must use the tested control IDs and current paired-device permissions. Joystick, gesture, and tilt support can follow confirmed availability and repeatable tests.
+The table remains candidate mappings, not every live game action. Joystick/button effects and encoder-to-native-volume are demonstrated; exact bindings come from generated packages. Spoken sensitivity, direction and step-size changes worked. Gesture/tilt and a spoken game refinement remain additional scope, not established features.

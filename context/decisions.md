@@ -6,32 +6,38 @@ Updated October 28, 2026. User-confirmed product direction is distinguished from
 
 The user narrowed the immediate build to speaking a random-number request and generating new code for the PiTFT. Implemented local Whisper tiny.en transcription and local Meta Llama 3.2:1b generation on the Pi 5, with a bounded Python-subset interpreter and checked application activation. PiTFT A starts six-second capture; B rolls back. The successful spoken trial produced 1008 in blue from new source in 12.65 s; one preceding attempt failed and preserved the old program. This is application hot reload, not firmware rewriting. See [setup/evidence](number-prototype.md).
 
-Google was explicitly authorized as a temporary alternative. Authentication/model listing worked, but generation returned high-demand errors, so the tested default uses no external API. Google audio is unverified. The full game/host-pairing architecture below remains a proposal.
+Google was explicitly authorized as a temporary alternative. Authentication/model listing worked, but generation returned high-demand errors, so that prototype's tested default uses no external API. Google audio is unverified. The product implementation below is a subsequent build with separate evidence requirements.
+
+### Product implementation choices — October 28
+
+Implemented a model-directed tool loop with optional coder/artist/reviewer delegation, a persistent isolated QuickJS-NG game worker, generated indexed-palette sprite packages, independent verification, a local companion, fixed macOS volume bridge and local transcription-based wake/PTT worker. The selected application boundary is JavaScript on a stable runtime; no generated firmware is flashed. The new provider adapters cover Meta, Fireworks and Ollama. A live typed `muse-spark-1.3` request has now generated and activated Pixel Kart Sprint, with physical steering and large-button use confirmed. See [setup and current evidence](product-runtime.md).
+
+The orchestrator and specialists share bounded turns, eighteen calls per request and a persisted ledger. The first game used 11 calls and model-chosen coder recovery after a malformed write. Native Mac volume then worked from the encoder; PTT reduced +2 to +1, hands-free speech reversed to −1 and increased reversed steps to −10. Two UI rollbacks returned −10 → −1 → −10 with no model calls. See [live evidence](product-runtime.md); repeatability, noise, revocation and broader fault trials remain.
 
 | Topic | Current position | Why / next step |
 | --- | --- | --- |
 | Product name | User-confirmed: **Modulate**, Oct 28 | Replaces Cruise; existing repository URL and workspace folder remain `cruise` |
 | Core idea | User-confirmed, Oct 28 | Speak a request; a Meta-powered agent uses connected components/devices as context to generate and check software for the same physical hardware |
 | Primary game experience | User-confirmed direction: generated game on the device screen | Supersedes phone-game control and the earlier music/video workflow as the main demo |
-| Game scope | Proposed: original small 2D kart racer | Refines “make Mario Kart” to a finishable original game; actual rendering and gameplay untested |
-| Second experience | User-confirmed direction: knob controls linked computer's volume | Website pairing plus a trusted host bridge proposed; OS, transport, and actual system-volume capability unverified |
-| Voice | User-confirmed target: microphone with “Hey Meta” activation | Capture, speech recognition, and wake detection are separate unverified components; push-to-talk first, host mic/typed debug fallback explicitly labeled |
-| Agent behavior | User-requested generation and verification; bounded tool loop proposed | Inspect capabilities, generate, run independent checks, repair within a limit, stage, activate; no successful execution yet |
-| Generated code boundary | Engineering proposal: sandboxed game/application code on a fixed runtime | Preserves the code-generation goal; actual firmware rewriting remains a later ambition with no flashing/recovery design yet |
-| Control actions | Proposed: versioned declarative bindings and allowlisted host bridge | Generated code gets no direct privileged host, driver, filesystem, or network access; exact isolation implementation still to select and test |
+| Game scope | Pixel Kart Sprint from text; MODULATE: Self Assembly from speech | First-game controls confirmed; observed device rates about 13 fps. Further gameplay/performance testing remains |
+| Second experience | Paired knob-to-Mac-volume demonstrated | User confirmed direction; live deltas and independent native reads confirmed OS values. Revocation/fault trials remain |
+| Voice | Native 48 kHz capture → PyAV resampling → local Whisper | Initial rate/overflow failures repaired with resampling, 0.25 s latency and retry fixes; PTT and hands-free refinements succeeded; 34 Pi voice tests passed without skips |
+| Agent behavior | Live tools, bounded delegation and recovery demonstrated once | First game used 11 calls and coder delegation chosen after a malformed write; repeatability remains to measure |
+| Generated code boundary | JavaScript application packages on a fixed QuickJS-NG runtime | OS-restricted subprocess, fixed drawing/input API and independently maintained verifier; no generated firmware |
+| Control actions | Declarative encoder-to-volume binding plus allowlisted bridge | Generated code has no privileged host/driver access; fixed macOS actions validate values and sequence numbers |
 | Modular hardware | User-confirmed product direction; initial assembly proposed | Adapt to confirmed attached peripherals; no hot-swap or arbitrary-board support established |
-| Joystick | Desired interaction, not confirmed inventory | Start with encoder steering; confirm any joystick before planning drivers or claiming support |
+| Joystick | Physical steering confirmed at `0x20` | Live sample reached X −1 and 1; full input-to-display latency and repeated play remain to measure |
 | First audience | Proposed: people making small games, gadgets, and personal controls without device programming | Validate the problem and compare to manual setup; no measured benefit yet |
 | Demo scope | Proposed: on-device game, fresh spoken refinement, paired PC volume, recovery | Keep one complete physical loop; exact actions depend on tested hardware and host capabilities |
 | Theme | Recommended: Push the Frontier | Connects runtime Meta reasoning and code generation to physical behavior |
 | Track | User-confirmed: Indie Developer, Oct 28 | Reflect in organizer submission; enrollment/eligibility remains a separate check |
-| Hardware | User-confirmed, Oct 28 | Pi 5 (8 GB), PiTFT, encoder, two buttons, sensors, speaker/mic, supporting parts; see [inventory](hardware.md). None bench-tested here |
-| First assembly | Proposed: Pi + PiTFT + encoder + two Qwiic buttons | Resolve duplicate button addresses; defer gesture/IMU until basic input/display work |
-| Budget | Unspecified; use owned parts first | No purchases or new spending authorized |
-| Model / provider | Unconfirmed; Fireworks and Baseten discussed as candidates | Earlier application wording did not select or integrate either; verify one real call and exact model/API capabilities before choosing |
-| Speech model / runtime / host OS | Unconfirmed | Verify capture, transcription, code isolation, display performance, and one real OS volume action before freezing the stack |
+| Hardware | Original inventory plus connected USB mic/joystick evidence | PiTFT game, joystick, large buttons and native-volume encoder motion confirmed; see [hardware](hardware.md) |
+| First assembly | Pi + PiTFT + encoder/joystick + green/red Qwiic buttons | Green `0x6E` and red `0x6F` independently identified after power cycle, firmware 259; gesture/IMU deferred |
+| Budget | Current product development ceiling: $5 for the local model-call ledger | Default zero; preserve reservations and require explicit authorization before raising the ceiling. No hardware purchase implied |
+| Model / provider | Meta muse-spark-1.3 powered typed/spoken games and control refinements | Latest snapshot after typed Dodge Fall: 60 calls / $0.497411; later activity may change it. Cursor control was declined as outside host capabilities |
+| Speech / runtime / host OS | Local faster-whisper tiny.en; QuickJS-NG; macOS volume bridge | Live game, OS action, PTT/wake refinements and UI rollback confirmed; sustained performance/noise robustness unmeasured |
 | Team / representative | Unconfirmed | User requested GitHub collaboration with LaboriouslyExquisite; repository access does not establish event enrollment |
 | Repository | Public | Supplied participant guide requires public access; no remote rename performed |
 | License | Unselected | Agree deliberately; public visibility alone does not grant reuse rights |
 
-The October 28 revision changes product scope, not implementation status. No generated game, voice assistant, firmware, host bridge, provider integration, or measured performance has been demonstrated. Future decisions should record date, rationale, and evidence here; keep secrets, billing details, raw audio, and private conversations outside Git.
+The core prototype loop has typed/spoken game, native-volume, spoken-refinement and rollback evidence. Preserve each run’s input mode and distinguish unit tests from physical/reliability trials. Record exact revisions, acknowledgements and failures; keep secrets, raw audio and private conversations outside Git.

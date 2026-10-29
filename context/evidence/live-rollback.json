@@ -1,0 +1,8 @@
+{
+  "kind": "physical_device_software_acknowledgements",
+  "from_revision": "13ba32a3ec02a4774408aeb32389f3221344ddd67af3b4cda4b0daf1a6f32a7d",
+  "previous_revision": "c923bb254f824d9a189263ca1b6d7f0965b250118d00b06368fd3f807aacac1c",
+  "restored_original_revision": true,
+  "model_calls_during_rollback": 0,
+  "note": "Two UI rollback actions acknowledged by Pi; no optical readback claimed."
+}

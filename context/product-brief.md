@@ -1,6 +1,6 @@
 # Modulate: speak an idea into a physical experience
 
-Status: user-directed concept revision, October 28, 2026. Modulate replaces the working name Cruise. The broader scope is spoken creation of games on the device and control of paired computers. The first [voice-to-number prototype](number-prototype.md) is working with local Meta generation; the broader game/paired-computer experiences below remain targets.
+Status: October 28, 2026. Modulate replaces Cruise. The live prototype has typed and spoken generated Pi games, physical controls, paired native Mac volume, PTT/wake refinements and UI rollback. The first kart used text; Self Assembly came through voice. Wake reliability and broader fault/performance trials remain unmeasured. See [current evidence](product-runtime.md) and the separate [number prototype](number-prototype.md).
 
 ## Project one-liner
 
@@ -27,20 +27,20 @@ The earlier music/video creator workflow and phone-game controller examples are 
 | Request | Intended behavior | Evidence required |
 | --- | --- | --- |
 | “Hey Meta, make a kart-racing game.” | Generate a small game for the connected display and controls; test it and activate it on the device | Actual Meta response, generated source/package, independent check results, physical input moving the kart on the PiTFT |
-| “Make steering less sensitive and make the green button boost.” | Revise the existing code or bindings using the current program and hardware context | A new revision, fresh checks, and a visible effect beyond switching a stored preset |
+| “Make steering less sensitive and make button B boost.” | Revise the existing code or bindings using the current program and hardware context | A new revision, fresh checks, and a visible effect beyond switching a stored preset |
 | “Make this knob control my computer's volume.” | Select the paired computer's supported volume action and bind encoder movement with bounded steps | Explicit pairing, a working host bridge, observed OS volume change, and correct behavior after disconnect |
 
-With the confirmed inventory, use the encoder to steer and buttons for game actions. A joystick is part of the desired interaction but is not in the confirmed inventory; do not silently assume it exists. The tiny 135×240 screen makes a simple readable game the first target. Display refresh and input timing must be measured on the actual Pi.
+The first game uses the joystick and large green/red buttons, physically confirmed by the user. Distinct button addresses were verified after a power cycle. A 240-sample game window reached joystick X −1 and 1 and included both buttons; later volume traces captured encoder motion. The 240×135 display showed 13.4 fps in the first run; sustained performance and input-to-display timing remain to measure.
 
 ## Voice is part of the product
 
-The intended entry point is a microphone. Test capture from the owned Bluetooth speaker/microphone before treating it as supported. A permissioned host microphone and push-to-talk are disclosed development steps; typed text is a debug fallback. A successful typed demo alone does not prove the voice experience.
+The intended entry point is a microphone. The attached USB microphone and local Whisper transcription worked in the number prototype; the owned Bluetooth speaker/microphone remains untested. The new product voice worker uses the Pi microphone and local recognition, with push-to-talk and optional transcript-based wake matching. Typed text is a debug fallback; the companion does not capture browser microphone audio. A successful typed demo alone does not prove the voice experience.
 
-“Hey Meta” is the user's proposed wake phrase. Wake detection, speech recognition, and Meta reasoning are separate pieces to select and test; the phrase does not establish access to an official Meta assistant or speech SDK. Show listening, transcription, generation, and ready/error states, provide mute/cancel, and make a misheard request correctable before it changes behavior. Do not keep raw recordings by default.
+“Hey Meta” is the chosen wake phrase, matched in local transcripts with a listening gap during inference. Native 16 kHz capture and early stream-overflow attempts failed; 48 kHz resampling plus buffering/retry fixes preceded successful PTT and hands-free refinements. The user explicitly confirmed no buttons for the wake reversal. These successes are not a reliability benchmark or official Meta assistant integration. Show actual voice/error states, provide mute/cancel and keep recordings out of saved artifacts.
 
 ## What the agent actually builds
 
-The first engineering proposal is to generate bounded game/application code and a versioned binding configuration for a fixed runtime. This preserves the user's code-generation ambition while keeping the physical drivers and recovery mechanism stable. The user's broader firmware-generation ambition remains recorded, but actual firmware rewriting is outside the first prototype and requires its own isolation, flashing, and recovery design.
+The implementation generates bounded JavaScript game/application packages with sprite data and separate declarative control bindings for a fixed runtime. This preserves the user's code-generation ambition while keeping physical drivers and recovery stable. The user's broader firmware-generation ambition remains recorded, but actual firmware rewriting is outside this build and requires its own isolation, flashing, and recovery design.
 
 The agent's meaningful loop is **inspect capabilities → generate → run checks → inspect failures → repair within a limit → stage activation**. The verification harness and permission boundary belong to the runtime, not to generated code. Model-generated tests can supplement those checks but cannot be the only proof. Passing a smoke test is evidence of the behaviors tested, not proof of arbitrary code correctness.
 
@@ -48,15 +48,15 @@ Once a revision is active, the game loop and controls execute locally. “Genera
 
 ## Linking a computer
 
-The companion website is a functional pairing and preview surface. The user links a specific device to a specific computer and grants a small action set. The proposed host bridge exposes system-volume control and state through a revocable session. The agent receives those granted actions as context and generates bindings to them; it does not install arbitrary generated host programs.
+The local companion website is a pairing and preview surface. The user links the enrolled Pi to the Mac and grants a small action set. The implemented native host bridge exposes system-volume control and state through a revocable session. The agent receives those granted actions as context and generates bindings to them; it does not install arbitrary generated host programs.
 
-A webpage's media-volume control affects its media element; it does not prove OS system-volume control. The first computer OS and bridge implementation remain open. See the [architecture](architecture.md) for this distinction and the activation contract.
+A webpage's media-volume control does not prove OS volume control. The selected macOS bridge uses fixed trusted OS calls; knob motion now changes native volume, corroborated by independent OS reads. Revocation and broader fault tests remain. See the [architecture](architecture.md).
 
 ## Why Meta and an inference provider matter
 
 A Meta model must contribute at runtime to interpreting intent, selecting feasible controls, writing a fresh program, and using verification feedback. The host/server calls the model with the request, actual capabilities, current revision, and bounded check results. This is the substantive integration to demonstrate.
 
-Fireworks and Baseten have been discussed as candidate providers for serving Meta models. The initial build needs one verified provider adapter, not both. Exact model identifiers, account access, tool-call behavior, structured responses, latency, and spending controls must be checked before selection. Speech-model access is a separate question. No provider integration or credits have been established.
+The current product uses `muse-spark-1.3`. The first live game used 11 model calls, including coder delegation chosen after a malformed tool call, then checked activation in about 49 seconds. It generated source and three original sprites for the actual Pi controls. Fireworks and local Ollama adapters are also implemented; Baseten remains a candidate. Provider credits are not assumed. Speech recognition is local and separate from the generation model.
 
 ## Three-minute demo spine
 

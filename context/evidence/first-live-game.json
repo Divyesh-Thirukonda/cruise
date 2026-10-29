@@ -1,0 +1,104 @@
+{
+  "kind": "live_typed_request_with_physical_user_confirmation",
+  "provider": "meta",
+  "model": "muse-spark-1.3",
+  "revision": "3d32f71658c380b6be6d88cf84ea90cf72b3dffbc4d3adc5da1f60cb98466a4c",
+  "started_at": "2026-10-28T23:13:00.161359+00:00",
+  "finished_at": "2026-10-28T23:13:49.932031+00:00",
+  "model_calls": 11,
+  "cost_dollars": 0.118436,
+  "code_bytes": 4588,
+  "sprites": {
+    "coin": [
+      8,
+      8
+    ],
+    "cone": [
+      10,
+      10
+    ],
+    "kart": [
+      14,
+      10
+    ]
+  },
+  "observed_fps": 13.4,
+  "user_confirmed": [
+    "game visible on Pi",
+    "joystick steering correct",
+    "green boost and red restart work"
+  ],
+  "tools": [
+    {
+      "role": "orchestrator",
+      "tool": "inspect_capabilities",
+      "status": "passed",
+      "seconds": 0.0
+    },
+    {
+      "role": "orchestrator",
+      "tool": "read_runtime_api",
+      "status": "passed",
+      "seconds": 0.0
+    },
+    {
+      "role": "orchestrator",
+      "tool": "write_package",
+      "status": "failed",
+      "seconds": 0.001
+    },
+    {
+      "role": "coder",
+      "tool": "inspect_capabilities",
+      "status": "passed",
+      "seconds": 0.0
+    },
+    {
+      "role": "coder",
+      "tool": "read_runtime_api",
+      "status": "passed",
+      "seconds": 0.0
+    },
+    {
+      "role": "coder",
+      "tool": "write_package",
+      "status": "passed",
+      "seconds": 0.002
+    },
+    {
+      "role": "coder",
+      "tool": "test_package",
+      "status": "passed",
+      "seconds": 0.47
+    },
+    {
+      "role": "orchestrator",
+      "tool": "delegate_task",
+      "status": "passed",
+      "seconds": 18.904
+    },
+    {
+      "role": "orchestrator",
+      "tool": "test_package",
+      "status": "passed",
+      "seconds": 0.485
+    },
+    {
+      "role": "orchestrator",
+      "tool": "preview_package",
+      "status": "passed",
+      "seconds": 0.115
+    },
+    {
+      "role": "orchestrator",
+      "tool": "activate_package",
+      "status": "passed",
+      "seconds": 1.417
+    }
+  ],
+  "limitations": [
+    "First request was typed, not voice",
+    "One malformed write_package call was rejected before model recovery",
+    "Preview is re-rendered device commands, not optical readback"
+  ]
+}

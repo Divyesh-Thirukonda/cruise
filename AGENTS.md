@@ -2,7 +2,7 @@
 
 ## Scope and intent
 
-Build Modulate, a modular physical device programmed through spoken requests to a Meta-powered agent, for the Meta Global AI Developer Hackathon. Preserve the judging context and improve the idea through working demonstrations and evidence.
+Build Modulate, a modular physical device programmed through spoken requests to a Meta-powered agent, for the Meta Global AI Developer Hackathon. Preserve the judging context and improve the idea through working demonstrations and evidence. Maximize "wow factor" for not only the average human, but also an AI / Robotics engineer.
 
 Read `README.md`, `context/product-brief.md`, `context/hackathon.md`, and `context/plan.md` before substantial changes. Consult `context/hardware.md` for the user-confirmed inventory and `context/architecture.md` before changing the model/device contract. Keep this file short; detailed context belongs in `context/`.
 
@@ -15,9 +15,9 @@ Read `README.md`, `context/product-brief.md`, `context/hackathon.md`, and `conte
 
 ## Engineering boundaries
 
-- The bounded voice-to-number prototype is implemented; see `context/number-prototype.md` for setup and measured evidence. Games, pairing and wake detection remain planned. Do not describe planned functionality as implemented.
-- The user confirmed the Indie Developer track and hardware inventory on October 28, 2026. Target the owned Pi 5 and peripherals; distinguish owned parts from tested capabilities. Resolve the two Qwiic buttons' default address collision before sharing the bus.
-- USB microphone capture and PiTFT-button push-to-talk are verified in the number prototype; the proposed “Hey Meta” wake phrase remains unimplemented. Joystick operation is unverified. Label voice fallbacks and test controls before advertising them.
+- The live prototype demonstrates typed and spoken generation of Pi games, paired Mac system-volume control, PTT/hands-free refinements, and two UI rollbacks with zero model calls. See `context/product-runtime.md` for exact revisions, timings and failures. Label each run's input mode; successful wake trials are not a reliability benchmark. Keep mocked tests separate from physical evidence.
+- The user confirmed the Indie Developer track and hardware inventory on October 28, 2026. Target the owned Pi 5 and peripherals; distinguish owned parts from tested capabilities. Green `0x6E` and red `0x6F` Qwiic buttons were independently identified after power cycling; preserve the distinct addresses.
+- The product captures native 48 kHz and resamples locally after direct 16 kHz capture and initial stream-overflow failures. Buffered capture now supports demonstrated PTT and hands-free requests. Joystick, large-button and encoder effects are physically confirmed. Preserve failure evidence and distinguish measured agent time from capture/transcription time; label typed fallbacks honestly.
 - Verify current provider documentation and actual account access before selecting model IDs, endpoints, SDK calls, or structured-output features. Names in the supplied guide are not validated API identifiers.
 - Generate bounded game/application packages for an isolated runtime with fixed, independently maintained checks. Keep control bindings declarative and host actions allowlisted. Treat output as untrusted; do not execute generated shell commands, flash generated firmware, or give generated code privileged host/device access. Actual firmware generation remains a later research path.
 - Pair computers through an authenticated, revocable session and a trusted host bridge for system volume. Website media volume alone does not establish OS volume control. Keep generated code outside the privileged bridge.

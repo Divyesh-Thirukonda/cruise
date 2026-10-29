@@ -559,3 +559,24 @@ installer, platform behavior or access grant was added. Bumped the package to
 passed: **five package tests**, **24 client tests**, the Next.js production build
 and source-provenance verification. Browser verification and deployment of this
 copy update will be recorded separately; no runtime or pairing state changed.
+
+### Setup before entering a code — October 29
+
+Clarified the first-time setup prompt: the coding agent should install missing
+software and start Studio, the Mac companion, alongside the Pi runtime and
+browser connection before asking the user to enter a code. It must finish with
+the verified connection URL for that installation and show a fresh browser code
+in local Studio or on the Pi. An independent installation must not be sent back
+to the shared demo unless that URL actually reaches its companion.
+
+Bumped the setup package to **0.1.2** and regenerated the download, checksum and
+web prompt. All **five package tests** and whitespace checks pass. Installer
+behavior and architecture are unchanged; no browser, runtime or pairing state
+was changed for these checks. Website deployment verification follows separately.
+
+The connection page now puts first-time Mac setup before the code form and
+defines Studio as the companion software. The setup page explains the required
+copy/paste → install/start → verified link/code sequence and labels the plugin
+optional. Unreachable-companion messages provide setup/restart actions while
+preserving specific code errors. Local verification: 24 client tests, 39 API
+tests, source provenance and the Next.js production build passed.

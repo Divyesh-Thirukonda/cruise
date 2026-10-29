@@ -15,23 +15,23 @@ function EntryFrame({ children, navigate, back, step, urgentControls, className 
   </div>;
 }
 
-function Notice({ notice, onDismissNotice }) {
-  return notice && <div className={`mc-notice mc-notice-${notice.type}`} role={notice.type === 'error' ? 'alert' : 'status'}><span>{notice.text}</span><button type="button" aria-label="Dismiss notification" onClick={onDismissNotice}><X size={16} /></button></div>;
+function Notice({ notice, onDismissNotice, onSetup }) {
+  return notice && <div className={`mc-notice mc-notice-${notice.type}`} role={notice.type === 'error' ? 'alert' : 'status'}><span>{notice.text}{notice.setupHelp && onSetup && <button className="mf-notice-action" type="button" onClick={onSetup}>Set up your Mac<ArrowRight size={14} /></button>}</span><button type="button" aria-label="Dismiss notification" onClick={onDismissNotice}><X size={16} /></button></div>;
 }
 
 export function ConnectionLanding({ loading, busy, notice, onDismissNotice, navigate, code, setCode, onConnect }) {
   return <EntryFrame navigate={navigate} className="mf-landing">
     <div className="mf-intro"><span className="mf-kicker">A NEW IDEA. THE SAME DEVICE.</span><h1>What will yours<br />become?</h1><p>A game. A music controller. Something only you imagined.<br className="mf-desktop-break" /> Connect Modulate, then say what you want to make.</p><GadgetIllustration /></div>
     <section className="mf-connect-panel" aria-labelledby="mf-connect-title">
-      <div className="mf-step-label">LET’S GET CONNECTED</div><h2 id="mf-connect-title">Your Modulate, right here.</h2><p>Enter the 8-digit connection code shown on your device or in local Studio.</p>
+      <div className="mf-step-label">LET’S GET CONNECTED</div><h2 id="mf-connect-title">Your Modulate, right here.</h2>
+      <div className="mf-setup-link"><strong>First time? Set up your Mac first.</strong><span>The setup prompt installs and starts Modulate Studio — the companion software that connects your Mac and device.</span><Link href="/connect/setup" onClick={event => { event.preventDefault(); navigate('setup'); }}>Set up your Mac<ArrowRight size={15} /></Link></div>
       <form onSubmit={onConnect}>
-        <label htmlFor="mc-connect-code">Connection code</label>
+        <label htmlFor="mc-connect-code">Already set up? Enter your connection code</label>
         <div className="mf-code-field"><KeyRound size={20} /><input id="mc-connect-code" autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{8}" placeholder="00000000" value={code} maxLength={8} onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 8))} aria-describedby="mf-code-hint" disabled={loading || Boolean(busy)} required /></div>
-        <span id="mf-code-hint" className="mf-field-hint">Keep your Mac companion running while you connect.</span>
-        <Notice notice={notice} onDismissNotice={onDismissNotice} />
+        <span id="mf-code-hint" className="mf-field-hint">Use the 8-digit code from your device or Modulate Studio. Leave Studio running on your Mac.</span>
+        <Notice notice={notice} onDismissNotice={onDismissNotice} onSetup={() => navigate('setup')} />
         <Button primary type="submit" disabled={loading || code.length !== 8 || Boolean(busy)} icon={loading || busy === 'connect' ? Loader2 : undefined}>{loading ? 'Connecting' : busy === 'connect' ? 'Connecting…' : 'Connect to Modulate'}{!loading && busy !== 'connect' && <ArrowRight size={17} />}</Button>
       </form>
-      <div className="mf-setup-link"><span>Don’t have a code yet?</span><Link href="/connect/setup" onClick={event => { event.preventDefault(); navigate('setup'); }}>Set up with your agent<ArrowRight size={15} /></Link></div>
     </section>
   </EntryFrame>;
 }
@@ -45,10 +45,11 @@ export function SetupScreen({ navigate, connected, urgentControls, notice, onDis
   };
   return <EntryFrame navigate={navigate} back={connected ? 'studio' : 'connect'} urgentControls={urgentControls} className="mf-setup">
     <Notice notice={notice} onDismissNotice={onDismissNotice} />
-    <div className="mf-heading"><span className="mf-kicker">SET UP ON YOUR MAC</span><h1>A little help<br />getting started.</h1><p>Copy this prompt into your coding agent on your Mac.<br />It handles the software and guides you through the hands-on steps.</p></div>
-    <section className="mf-prompt-card" aria-labelledby="mf-prompt-title"><div className="mf-card-label"><span className="mf-mini-mark">⌘</span><h2 id="mf-prompt-title">Let your agent take it from here.</h2></div><p>“Help me set up Modulate on this Mac and my Raspberry Pi. Reuse what’s already installed and guide me through anything that needs me.”</p><Button primary icon={copied ? Check : Copy} onClick={copyPrompt}>{copied ? 'Prompt copied' : 'Copy setup prompt'}</Button><span className="mf-copy-hint" role="status">{copied ? 'Paste it into a new chat with your coding agent.' : 'Includes the setup guide and checks for your existing installation.'}</span><details open={copyError || undefined}><summary>{copyError ? 'Select and copy the full prompt below' : 'See the full prompt'}</summary><textarea aria-label="Agent setup prompt" readOnly value={SETUP_PROMPT} rows={9} onFocus={event => event.target.select()} /></details></section>
+    <div className="mf-heading"><span className="mf-kicker">SET UP ON YOUR MAC</span><h1>First, set up<br />your Mac.</h1><p>Modulate Studio is the companion software that runs on your Mac.<br />It must be running before this website can connect to your device.</p></div>
+    <section className="mf-prompt-card" aria-labelledby="mf-prompt-title"><div className="mf-card-label"><span className="mf-mini-mark">⌘</span><h2 id="mf-prompt-title">Let your agent install and start it.</h2></div><p>Copy the prompt below and paste it into your coding agent on the Mac you want to connect. Your agent installs or repairs Studio, starts its connection, and guides you through linking your Pi.</p><Button primary icon={copied ? Check : Copy} onClick={copyPrompt}>{copied ? 'Prompt copied' : 'Copy setup prompt'}</Button><span className="mf-copy-hint" role="status">{copied ? 'Next: paste it into your coding agent on the Mac you want to connect.' : 'The prompt is all you need to begin. The plugin below is optional.'}</span><details open={copyError || undefined}><summary>{copyError ? 'Select and copy the full prompt below' : 'See the full prompt'}</summary><textarea aria-label="Agent setup prompt" readOnly value={SETUP_PROMPT} rows={9} onFocus={event => event.target.select()} /></details></section>
+    <p className="mf-setup-next"><CheckCircle2 size={18} /><span><strong>When your agent says it’s ready</strong>Leave Studio running. Open the connection link your agent provides and enter its 8-digit code.</span></p>
     <section className="mf-plugin-card"><div className="mf-plugin-icon"><Download size={22} /></div><div><h2>Give your agent the setup skill.</h2><p>Optional plugin for setup and connection troubleshooting.</p><details><summary>How to install</summary><p>Download and unzip it. Open the folder in your coding agent and ask it to follow the Modulate Setup skill. You can also add it through your agent’s skill installation flow. It doesn’t grant device access automatically.</p></details></div><a className="mc-button" href={SETUP_PLUGIN_URL} download>Download plugin<Download size={15} /></a></section>
-    <p className="mf-setup-scope">This demo connects to one configured Modulate hub. Your agent can help prepare a separate deployment for your own device.</p>
+    <p className="mf-setup-scope">This demo connects to one configured Modulate hub. A new device may need its own connection link; your agent will help set that up.</p>
     <Button quiet icon={KeyRound} onClick={() => navigate(connected ? 'studio' : 'connect')}>{connected ? 'Back to Studio' : 'I have a connection code'}</Button>
   </EntryFrame>;
 }
@@ -60,7 +61,7 @@ export function AccessStep({ navigate, permissions, choices, busy, online, notic
   return <EntryFrame navigate={navigate} step={2} urgentControls={urgentControls} className="mf-access">
     <div className="mf-heading"><span className="mf-success"><CheckCircle2 size={18} />Browser connected</span><h1>Make it yours.</h1><p>Review what Modulate can use. These are your device’s current settings.<br />You can change them later in Access.</p></div>
     <Notice notice={notice} onDismissNotice={onDismissNotice} />
-    {!online && <div className="mc-notice mc-notice-warning" role="status">The companion is offline. Keep Studio running on your Mac to save access changes.</div>}
+    {!online && <div className="mc-notice mc-notice-warning" role="status"><span>Modulate Studio isn’t reachable on your Mac. Set it up first, or ask your agent to restart the existing companion.<button className="mf-notice-action" type="button" onClick={() => navigate('setup')}>Set up or restart Studio<ArrowRight size={14} /></button></span></div>}
     <section className="mf-access-card"><h2>On your Modulate</h2>{choices.filter(({ key }) => ['voice', 'speaker', 'hardware'].includes(key)).map(renderChoice)}</section>
     <section className="mf-access-card"><h2>With your Mac</h2>{choices.filter(({ key }) => ['system', 'computer', 'camera', 'audio'].includes(key)).map(renderChoice)}</section>
     <details className="mf-access-extra"><summary>Share camera previews with this browser</summary>{choices.filter(({ key }) => key === 'remote_preview').map(renderChoice)}</details>

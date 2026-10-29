@@ -34,10 +34,10 @@ test('first visit only asks for a code and linking preserves access until the ne
     return action === 'session' ? linked ? connectedSession : { connected: false } : initialState;
   });
   render(<Connect />);
-  await waitFor(() => expect(screen.getByLabelText('Connection code')).toBeEnabled());
+  await waitFor(() => expect(screen.getByLabelText(/connection code/i)).toBeEnabled());
   expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
   expect(screen.queryByRole('switch')).not.toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText('Connection code'), { target: { value: '01234567' } });
+  fireEvent.change(screen.getByLabelText(/connection code/i), { target: { value: '01234567' } });
   fireEvent.click(screen.getByRole('button', { name: 'Connect to Modulate' }));
   await screen.findByRole('heading', { name: 'Make it yours.' });
   expect(connectApi).toHaveBeenCalledWith('session', { code: '01234567', name: 'Modulate web browser' });
@@ -226,12 +226,12 @@ test('a temporary outage keeps the connection and recovers automatically', async
     await screen.findByText('Hey Meta is on');
     offline = true;
     await act(async () => { jest.advanceTimersByTime(document.hidden ? 8000 : 1500); });
-    expect(screen.getByText('Your companion is offline. Keep Modulate Studio running on the paired Mac. Retrying automatically.')).toBeInTheDocument();
+    expect(screen.getByText('Modulate Studio isn’t reachable on your Mac. Retrying automatically.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Disconnect browser' })).toBeInTheDocument();
     offline = false;
     await act(async () => { jest.advanceTimersByTime(document.hidden ? 8000 : 1500); });
     expect(within(screen.getByRole('region', { name: 'Device connection' })).getByText('Connected')).toBeInTheDocument();
-    expect(screen.queryByText('Your companion is offline. Keep Modulate Studio running on the paired Mac. Retrying automatically.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Modulate Studio isn’t reachable on your Mac. Retrying automatically.')).not.toBeInTheDocument();
   } finally { jest.useRealTimers(); }
 });
 
@@ -243,7 +243,7 @@ test('an initial state failure retains the authenticated session as offline and 
     return initialState;
   });
   render(<Connect />);
-  await screen.findByText('Your companion is offline. Keep Modulate Studio running on the paired Mac. Retrying automatically.');
+  await screen.findByText('Modulate Studio isn’t reachable on your Mac. Retrying automatically.');
   expect(screen.getByRole('button', { name: 'Disconnect browser' })).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Connect to Modulate' })).not.toBeInTheDocument();
   expect(within(screen.getByRole('region', { name: 'Device connection' })).queryByText('Connected')).not.toBeInTheDocument();

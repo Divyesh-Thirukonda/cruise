@@ -11,6 +11,14 @@ divy.live trials in the evidence remain labeled with their original destination.
 
 ## Connect a browser
 
+First time here? **Set up your Mac** before entering a code. Modulate Studio is
+the companion software that must be installed and running on the Mac; opening
+this website alone does not start it. Copy the setup prompt into your coding
+agent so it can prepare and start Studio, the Pi runtime and their connection.
+It should finish with the verified connection-page URL for your installation
+and a fresh browser code displayed in local Studio or on the Pi. A separate
+installation needs its own configured URL, not the shared demo's unrelated hub.
+
 1. Keep the Mac companion and its outbound connection running.
 2. On that Mac, open `http://127.0.0.1:8787` and create a browser connection code.
 3. On a phone or computer, visit `https://modulate-connect.vercel.app/connect` and enter the single-use eight-digit code. Preserve leading zeroes. The first screen shows only a brief introduction, connection and setup help.

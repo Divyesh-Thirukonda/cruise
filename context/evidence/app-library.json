@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-29",
+  "feature": "Persistent app library",
+  "runtime_commit": "bce32f0",
+  "portfolio_commit": "1c190a4",
+  "deployment": {
+    "id": "dpl_AwKRbNQx8uHuSmui66qVGcWHnB5g",
+    "target": "production",
+    "state": "READY",
+    "url": "https://divy.live/connect"
+  },
+  "tests": {
+    "host_run": 902,
+    "host_skipped": 11,
+    "pi_focused_passed": 241,
+    "public_api_passed": 30,
+    "react_passed": 20
+  },
+  "migration": {
+    "confirmed_versions_imported": 27,
+    "failed_candidates_imported": false
+  },
+  "live": {
+    "typed_meta_request": "Open my app library.",
+    "selected_skill": "app-library",
+    "model_calls": 3,
+    "model_charged_or_reserved_delta_dollars": 0.035459,
+    "pi_display_kind": "library",
+    "user_confirmed_knob_a_b_navigation": true,
+    "saved_controller_reopened": "Knob controls Mac brightness",
+    "saved_controller_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462",
+    "saved_controller_fresh_checks_passed": true,
+    "device_acknowledged": true,
+    "new_user_refinement_automatically_saved": true,
+    "library_count_after_user_refinement": 28,
+    "production_favorite_round_trip": true,
+    "production_trash_restore_round_trip": true,
+    "favorite_survives_restore": true,
+    "protected_rollback_purge_disabled_in_ui": true,
+    "temporary_test_favorite_removed": true,
+    "trash_empty_after_test": true,
+    "permanent_delete_test": "synthetic fixtures only; no live user app permanently deleted",
+    "existing_linking_preserved": true,
+    "linking_retested": false
+  },
+  "limits": [
+    "Stored on this Mac companion; no account cloud synchronization.",
+    "A saved camera/controller package needs its live paired target and controls.",
+    "Diagnostic metadata and normal backups are not erased by library purge."
+  ]
+}

@@ -23,6 +23,7 @@ from .speaker_volume import SpeakerVolume, SpeakerVolumeError
 from .hardware_debug import HardwareDebug
 from .connection_setup import ConnectionSetup
 from .library import LibraryManager
+from .deployment import CONNECT_URL
 
 
 _SESSION = re.compile(r"[0-9a-f]{32}\Z")
@@ -378,7 +379,7 @@ class Product(AssistantIO):
                                     "menu_preferences": {"encoder_direction": ["forward", "reversed"]}},
                     "connection_setup": {"supported": True, "needs_pairing": paired is None,
                                          "actions": ["status", "show", "start_pairing", "create_browser_code"],
-                                         "connect_url": "https://divy.live/connect"},
+                                         "connect_url": CONNECT_URL},
                     "computer": {key: value for key, value in self.computer_status().items()
                                  if key in {"supported", "enabled", "scope"}},
                     "computer_audio": {"supported": self.permission_allowed("audio") and self.permission_allowed("speaker") and self.audio_status()["supported"],

@@ -2,7 +2,7 @@
   "name": "modulate-connect",
   "version": "0.1.0",
   "private": true,
-  "description": "Standalone source of the Modulate connection dashboard at divy.live/connect",
+  "description": "Modulate Connect: the standalone connection dashboard and server gateway",
   "engines": {
     "node": ">=22"
   },

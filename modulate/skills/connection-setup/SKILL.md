@@ -11,14 +11,14 @@ Distinguish these connections before deciding what to do:
 
 - **Enrolled Pi ↔ running companion:** carries requests and the device runtime's authenticated connection. Missing enrollment, unavailable network and a stopped companion need the displayed installation/reconnection instructions. There is no self-service Wi-Fi setup or signed companion installer in this release.
 - **Pi ↔ paired Mac:** an expiring native session authorizes supported computer controls. Creating an offer is not pairing; the user confirms the matching offer with the small PiTFT A button. Native macOS permissions still apply.
-- **Browser ↔ existing Modulate hub:** `https://divy.live/connect` accepts a one-use code and the user's permission choices. A phone becomes a remote dashboard for this hub, not a controllable phone OS or a replacement Mac companion. Browser disconnection does not revoke the native Mac pairing.
+- **Browser ↔ existing Modulate hub:** `https://modulate-connect.vercel.app/connect` accepts a one-use code and the user's permission choices. A phone becomes a remote dashboard for this hub, not a controllable phone OS or a replacement Mac companion. Browser disconnection does not revoke the native Mac pairing.
 
 Choose from the trusted tool's supported actions according to current state:
 
 - `status` reads pairing/expiry, browser connection status and enabled permissions, and safe native-access metadata. Use it to avoid reinstalling or re-pairing a healthy connection.
 - `show` opens the guide on the physical screen, retaining the current app. Use it for “show setup” or when the user needs the connection instructions again.
 - `start_pairing` creates the native Mac offer when that connection is missing or expired. Explain the physical confirmation; never treat an offer or a spoken “yes” as proof that pairing completed.
-- `create_browser_code` puts the one-use browser code on the Pi for the user to enter at `divy.live/connect`. Codes stay out of model results and spoken replies. Do not create repeated codes while the user is entering one, invent a code, or ask them to paste a token/API key into the conversation.
+- `create_browser_code` puts the one-use browser code on the Pi for the user to enter at `modulate-connect.vercel.app/connect`. Codes stay out of model results and spoken replies. Do not create repeated codes while the user is entering one, invent a code, or ask them to paste a token/API key into the conversation.
 
 Perform supported preparation without asking the user to approve routine design choices. Then give one concise current instruction. Use `ask_user` only when a real human step blocks progress, such as confirming the displayed pairing offer or granting the companion a native OS permission. End that turn and wait; do not keep polling, assume “done,” simulate a button press, or use computer actions to grant the very access they require. After the user's response, inspect the new state and continue from that point instead of starting over.
 

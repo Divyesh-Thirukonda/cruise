@@ -27,7 +27,10 @@ class CloudProviderTests(unittest.TestCase):
     def test_partial_or_untrusted_destination_fails_closed(self):
         self.assertFalse(CloudProvider().enabled)
         for url, key in ((GATEWAY_URL, ""), ("", "x" * 40),
-                         ("http://divy.live/api/modulate-provider", "x" * 40),
+                         (GATEWAY_URL.replace("https:", "http:"), "x" * 40),
+                         ("https://divy.live/api/modulate-provider", "x" * 40),
+                         ("https://modulate-connect-preview.vercel.app/api/modulate-provider", "x" * 40),
+                         (GATEWAY_URL + "?forward=elsewhere", "x" * 40),
                          ("https://attacker.example/api/modulate-provider", "x" * 40),
                          (GATEWAY_URL, "x" * 40 + "\nheader:value")):
             with self.subTest(url=url):

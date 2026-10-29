@@ -27,7 +27,7 @@ its actions. No dedicated home control is taken away from a running game.
 Voice remains usable, including while the menu is open. Both small buttons retain
 push-to-talk. Input is neutralized for the game/host while navigating the library.
 
-Both local Studio and divy.live/connect have library tabs and the same controls.
+Both local Studio and Modulate Connect have library tabs and the same controls.
 Browsing on the website alone does not change the device screen; Show on device
 opens the physical menu. Existing linking is assumed complete during development.
 

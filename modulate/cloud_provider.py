@@ -9,8 +9,7 @@ from __future__ import annotations
 
 import os
 
-
-GATEWAY_URL = "https://divy.live/api/modulate-provider"
+from .deployment import GATEWAY_URL
 
 
 class CloudConfigurationError(ValueError):

@@ -14,6 +14,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from .deployment import CONNECT_LABEL
 
 class TransportError(Exception):
     pass
@@ -58,7 +59,7 @@ class PendingCompanion:
             except (OSError, ValueError, KeyError, TypeError, TransportError):
                 pass
         if self.delegate is None:
-            raise TransportError("Device enrollment needed; follow divy.live/connect setup")
+            raise TransportError(f"Device enrollment needed; follow {CONNECT_LABEL} setup")
         return self.delegate
 
     def post(self, action, data):

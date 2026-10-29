@@ -6,9 +6,8 @@ import time
 import uuid
 
 from .agent import AgentError
+from .deployment import CONNECT_HOST, CONNECT_LABEL, CONNECT_URL
 
-
-CONNECT_URL = "https://divy.live/connect"
 ACTIONS = ("status", "show", "start_pairing", "create_browser_code")
 OFFER_SECONDS = 300
 
@@ -46,10 +45,10 @@ class ConnectionSetup:
             instructions = ["Start Mac pairing, then compare the code and press the small A button on Modulate.",
                             "Grant any required macOS permissions yourself on the Mac."]
         elif not brief["browser_count"] and brief["remote_enabled"]:
-            instructions = ["Create a browser code on Modulate, then open divy.live/connect on your phone or computer.",
+            instructions = [f"Create a browser code on Modulate, then open {CONNECT_LABEL} on your phone or computer.",
                             "Enter the code shown on the device and choose its access switches."]
         else:
-            instructions = ["The Mac is paired. Use divy.live/connect to manage the existing device connection."]
+            instructions = [f"The Mac is paired. Use {CONNECT_LABEL} to manage the existing device connection."]
         return {**brief, "device_connected": product.connected(), "companion_running": True,
                 "pairing_expires_at": session.get("expires_at") if session else None,
                 "native_permissions": {key: permissions.get(key) if type(permissions.get(key)) is bool else None
@@ -99,18 +98,18 @@ class ConnectionSetup:
                         "instruction": "Compare the pairing code in Studio with Modulate, then press the small A button on the device. The Mac is not authorized until that confirmation."}
             offer = {"kind": "guide", "id": uuid.uuid4().hex,
                      "expires_at": time.time() + OFFER_SECONDS, "title": "Connect your computer",
-                     "lines": ["Open divy.live/connect", "A: continue setup", "B: not now"],
+                     "lines": [CONNECT_HOST, "/connect", "A: continue setup", "B: not now"],
                      "connect_url": CONNECT_URL, "browser_count": brief["browser_count"]}
             if action == "create_browser_code":
                 if not brief["remote_enabled"]:
                     raise AgentError("The public gateway is not configured. Open the Mac's local Studio to finish companion setup.")
                 pairing = product.remote_access.create_pairing()
                 offer.update(kind="browser_code", code=pairing["code"], expires_at=pairing["expires_at"],
-                             title="Connect this browser", lines=["Open divy.live/connect", "Enter this one-use code", "B: not now"])
+                             title="Connect this browser", lines=[CONNECT_HOST, "/connect", "Enter this one-use code", "B: not now"])
             elif not brief["remote_enabled"]:
                 offer["lines"] = ["On Mac: 127.0.0.1:8787", "A: pair this Mac", "B: not now"]
             product.setup_offer = offer
             return {**brief, "display_requested": True, "displayed": False, "expires_at": offer["expires_at"],
-                    "instruction": ("Enter the code on Modulate's screen at divy.live/connect and choose the access switches."
+                    "instruction": (f"Enter the code on Modulate's screen at {CONNECT_LABEL} and choose the access switches."
                                     if offer["kind"] == "browser_code" else
                                     "Setup guidance is ready for the device screen. Press its small A button to continue or B to dismiss.")}

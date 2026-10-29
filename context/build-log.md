@@ -254,3 +254,43 @@ Small B dismisses setup without replacing the saved program; dismissal is boot-l
 A typed live Meta request to show setup selected `connection-setup`, used the trusted setup tool and completed in three calls. Fresh matching Pi telemetry confirmed the guide. The user then confirmed seeing “Connect your computer” and that small B returned to the camera app. Independent telemetry afterward showed the original camera revision, native pairing and permission settings preserved. Speaker delivery was reported by Pi telemetry; no separate audio audibility check was requested.
 
 The trial used **$0.027569** in additional charged/reserved Meta usage, ending at **482 calls / $9.916275**, under the unchanged $50 ceiling. Replug, missing-enrollment and offline fault paths were tested synthetically; no physical unplug/replug or new-Mac enrollment trial is claimed. OS/Wi-Fi setup, companion installation and native permission dialogs still require the user. [Sanitized evidence](evidence/setup-mode.json).
+
+
+## October 29: persistent voice and controller app library
+
+Implemented durable exact app revision storage, automatic archive after device
+acknowledgement, conservative migration, favorites, recoverable Trash, restore and
+separate permanent deletion. Added the app-library runtime skill/tool, current
+selection context, trusted voice yes/no confirmation, fresh saved-app checks and
+staged activation. Active, rollback and in-flight revisions remain protected.
+Added a trusted 240×135 library menu with optional knob/joystick/A/B navigation;
+no game button is reserved for home. Voice, speech and build overlays retain
+priority. Navigating neutralizes game/host input and uses version-bound actions.
+
+Deployed companion/Pi code `bce32f0`; Pi archive SHA256
+`cfdde6f61369eaae757d2f6965c0efee53bff8b6f3235c40906cd7d008db33a8`.
+The complete host run passed 902 tests with 11 platform skips; 241 focused checks
+passed on the Pi before its service restart. Public Studio `1c190a4` passed
+20 React/API tests and 30 server tests and deployed to production as
+`dpl_AwKRbNQx8uHuSmui66qVGcWHnB5g` (READY, divy.live alias). The existing Vercel
+Git deployment was explicitly dispatched against that exact main commit; no new
+credentials or permission grants were needed.
+
+The host imported 27 previously acknowledged versions. A live typed Meta request
+selected app-library and opened the Pi menu (3 model calls, $0.035459 held/used).
+The user confirmed knob/A/B navigation. During concurrent user testing, an
+additional Subway Sprint refinement was automatically saved, and a historical
+brightness controller reopened with fresh checks and device acknowledgement.
+The production website completed favorite → Trash → restore (favorite retained)
+and returned the test favorite to its original state. The rollback version's
+Delete forever button was correctly unavailable. No live user app was permanently
+deleted. Permanent deletion, direct yes/no, stale views, expiry/replay, corrupt
+storage, cleanup retry and failed activation are covered with synthetic fixtures.
+
+Used the existing Python/Pillow/QuickJS runtime, React/Lucide UI and authenticated
+companion/Vercel relay. No Supabase account was needed: this library is durable
+local companion storage, not cloud sync. The user explicitly said linking should
+be treated as completed; existing pairing/permissions remained intact and were
+not retested. [Sanitized evidence](evidence/app-library.json),
+[production screenshot](evidence/app-library-dashboard.jpg), and
+[usage and limits](app-library.md).

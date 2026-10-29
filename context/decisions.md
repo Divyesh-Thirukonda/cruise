@@ -96,3 +96,15 @@ Connection testing exposed two queued-request revocation races and a stale brows
 The user requested setup guidance on the physical screen before computer access exists, with dismissal and reminders after replug/restart. Use a trusted local card for missing enrollment, a stopped/unreachable companion or missing native pairing. Keep dismissal in RAM, preserve the saved app, and avoid prompting solely because the optional browser dashboard disconnected. Small B dismisses; disconnected users can hold small A to reopen. Recognized wake and reboot can show it again. Healthy paired boots keep the existing experience.
 
 Add the `connection-setup` runtime skill and bounded setup actions for the reachable companion to inspect connection/permission state, show instructions, prepare a native offer, and display a browser code on the Pi. Never give the model raw pairing codes or treat preparation as authorization. Existing physical/native permission steps remain necessary; no new installer, Wi-Fi provisioning, standalone Meta runtime or public multi-tenant enrollment is claimed.
+
+
+## October 29 — Persistent app library
+
+Use the existing companion's private durable storage for saved exact app revisions,
+favorites and Trash. Supabase was authorized if needed, but this configured hub
+needs no new account or cloud database. Voice opens the menu; optional controls
+navigate only inside it, preserving app bindings. Normal delete is recoverable;
+permanent deletion is a separate named human confirmation with expiry and replay
+protection. Protect active/rollback/in-flight packages. Reopening uses fixed fresh
+verification and the existing acknowledged activation. Assume linking is already
+complete; library testing does not repeat enrollment or pairing.

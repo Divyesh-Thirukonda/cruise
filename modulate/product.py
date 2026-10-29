@@ -22,6 +22,7 @@ from .intent_memory import IntentMemory
 from .speaker_volume import SpeakerVolume, SpeakerVolumeError
 from .hardware_debug import HardwareDebug
 from .connection_setup import ConnectionSetup
+from .library import LibraryManager
 
 
 _SESSION = re.compile(r"[0-9a-f]{32}\Z")
@@ -50,6 +51,7 @@ _TOOL_PROGRESS = {
     "system_control": ("planning", "Adjusting the Mac"),
     "hardware_debug": ("planning", "Checking the hardware"),
     "connection_setup": ("planning", "Preparing connection setup"),
+    "app_library": ("planning", "Opening your app library"),
 }
 
 
@@ -136,6 +138,7 @@ class Product(AssistantIO):
         self.pairing = None
         self.setup_offer = None
         self.connection_guide = ConnectionSetup(self)
+        self.app_library = LibraryManager(self)
         self._init_assistant_io(computer)
         # Permission denials survive launching the companion without its cloud
         # gateway configuration. Omitting a secret cannot restore authority.
@@ -176,7 +179,10 @@ class Product(AssistantIO):
                                                if key in {"volume", "muted", "available"}},
                                 "last_observed_mac_setting": copy.deepcopy(self.volume),
                                 "paired": bool(self._paired_session())},
-                    "hardware": self.hardware.inspect()}
+                    "hardware": self.hardware.inspect(),
+                    "library": {"open": self.app_library.view["open"],
+                                "tab": self.app_library.view["tab"],
+                                "selected_id": self.app_library.selected()}}
 
     def hardware_debug(self, action, label=None):
         if action != "cancel":
@@ -200,6 +206,9 @@ class Product(AssistantIO):
 
     def connection_setup(self, action):
         return self.connection_guide.call(action)
+
+    def library_action(self, data, *, device=False, agent=False):
+        return self.app_library.call(data, origin="agent" if agent else "device" if device else "web")
 
     def hardware_confirm(self, identifier, step):
         self.require_permission("hardware")
@@ -364,6 +373,7 @@ class Product(AssistantIO):
                     "hardware_debug": {"supported": self.permission_allowed("hardware") and self.hardware.inspect().get("supported", False),
                                        "guided_button_address_repair": True},
                     "paired_host": paired,
+                    "app_library": {"supported": True, "persistent": True, "voice_navigation": True},
                     "connection_setup": {"supported": True, "needs_pairing": paired is None,
                                          "actions": ["status", "show", "start_pairing", "create_browser_code"],
                                          "connect_url": "https://divy.live/connect"},
@@ -466,6 +476,8 @@ class Product(AssistantIO):
             self.clarification = None
             try:
                 self._question(question, kind=followup["kind"] if followup else "clarification")
+                if followup and followup.get("kind") == "library_purge":
+                    self.clarification["library_confirmation"] = followup["library_confirmation"]
             except AgentError:
                 question = "I still couldn't understand the request. Please type it in Studio, or say Hey Meta and start again."
                 self.conversation = self.current_request = None
@@ -502,7 +514,7 @@ class Product(AssistantIO):
                 return ("I tried to repair the request but reached the attempt limit. Your current app is still available; the details are in Studio.", None)
         return ("An unexpected error stopped this request. Your active app is still available. Check Studio and describe what happened before starting a new request.", None)
 
-    def request(self, text, source="website", followup_id=None):
+    def request(self, text, source="website", followup_id=None, *, _library_entry=None):
         if source == "microphone":
             self.require_permission("voice")
         if not isinstance(text, str) or not 1 <= len(text.strip()) <= 4000:
@@ -514,7 +526,7 @@ class Product(AssistantIO):
                 raise AgentError("The physical controller is not connected")
             if self.device_revision != self.revision:
                 raise AgentError("Wait for the controller and host to finish synchronizing")
-            followup = self._followup(followup_id)
+            followup = self._followup(followup_id) if _library_entry is None else None
             job_sequence = self.progress["job_sequence"] + 1
             if job_sequence >= 2**53:
                 raise AgentError("Request sequence limit reached")
@@ -525,6 +537,8 @@ class Product(AssistantIO):
             self.computer.begin_task()
             self.agent.turn_actions = []
             self.agent.loaded_skills = []
+            self.agent.cancelled.clear()
+            self.agent.clarification = None
             self.agent.private_request = bool(followup and followup.get("private"))
             self.computer_focus_pending = True
             job_id = uuid.uuid4().hex
@@ -591,8 +605,15 @@ class Product(AssistantIO):
                     self.hardware.note_user(raw_human_reply)
                 except ValueError as error:
                     request_text += "\nHardware step was not confirmed: " + str(error)[:300]
-                result = (self.agent.run(request_text, private=True) if followup and followup.get("private")
-                          else self.agent.run(request_text))
+                self.check_request_access()
+                if _library_entry is not None:
+                    opened = self.app_library.launch(_library_entry)
+                    result = "Opened “" + opened["title"] + "”."
+                elif followup and followup.get("kind") == "library_purge":
+                    result = self.app_library.human_reply(followup["library_confirmation"], raw_human_reply)
+                else:
+                    result = (self.agent.run(request_text, private=True) if followup and followup.get("private")
+                              else self.agent.run(request_text))
                 summary = result if isinstance(result, str) else "Request finished."
             except Exception as error:
                 summary, question = self._failure_guidance(error)
@@ -734,6 +755,7 @@ class Product(AssistantIO):
             if persisted != record:
                 raise AgentError("Could not persist active program") from None
         self.active = record
+        self.app_library.note_activation(record)
         self.renderer = renderer
         self.preview_bytes = b""
         self.preview_version += 1
@@ -920,7 +942,8 @@ class Product(AssistantIO):
                             from PIL import Image
                             camera_image = Image.open(BytesIO(camera_frame["jpeg"])).convert("RGB")
                     self._device_preview(png(self.renderer.render(commands, camera_image)))
-                elif self.active["package"]["kind"] == "control" and self.volume_token and self.permission_allowed("system"):
+                elif (self.active["package"]["kind"] == "control" and self.volume_token
+                      and not self.app_library.view["open"] and self.permission_allowed("system")):
                     package = self.active["package"]
                     try:
                         self.validate_control(package)
@@ -955,6 +978,7 @@ class Product(AssistantIO):
                     "clarification": self._clarification_state(),
                     "setup_status": self.connection_guide.brief(),
                     "setup": self.connection_guide.device_offer(),
+                    "library": self.app_library.device_state(),
                     "volume": self.volume, "paired": bool(self.capabilities()["paired_host"]),
                     "failure_ack": ({key: failure[key] for key in ("revision", "restored_revision")} if failure is not None else None),
                     "pairing": (copy.deepcopy(self.pairing) if self.pairing and time.time() < self.pairing["expires_at"]
@@ -1100,5 +1124,6 @@ class Product(AssistantIO):
                     "paired": bool(self.capabilities()["paired_host"]), "wake": self.wake and self.permission_allowed("voice"),
                     "remote": self.remote_access.local_status() if self.remote_access else {"enabled": False},
                     "setup_status": self.connection_guide.status(),
+                    "library": self.app_library.snapshot(),
                     "preview_version": self.preview_version,
                     "candidate_preview_version": self.candidate_preview_version}

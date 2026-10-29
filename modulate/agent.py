@@ -228,7 +228,11 @@ def tool(name, description, properties=None, required=None):
 
 TOOLS = [
     tool("load_skill", "Read a bundled Modulate skill for the current task. Choose from the catalog in your instructions; skills guide decisions without granting extra tools or permissions.",
-         {"name": {"type": "string", "enum": ["computer-use", "device-apps", "games", "hardware-controls", "hardware-debugger", "connection-setup"]}}, ["name"]),
+         {"name": {"type": "string", "enum": ["computer-use", "device-apps", "games", "hardware-controls", "hardware-debugger", "connection-setup", "app-library"]}}, ["name"]),
+    tool("app_library", "Browse or open saved apps, favorite, move to Trash, restore, or request permanent deletion. Uses immutable saved packages, rechecked before launch. Omit entry_id only for the selected library item (or current app outside the menu). purge asks a trusted human confirmation; the model cannot confirm it.",
+         {"action": {"type": "string", "enum": ["list", "open", "close", "select", "tab", "favorite", "trash", "restore", "launch", "purge", "cancel_purge"]},
+          "entry_id": {"type": "string"}, "tab": {"type": "string", "enum": ["all", "favorites", "trash"]},
+          "favorite": {"type": "boolean"}}, ["action"]),
     tool("connection_setup", "Inspect connection/OS permission metadata, show setup guidance on Modulate, prepare Mac pairing for physical small-A confirmation, or display a one-use browser code on the device. Never authorizes the Mac or grants native permissions itself; no raw codes are returned to the model.",
          {"action": {"type": "string", "enum": ["status", "show", "start_pairing", "create_browser_code"]}}, ["action"]),
     tool("hardware_debug", "Inspect device health, scan the I2C bus, retry input drivers, or guide a factory Qwiic button address repair. Actions begin_button_repair and continue persist a workflow across power cycles. Only direct user confirmation can authorize an isolated write; tools cannot supply that confirmation. label is used only when beginning a repair.",
@@ -466,10 +470,16 @@ class Orchestrator:
             raise
 
     def loop(self, text, role, turns):
-        tools = TOOLS if role == "orchestrator" else [item for item in TOOLS if item["function"]["name"] not in {"delegate_task", "activate_package", "ask_user", "computer_observe", "computer_act", "camera_control", "computer_audio", "system_control", "speaker_control", "read_recent_context", "hardware_debug", "connection_setup"}]
+        tools = TOOLS if role == "orchestrator" else [item for item in TOOLS if item["function"]["name"] not in {"delegate_task", "activate_package", "ask_user", "computer_observe", "computer_act", "camera_control", "computer_audio", "system_control", "speaker_control", "read_recent_context", "hardware_debug", "connection_setup", "app_library"}]
         prompt = SYSTEM if role == "orchestrator" else SYSTEM + f"\nYou are the {role} specialist. Return candidate IDs, observations and any missing user intent to the orchestrator. Never activate or ask the user directly."
         prompt += "\nAvailable Modulate skills (choose and load the relevant skill before acting):\n" + json.dumps(catalog())
         prompt += """
+For saved apps, past games, favorites, Trash or returning home, load app-library
+and use app_library. Successfully activated apps are saved automatically. Reopen
+an exact stored revision with launch; do not regenerate an approximation. An open
+library's selected item is the referent for "this"; otherwise it is the active app.
+Routine deletion means Trash. Only an explicit request to delete forever uses
+purge, which creates a trusted human confirmation and ends this turn.
 For initial connection, a replug reminder, expired pairing or browser setup, load
 connection-setup and use connection_setup. Inspect status, then choose the useful
 setup step; do not ask the user to make routine technical choices. The tool can
@@ -522,7 +532,7 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
         messages.append({"role": "user", "content": text})
         for _ in range(turns):
             if self.private_request:
-                tools = [item for item in TOOLS if item["function"]["name"] in {"computer_observe", "computer_act", "camera_control", "computer_audio", "system_control", "speaker_control", "load_skill", "read_recent_context", "ask_user", "inspect_capabilities", "connection_setup"}]
+                tools = [item for item in TOOLS if item["function"]["name"] in {"computer_observe", "computer_act", "camera_control", "computer_audio", "system_control", "speaker_control", "load_skill", "read_recent_context", "ask_user", "inspect_capabilities", "connection_setup", "app_library"}]
                 self.service.computer_authorized()
             if self.cancelled.is_set():
                 raise AgentError("Cancelled by user; no further tool actions")
@@ -604,6 +614,8 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
                     if status != "passed":
                         raise AgentError("Could not request clarification: " + result["error"])
                     return result["question"]
+                if status == "passed" and self.clarification and role == "orchestrator":
+                    return self.clarification
                 if isinstance(result, dict) and "image_url" in result:
                     result = dict(result)
                     screenshots.append({"url": result.pop("image_url"), "id": result.get("observation_id"),
@@ -663,11 +675,11 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
                     or (expected.get("type") == "boolean" and type(value) is not bool)
                     or ("enum" in expected and value not in expected["enum"])):
                 raise AgentError("Tool argument has an invalid type or value")
-        if role != "orchestrator" and name in {"activate_package", "delegate_task", "ask_user", "computer_observe", "computer_act", "camera_control", "computer_audio", "system_control", "speaker_control", "read_recent_context", "hardware_debug", "connection_setup"}:
+        if role != "orchestrator" and name in {"activate_package", "delegate_task", "ask_user", "computer_observe", "computer_act", "camera_control", "computer_audio", "system_control", "speaker_control", "read_recent_context", "hardware_debug", "connection_setup", "app_library"}:
             raise AgentError("Specialists cannot activate, ask the user, or spawn further specialists")
         if getattr(self, "clarification", None) is not None:
             raise AgentError("Waiting for the user's clarification")
-        if self.private_request and name not in {"computer_observe", "computer_act", "camera_control", "computer_audio", "system_control", "speaker_control", "load_skill", "read_recent_context", "ask_user", "inspect_capabilities", "connection_setup"}:
+        if self.private_request and name not in {"computer_observe", "computer_act", "camera_control", "computer_audio", "system_control", "speaker_control", "load_skill", "read_recent_context", "ask_user", "inspect_capabilities", "connection_setup", "app_library"}:
             raise AgentError("Computer task contents cannot be written into device packages or delegated")
         if name == "load_skill":
             result = load_skill(arguments["name"])
@@ -682,6 +694,11 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
             return context
         if name == "speaker_control":
             return self.service.speaker_control(arguments["action"], arguments.get("value"))
+        if name == "app_library":
+            result = self.service.library_action(arguments, agent=True)
+            if result.get("activated"):
+                self.base_revision = self.service.revision
+            return result
         if name == "connection_setup":
             return self.service.connection_setup(arguments["action"])
         if name == "hardware_debug":

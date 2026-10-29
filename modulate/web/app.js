@@ -7,6 +7,7 @@
     previewKey: null, previewLoaded: false, previewError: false, eventKey: null,
     inspectSource: "active", inspectView: "code", pairing: null, noticeTimer: null,
     draftId: null, draftFocus: null, responseId: null, dismissedResponseId: null, approvalId: null,
+    libraryTab: "all", libraryKey: null, libraryPurge: null, libraryPurgeDismissed: null,
   };
   const names = {joystick: "Joystick", encoder: "Encoder", button_a: "Button A",
     button_b: "Button B", encoder_pressed: "Encoder press", pitft_buttons: "PiTFT buttons"};
@@ -132,6 +133,96 @@
     renderComputer();
     renderSpeaker();
     renderResponse();
+    renderLibrary();
+  }
+
+  function libraryAction(kind, entry, extra = {}, success) {
+    return action("library", "/api/library", {action: kind, ...(entry ? {entry_id: entry.id} : {}), ...extra}, success);
+  }
+
+  function libraryConfirmation() {
+    const library = ui.state?.library;
+    const pending = library && Object.prototype.hasOwnProperty.call(library, "purge_confirmation") ? library.purge_confirmation : ui.libraryPurge;
+    return pending?.id && pending.id !== ui.libraryPurgeDismissed ? pending : null;
+  }
+
+  async function cancelLibraryPurge() {
+    const pending = libraryConfirmation();
+    if (!pending || !ui.online || ui.mutating.has("library")) return;
+    if (await libraryAction("cancel_purge", null, {confirmation_id: pending.id})) {
+      ui.libraryPurgeDismissed = pending.id; ui.libraryPurge = null;
+      $("library-purge-dialog").close();
+    }
+  }
+
+  function renderLibrary() {
+    const library = ui.state?.library;
+    const catalog = library?.items ?? library?.entries;
+    const entries = Array.isArray(catalog) ? catalog : [];
+    text("library-error", library?.error || "");
+    $("library-error").hidden = !library?.error;
+    const unavailable = !ui.online || ui.mutating.has("library");
+    const changingUnavailable = unavailable || ui.state?.agent?.running || Boolean(library?.error);
+    const launchUnavailable = changingUnavailable || !ui.state?.device?.connected;
+    const menuOpen = library?.view?.open ?? library?.open;
+    $("library-device").disabled = menuOpen ? unavailable : launchUnavailable;
+    text("library-device", (library?.view?.open ?? library?.open) ? "Return to app" : "Show on device");
+    document.querySelectorAll("[data-library-tab]").forEach(button => {
+      const selected = button.dataset.libraryTab === ui.libraryTab;
+      button.setAttribute("aria-pressed", String(selected)); button.classList.toggle("selected", selected);
+    });
+    // Retain the buttons and keyboard focus across unchanged polling responses.
+    const key = JSON.stringify([entries, ui.libraryTab, changingUnavailable, launchUnavailable]);
+    if (key !== ui.libraryKey) {
+      ui.libraryKey = key;
+      const list = $("library-entries");
+      const focused = document.activeElement?.dataset.libraryFocus;
+      list.replaceChildren();
+      const visible = entries.filter(entry => ui.libraryTab === "trash" ? entry.trashed : !entry.trashed && (ui.libraryTab !== "favorites" || entry.favorite));
+      if (!visible.length) {
+        const empty = document.createElement("p"); empty.className = "library-empty";
+        empty.textContent = ui.libraryTab === "trash" ? "Trash is empty. Deleted apps stay here until restored or permanently deleted." : ui.libraryTab === "favorites" ? "No favorites yet. Say ‘Hey Meta, favorite this app.’" : "Successfully activated apps appear here automatically.";
+        list.append(empty);
+      }
+      visible.forEach(entry => {
+        const row = document.createElement("article"); row.className = "library-entry"; row.setAttribute("aria-label", entry.title);
+        const title = document.createElement("h3"); title.textContent = entry.title || "Untitled app"; row.append(title);
+        const meta = document.createElement("p"); meta.className = "small muted"; meta.textContent = `${human(entry.kind || "app")} · ${String(entry.id).slice(0, 8)}${entry.active ? " · Running" : ""}${entry.favorite ? " · Favorite" : ""}`; row.append(meta);
+        const actions = document.createElement("div"); actions.className = "library-entry-actions"; row.append(actions);
+        const button = (kind, label, disabled, handler, className = "button button-outline") => {
+          const control = document.createElement("button"); control.type = "button"; control.className = className; control.textContent = label; control.disabled = disabled;
+          control.dataset.libraryFocus = `${entry.id}:${kind}`;
+          control.setAttribute("aria-label", `${label} ${entry.title}`); control.addEventListener("click", handler); actions.append(control);
+        };
+        if (entry.trashed) {
+          button("restore", "Restore", changingUnavailable, () => libraryAction("restore", entry, {}, "App restored to your library."));
+          button("purge", "Delete forever", changingUnavailable || entry.protected, async () => {
+            const result = await libraryAction("purge", entry);
+            const pending = result?.library?.purge_confirmation || result?.purge_confirmation;
+            if (pending) { ui.libraryPurge = pending; ui.libraryPurgeDismissed = null; renderLibrary(); }
+          }, "button button-danger");
+          if (entry.protected) { const note = document.createElement("p"); note.className = "small muted library-protected"; note.textContent = "Kept while running or available for recovery."; row.append(note); }
+        } else {
+          button("launch", "Open", launchUnavailable, () => libraryAction("launch", entry), "button button-primary");
+          button("favorite", entry.favorite ? "Unfavorite" : "Favorite", changingUnavailable, () => libraryAction("favorite", entry, {favorite: !entry.favorite}));
+          button("trash", "Move to Trash", changingUnavailable, () => libraryAction("trash", entry, {}, "Moved to Trash. The current running app is unchanged."), "text-button");
+        }
+        list.append(row);
+      });
+      if (focused) Array.from(list.querySelectorAll("button")).find(button => button.dataset.libraryFocus === focused)?.focus();
+    }
+    const pending = libraryConfirmation();
+    const dialog = $("library-purge-dialog");
+    if (pending) {
+      const entry = entries.find(item => item.id === pending.entry_id);
+      const expires = dateValue(pending.expires_at);
+      const expired = !Number.isFinite(expires) || expires <= Date.now();
+      text("library-purge-title", `Delete “${pending.title}” forever?`);
+      text("library-purge-status", expired ? "This confirmation expired. Cancel and try again." : entry?.protected ? "This version is now needed for running or recovery." : "");
+      $("library-purge-confirm").disabled = changingUnavailable || expired || !entry || entry.protected;
+      $("library-purge-cancel").disabled = unavailable;
+      if (!dialog.open) dialog.showModal();
+    } else if (dialog.open) dialog.close();
   }
 
   function renderVoiceDraft() {
@@ -770,6 +861,19 @@
     if (result) $("remote-code").hidden = true;
   });
 
+  $("library-open").addEventListener("click", () => { $("library-dialog").showModal(); renderLibrary(); });
+  document.querySelectorAll("[data-library-tab]").forEach(button => button.addEventListener("click", () => { ui.libraryTab = button.dataset.libraryTab; renderLibrary(); }));
+  $("library-device").addEventListener("click", () => libraryAction((ui.state?.library?.view?.open ?? ui.state?.library?.open) ? "close" : "open", null, {tab: ui.libraryTab}));
+  $("library-purge-cancel").addEventListener("click", cancelLibraryPurge);
+  $("library-purge-dialog").addEventListener("cancel", event => { event.preventDefault(); cancelLibraryPurge(); });
+  $("library-purge-confirm").addEventListener("click", async () => {
+    const pending = libraryConfirmation();
+    if (!pending || $("library-purge-confirm").disabled) return;
+    if (await libraryAction("confirm_purge", {id: pending.entry_id}, {confirmation_id: pending.id}, "App permanently deleted.")) {
+      ui.libraryPurgeDismissed = pending.id; ui.libraryPurge = null; $("library-purge-dialog").close();
+    }
+  });
+
   $("inspect-open").addEventListener("click", () => {
     ui.inspectSource = ui.state?.candidate ? "candidate" : "active";
     $("inspect-dialog").showModal();
@@ -795,7 +899,7 @@
     } catch (_) { text("copy-code", "Select text to copy"); }
   });
   document.querySelectorAll("[data-close]").forEach((button) => button.addEventListener("click", () => $(button.dataset.close).close()));
-  ["inspect-dialog", "pairing-dialog"].forEach((id) => $(id).addEventListener("click", (event) => {
+  ["inspect-dialog", "pairing-dialog", "library-dialog"].forEach((id) => $(id).addEventListener("click", (event) => {
     if (event.target !== $(id)) return;
     const rect = $(id).getBoundingClientRect();
     if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) $(id).close();

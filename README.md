@@ -46,6 +46,8 @@ The latest voice update keeps ambient transcription visually quiet. A wake-only 
 
 Hardware setup now has its own **hardware-debugger** skill. Ask “Hey Meta, check my hardware” for driver, bus and device-health diagnostics, or describe a newly added Qwiic Button. Supported address repair guides isolation, a checked address change, a power-cycle check and reconnection through voice or Studio. The setup survives reboot, and missing controls pause the saved app. See [supported boards, wiring steps and verification limits](context/hardware-debugger.md).
 
+Saved apps now have an **app library** with favorites, Trash and restore. Say “Hey Meta, open my app library,” then use voice or the connected knob/joystick and A/B buttons. Successfully activated revisions are saved automatically and rechecked when reopened. [Usage and storage details](context/app-library.md).
+
 ## Remote Studio
 
 [Modulate Connect](https://divy.live/connect) adds a phone-friendly remote dashboard, a one-time browser connection code and enforced device access switches. It retains the native Mac companion and the current Pi runtime. Meta and ElevenLabs can use a server-only Vercel gateway without resetting the existing spending ledgers. Camera preview sharing is a separate opt-in. See [connection setup and current deployment limits](context/connect.md); this is one configured hub, not browser-only control of arbitrary phones or computers.

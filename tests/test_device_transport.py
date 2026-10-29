@@ -79,7 +79,7 @@ class TransportTests(unittest.TestCase):
         request = client.opener.open.call_args.args[0]
         self.assertEqual(request.full_url, "https://127.0.0.1:8788/device/request")
         self.assertEqual(request.get_header("Authorization"), "Bearer " + "x" * 40)
-        response.read.return_value = b"x" * (256 * 1024 + 1)
+        response.read.return_value = b"x" * (1024 * 1024 + 1)
         with self.assertRaises(TransportError):
             client.post("heartbeat", {})
 

@@ -30,6 +30,7 @@ from .hardware_device import HardwareDevice
 from .audio_receiver import AudioReceiver
 from .voice import VoiceListener
 from .setup_screen import SetupScreen
+from .library_screen import LibraryScreen
 
 
 class Controller:
@@ -45,6 +46,9 @@ class Controller:
         self.setup_actions = queue.Queue(maxsize=1)
         self.setup_in_flight = False
         self.setup_reopen_start = None
+        self.library_screen = LibraryScreen()
+        self.library_actions = queue.Queue(maxsize=1)
+        self.library_exit_guard = False
         self.lock = threading.RLock()
         self.stop = threading.Event()
         self.responses = queue.Queue(maxsize=8)
@@ -426,8 +430,11 @@ class Controller:
             hardware_snapshot = self.hardware_debugger.snapshot() if hasattr(self, "hardware_debugger") else {}
             with self.lock:
                 self.sequence += 1
-                delta = self.encoder_pending if not self._busy() and self.encoder_revision == self.state.get("revision") else 0
+                library_open = self.library_screen.visible
+                delta = self.encoder_pending if not self._busy() and not library_open and self.encoder_revision == self.state.get("revision") else 0
                 sample = {**self.sample, "encoder_delta": max(-100, min(100, delta))}
+                if library_open:
+                    sample = neutral_input()
                 self.encoder_pending = 0  # Never replay uncertain physical actions after a timeout.
                 packet = {"session": self.session, "sequence": self.sequence, "name": "Modulate Pi 5",
                           "revision": self.state.get("revision"), "ack": self.state.get("ack"),
@@ -527,6 +534,20 @@ class Controller:
                 finally:
                     self.setup_in_flight = False
             try:
+                library_action = self.library_actions.get_nowait()
+            except queue.Empty:
+                library_action = None
+            if library_action:
+                try:
+                    result = self.companion.post("library", library_action)
+                    with self.lock:
+                        self.library_screen.complete(library_action, result, wall=time.time(),
+                                                     error=result.get("error") is not None)
+                except (TransportError, OSError, ValueError):
+                    with self.lock:
+                        self.library_screen.complete(library_action, None, wall=time.time(), error=True)
+                    raise
+            try:
                 action = self.actions.get_nowait()
             except queue.Empty:
                 action = None
@@ -547,6 +568,13 @@ class Controller:
                 except queue.Empty:
                     break
             self.setup_in_flight = False
+            while True:
+                try:
+                    discarded = self.library_actions.get_nowait()
+                except queue.Empty:
+                    break
+                with self.lock:
+                    self.library_screen.complete(discarded, None, wall=time.time(), error=True)
             if hasattr(self, "hardware_debugger"):
                 self.hardware_debugger.offer(None)
             if hasattr(self, "speaker_volume"):
@@ -589,10 +617,26 @@ class Controller:
                 fresh=time.monotonic() - self.last_response < 4, host=self.host,
                 now=time.monotonic(), wall=time.time())
 
+    def _library_card(self):
+        with self.lock:
+            return self.library_screen.update(self.host.get("library"),
+                fresh=time.monotonic() - self.last_response < 4, wall=time.time())
+
+    def _library_input(self, sample, started, *, valid=True):
+        with self.lock:
+            action = self.library_screen.inputs(sample, now=started, valid=valid)
+            if action:
+                try:
+                    self.library_actions.put_nowait(action)
+                except queue.Full:
+                    self.library_screen.complete(action, None, wall=time.time(), error=True)
+            self.encoder_pending = 0
+        return neutral_input()
+
     def _handle_buttons(self, sample, started):
         sample = dict(sample)
         a, b, valid = self._tft_buttons()
-        if valid and b and not a:
+        if valid and b and not a and self.display_state.get("kind") != "library":
             self._stop_computer_audio()
         if valid and not b:
             self.speech_button_held = False
@@ -647,6 +691,25 @@ class Controller:
                 self.setup_screen.wake()
         else:
             self.setup_reopen_start = None
+        library_open = self._library_card()
+        if library_open:
+            self.library_exit_guard = True
+            voice = self.voice_state
+            voice_overlay = voice.get("state") == "transcribing" or (voice.get("state") == "listening" and
+                voice.get("message", "").startswith(("Push-to-talk", "Wake phrase heard", "Listening for your answer")))
+            workflow = self.host.get("hardware_workflow")
+            hardware_wait = type(workflow) is dict and workflow.get("phase") not in {"complete", "completed", "cancelled", "failed"}
+            interrupted = (self._busy() or self._speaker_active() or voice_overlay or self._feedback_card()
+                           or self.host.get("clarification") or card or hardware_wait)
+            if self.display_state.get("kind") == "library" and not (a and b) and not interrupted:
+                # Screen buttons and optional game modules work only inside this
+                # voice-opened menu. The PTT chord keeps its existing priority.
+                sample["button_a"] = sample.get("button_a") is True or a
+                sample["button_b"] = sample.get("button_b") is True or b
+                self.chord_start, self.chord_fired = None, False
+                return self._library_input(sample, started, valid=valid)
+            with self.lock:
+                self.library_screen.interrupt()
         if valid and a and b:
             if self.chord_start is None:
                 self.chord_start = started
@@ -662,6 +725,12 @@ class Controller:
             sample.update(button_a=False, button_b=False)
         else:
             self.chord_start, self.chord_fired = None, False
+        if not library_open and self.library_exit_guard:
+            # A button held while the menu closes must not become a game press.
+            if (not a and not b and not any(sample.get(key) for key in ("button_a", "button_b", "encoder_pressed", "encoder_delta"))
+                    and abs(sample.get("joystick_x", 0)) < 0.3 and abs(sample.get("joystick_y", 0)) < 0.3):
+                self.library_exit_guard = False
+            return neutral_input()
         return sample
 
     def _apply_responses(self):
@@ -826,6 +895,18 @@ class Controller:
             self.display_state = {"kind": "setup", "title": card["title"], "offer_id": card.get("id")}
         self.status_key = key
 
+    def draw_library(self):
+        with self.lock:
+            image = self.library_screen.render()
+            view = self.library_screen.view
+            metadata = {"kind": "library", "title": "App library", "view_id": view["id"],
+                        "version": view["version"], "selected_id": self.library_screen.selected_id,
+                        "tab": view["tab"], "page": self.library_screen.mode}
+        self.present(image)
+        with self.lock:
+            self.display_state = metadata
+        self.status_key = None
+
     def run(self):
         self.speaker.start()
         self.speaker_volume.start()
@@ -862,15 +943,20 @@ class Controller:
                                  {"complete", "completed", "cancelled", "failed"} else None)
                 suspended = self.runtime.snapshot().get("suspended") is True
                 setup_card = self._setup_card()
-                overlay = streaming or speaking or busy or feedback is not None or self._offer() is not None or voice_overlay or bool(question) or hardware_wait or suspended or setup_card is not None
+                library_open = self._library_card()
+                overlay = streaming or speaking or busy or feedback is not None or self._offer() is not None or voice_overlay or bool(question) or hardware_wait or suspended or setup_card is not None or library_open
                 if overlay:
                     sample["encoder_delta"] = 0
+                if library_open:
+                    sample = neutral_input()
+                    with self.lock:
+                        self.encoder_pending = 0
                 # A modal pairing/voice card temporarily pauses the game rather
                 # than writing a game frame and an overlay to SPI every loop.
                 # A suspended app must keep checking for restored controls even
                 # while its missing-hardware card is visible. tick() verifies a
                 # resume before running any generated code.
-                frame = self.runtime.tick(sample, dt) if suspended or not overlay else None
+                frame = self.runtime.tick(sample, dt) if (suspended and not library_open) or not overlay else None
                 current = self.runtime.snapshot()
                 if frame:
                     self._displayed("game", current.get("title", "Game"))
@@ -900,20 +986,22 @@ class Controller:
                     footer = ("Say Hey Meta to answer" if voice == "wake_listening" and not waiting
                               else "Reply after I finish speaking")
                     self.status("Quick question", "\n".join(textwrap.wrap(question, 31)[:3]) + "\n" + footer)
+                elif hardware_wait:
+                    phrase = hardware_wait.get("required_phrase") or "Continue in Studio"
+                    self.status("Hardware setup", "Follow steps in Studio\nThen say Hey Meta:\n" + str(phrase)[:55])
+                    self._displayed("hardware_setup", "Hardware setup")
+                elif setup_card:
+                    self.draw_setup(setup_card)
+                elif library_open:
+                    self.draw_library()
                 elif streaming:
                     audio = self.computer_audio.snapshot()
                     detail = audio.get("error") or ("Playing computer audio" if audio.get("playing") else "Waiting for computer audio")
                     self.status("Mac speaker", detail + "\nB: stop · Both buttons: talk")
                     self._displayed("computer_audio", "Mac speaker")
-                elif hardware_wait:
-                    phrase = hardware_wait.get("required_phrase") or "Continue in Studio"
-                    self.status("Hardware setup", "Follow steps in Studio\nThen say Hey Meta:\n" + str(phrase)[:55])
-                    self._displayed("hardware_setup", "Hardware setup")
                 elif suspended:
                     self.status("App saved", "A required control is missing\nSay Hey Meta:\nCheck my hardware")
                     self._displayed("hardware_missing", "App saved")
-                elif setup_card:
-                    self.draw_setup(setup_card)
                 elif self.host.get("agent_running") and not current.get("kind"):
                     self.status("Reinventing...", "Meta is building and testing\nFollow progress in Studio")
                 elif current.get("kind") == "control":

@@ -244,6 +244,7 @@ class RemoteAccess:
             return {"enabled": product.wake}
 
         routes = {
+            "/api/library": lambda: product.library_action(data),
             "/api/context/clear": lambda: product.clear_context(),
             "/api/hardware/confirm": lambda: product.hardware_confirm(data.get("id"), data.get("step")),
             "/api/hardware/cancel": lambda: product.hardware_cancel(),

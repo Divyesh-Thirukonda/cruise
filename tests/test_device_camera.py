@@ -167,8 +167,10 @@ class DeviceCameraTests(unittest.TestCase):
         controller.camera_identity = (self.current["revision"], "b" * 32, 1)
         controller.camera_received_at = self.now
         controller.camera_frames_received = 1
-        for name in ("cancellations", "requests", "actions", "responses", "setup_actions"):
+        for name in ("cancellations", "requests", "actions", "responses", "setup_actions", "library_actions"):
             setattr(controller, name, queue.Queue())
+        from modulate.library_screen import LibraryScreen
+        controller.library_screen = LibraryScreen()
         controller.session = "c" * 32
         controller.sequence = controller.encoder_pending = 0
         controller.encoder_revision = self.current["revision"]

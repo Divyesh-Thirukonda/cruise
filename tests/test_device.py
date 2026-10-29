@@ -400,7 +400,7 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(self.Screen.display.image.call_count, draws)
         self.assertIsNotNone(self.controller.build)  # Retain identity for honest reconciliation.
 
-    def test_processing_dots_animate_without_displaying_a_percentage(self):
+    def test_processing_character_animates_without_displaying_a_percentage(self):
         self.controller._update_build(self.job_response())
         self.controller.last_response = 100
         with patch("modulate.device.time.monotonic", return_value=100):

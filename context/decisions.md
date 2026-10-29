@@ -108,3 +108,15 @@ permanent deletion is a separate named human confirmation with expiry and replay
 protection. Protect active/rollback/in-flight packages. Reopening uses fixed fresh
 verification and the existing acknowledged activation. Assume linking is already
 complete; library testing does not repeat enrollment or pairing.
+
+## October 29 — Expressive Muse state screens
+
+The user requested Meta's cuddly Muse character across wake/listening,
+instruction processing, spoken replies, building, error explanation and success,
+without removing other screens. Use a custom local Pillow illustration based
+on the official cream/peach mascot reference. Keep guidance readable and retain
+the existing screen/control priorities. Talking follows real speaker playback;
+celebration follows a matching durable device activation, never a model claim.
+Animation is presentation only and adds no model calls. Setup, library and the
+actual generated applications remain functional. [Visual provenance and state
+mapping](muse-screens.md).

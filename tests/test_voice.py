@@ -40,6 +40,14 @@ class WakeTests(unittest.TestCase):
         self.assertEqual(gate.accept("Hey Meta, make a game", now=10), "make a game")
         self.assertIsNone(gate.accept("change the game", now=11))
 
+    def test_repeated_wake_phrases_only_arm_without_becoming_a_request(self):
+        for text in ("hey Meta, hey Meta.", "HeyMeta! Hey Metta!", "Hey Meta, Hey Meta, make a game"):
+            with self.subTest(text=text):
+                gate = WakeGate()
+                expected = "make a game" if text.endswith("make a game") else None
+                self.assertEqual(gate.accept(text, now=10), expected)
+                self.assertEqual(gate.armed(11), expected is None)
+
     def test_phrase_only_arms_one_followup_for_six_seconds(self):
         gate = WakeGate()
         self.assertIsNone(gate.accept("Hey Meta!", now=10))
@@ -430,13 +438,14 @@ class ListenerTests(unittest.TestCase):
         self.listener.set_enabled(True)
         self.listener.set_busy(True)
         utterance = Utterance(b"", time.monotonic())
-        for text in ("Hey Meta cancel rebuild", "Hey Meta, cancel build.", "Hey Meta stop building!"):
+        for text in ("Hey Meta cancel rebuild", "Hey Meta, cancel build.", "Hey Meta stop building!",
+                     "Hey Meta cancel", "Hey Meta stop"):
             self.listener._deliver(text, utterance, False, self.listener._epoch)
-        self.assertEqual(self.listener.on_cancel.call_count, 3)
+        self.assertEqual(self.listener.on_cancel.call_count, 5)
         for text in ("cancel build", "I said Hey Meta cancel build", "Hey Meta make a game",
                      "Hey Meta cancel build after making a game", "Hey Meta stop building and make a game"):
             self.listener._deliver(text, utterance, False, self.listener._epoch)
-        self.assertEqual(self.listener.on_cancel.call_count, 3)
+        self.assertEqual(self.listener.on_cancel.call_count, 5)
         self.assertEqual(self.requests, [])
         self.assertTrue(self.listener._enabled)
         self.assertFalse(self.listener.request_ptt())
@@ -487,6 +496,130 @@ class ListenerTests(unittest.TestCase):
         self.assertEqual((sd.opens, sd.closes), (1, 1))
         self.assertEqual(self.requests, [])
         self.assertEqual(self.listener._vad.chunks, [])
+
+    def capture_wake(self, blocks, recognize, hook=None):
+        """Synthetic native stream; keep owner/probe scheduling deterministic."""
+        listener = self.listener
+        listener.set_enabled(True)
+        sd = FakeSoundDevice()
+        reads = []
+        class Audio:
+            def get_nowait(self):
+                raise queue.Empty()
+
+            def get(self, timeout):
+                index = len(reads)
+                if index >= len(blocks):
+                    raise AssertionError("Capture did not finish within the synthetic stream")
+                reads.append(index)
+                if hook:
+                    hook(index)
+                # Allow the one background probe to run while capture proceeds.
+                time.sleep(0.0001)
+                return time.monotonic(), blocks[index]
+
+        listener._audio = Audio()
+        with patch.dict("sys.modules", {"sounddevice": sd}), \
+                patch.object(listener, "_transcribe", side_effect=recognize) as transcribe:
+            utterance = listener._capture(False)
+        if listener._probe_thread:
+            listener._probe_thread.join(1)
+        self.assertEqual((sd.opens, sd.closes), (1, 1))
+        return utterance, len(reads), transcribe
+
+    def test_fast_wake_probe_continues_capture_and_preserves_correction_without_early_send(self):
+        probe_started, release_probe = threading.Event(), threading.Event()
+        recording_continued = []
+        def recognize(audio):
+            probe_started.set()
+            self.assertTrue(release_probe.wait(1))
+            return "Hey Meta"
+
+        def hook(index):
+            if index == 60:
+                self.assertTrue(probe_started.wait(1))
+            if index == 70:
+                recording_continued.append(True)
+                release_probe.set()
+
+        blocks = [NATIVE_SPEECH] * 40 + [NATIVE_SILENCE] * 20 + [NATIVE_SPEECH] * 40 + [NATIVE_SILENCE] * 120
+        utterance, reads, transcribe = self.capture_wake(blocks, recognize, hook)
+        self.assertEqual(reads, len(blocks))
+        self.assertEqual(recording_continued, [True])
+        self.assertEqual(len(utterance.audio), len(blocks) * BLOCK_BYTES)
+        self.assertIsNone(utterance.transcript)  # Additional speech requires full recognition.
+        self.assertTrue(utterance.invoked)
+        transcribe.assert_called_once()
+        self.assertEqual(self.requests, [])
+        # The final recognition may omit the wake prefix already confirmed by
+        # the probe, but the same retained audio remains an explicit request.
+        self.listener._deliver("make it blue, no make it green", utterance, False, self.listener._epoch)
+        self.assertEqual(self.requests, ["make it blue, no make it green"])
+
+    def test_inline_wake_request_reuses_probe_only_after_full_three_second_silence(self):
+        blocks = [NATIVE_SPEECH] * 40 + [NATIVE_SILENCE] * 120
+        utterance, reads, transcribe = self.capture_wake(blocks, lambda _: "Hey Meta make a game")
+        self.assertEqual(reads, 160)
+        self.assertEqual(utterance.transcript, "Hey Meta make a game")
+        self.assertEqual(self.requests, [])
+        self.listener._deliver(utterance.transcript, utterance, False, self.listener._epoch)
+        self.assertEqual(self.requests, ["make a game"])
+        transcribe.assert_called_once()
+
+    def test_bare_repeated_wake_acknowledges_early_and_keeps_stream_for_followup(self):
+        blocks = [NATIVE_SPEECH] * 40 + [NATIVE_SILENCE] * 120 + [NATIVE_SPEECH] * 40 + [NATIVE_SILENCE] * 120
+        early_ack = []
+        def hook(index):
+            if index == 100:
+                early_ack.extend(item for item in self.statuses if item["message"].startswith("Wake phrase heard"))
+
+        utterance, reads, transcribe = self.capture_wake(blocks, lambda _: "Hey Meta, Hey Meta.", hook)
+        self.assertTrue(early_ack)
+        self.assertEqual(reads, 320)
+        self.assertIsNone(utterance.transcript)
+        self.assertLess(len(utterance.audio), len(blocks) * BLOCK_BYTES)  # Wake-only audio was consumed.
+        self.listener._deliver("make a game", utterance, False, self.listener._epoch)
+        self.assertEqual(self.requests, ["make a game"])
+        transcribe.assert_called_once()
+
+    def test_slow_probe_cannot_drop_followup_already_active_after_completed_wake(self):
+        probe_started, release_probe = threading.Event(), threading.Event()
+        def recognize(audio):
+            probe_started.set()
+            self.assertTrue(release_probe.wait(1))
+            return "Hey Meta"
+
+        def hook(index):
+            if index == 60:
+                self.assertTrue(probe_started.wait(1))
+            if index == 170:  # The first utterance ended; followup is active.
+                release_probe.set()
+
+        blocks = [NATIVE_SPEECH] * 40 + [NATIVE_SILENCE] * 120 + [NATIVE_SPEECH] * 40 + [NATIVE_SILENCE] * 120
+        utterance, reads, _ = self.capture_wake(blocks, recognize, hook)
+        self.assertEqual(reads, 320)
+        self.assertEqual(len(utterance.audio), 320 * BLOCK_BYTES)
+        self.assertIsNone(utterance.transcript)
+        self.listener._deliver("Hey Meta make a game", utterance, False, self.listener._epoch)
+        self.assertEqual(self.requests, ["make a game"])
+
+    def test_epoch_change_discards_late_probe_without_acknowledgement_or_request(self):
+        probe_started, release_probe = threading.Event(), threading.Event()
+        def recognize(audio):
+            probe_started.set()
+            self.assertTrue(release_probe.wait(1))
+            return "Hey Meta make a game"
+
+        def hook(index):
+            if index == 60:
+                self.assertTrue(probe_started.wait(1))
+                self.listener.set_busy(True)
+                release_probe.set()
+
+        utterance, _, _ = self.capture_wake([NATIVE_SPEECH] * 40 + [NATIVE_SILENCE] * 30, recognize, hook)
+        self.assertIsNone(utterance)
+        self.assertEqual(self.requests, [])
+        self.assertFalse(any(item["message"].startswith("Wake phrase heard") for item in self.statuses))
 
 
 class MicrophoneSelectionTests(unittest.TestCase):

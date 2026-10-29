@@ -2,7 +2,8 @@
 
 Audio stays in bounded memory buffers and is never written to disk. This is a
 prototype transcript matcher, not a dedicated wake-word model. It also accepts
-Whisper's spelling "Hey Metta". Inference pauses capture. Ambient inference
+Whisper's spelling "Hey Metta". A wake-only probe follows 500 ms of silence
+while capture continues; final recognition may pause capture. Ambient inference
 stays visually passive. Cached faster-whisper tiny.en weights must already exist.
 
 The selected USB microphone captures native 48 kHz mono int16 in 25-ms blocks.
@@ -37,7 +38,7 @@ PTT_NO_SPEECH_BLOCKS = 320
 WAKE_PATTERN = re.compile(r"^[\W_]*hey[\s,!.:;\-–—]*met(?:a|ta)\b", re.IGNORECASE)
 VOCABULARY_PROMPT = "Modulate, Meta, kart, knob, coins."
 INPUT_LATENCY_SECONDS = 0.25
-CANCEL_PATTERN = re.compile(r"(?:cancel (?:the )?(?:rebuild|build)|stop building)[.!?]*", re.IGNORECASE)
+CANCEL_PATTERN = re.compile(r"(?:cancel(?: (?:the )?(?:rebuild|build))?|stop(?: building)?)[.!?]*", re.IGNORECASE)
 INCOMPLETE_REQUESTS = frozenset({"oh", "um", "uh", "hmm", "ah", "make a", "make an",
                                "change it to", "change to", "turn it into", "can you", "could you",
                                "i want", "i want to"})
@@ -52,7 +53,11 @@ def wake_remainder(text):
     match = WAKE_PATTERN.match(text)
     if match is None:
         return None
-    return text[match.end():].lstrip(" \t\r\n,!.:;-–—").strip()
+    remainder = text[match.end():].lstrip(" \t\r\n,!.:;-–—").strip()
+    # Repeating the wake phrase is still an invocation, never a new request.
+    while (match := WAKE_PATTERN.match(remainder)) is not None:
+        remainder = remainder[match.end():].lstrip(" \t\r\n,!.:;-–—").strip()
+    return remainder
 
 
 class WakeGate:
@@ -88,6 +93,8 @@ class WakeGate:
 class Utterance:
     audio: bytes
     started_at: float
+    transcript: str | None = None
+    invoked: bool = False
 
 
 def pcm_rms(audio):
@@ -225,6 +232,8 @@ class VoiceListener:
         self._audio = queue.Queue(maxsize=32)  # At most 800 ms native PCM, 76.8 KiB.
         self._thread = None
         self._model = None
+        self._model_lock = threading.Lock()
+        self._probe_thread = None
         self._selected = None
         self._enabled = self._pending_ptt = self._ptt_active = self._transcribing = False
         self._busy = False
@@ -345,6 +354,12 @@ class VoiceListener:
                                        local_files_only=True)
 
     def _transcribe(self, audio):
+        # A wake-only probe runs while capture continues; final recognition
+        # uses the same model serially, never two concurrent engine calls.
+        with self._model_lock:
+            return self._recognize(audio)
+
+    def _recognize(self, audio):
         import numpy as np
 
         waveform = np.frombuffer(audio, dtype=np.int16).astype(np.float32) / 32768
@@ -363,6 +378,23 @@ class VoiceListener:
             parts.append(value)
         return " ".join(parts).strip()
 
+    def _start_probe(self, audio, voiced):
+        if self._probe_thread is not None and self._probe_thread.is_alive():
+            return None
+        probe = {"done": threading.Event(), "voiced": voiced, "text": None, "error": False, "handled": False}
+
+        def recognize():
+            try:
+                probe["text"] = self._transcribe(audio)
+            except Exception:
+                probe["error"] = True
+            finally:
+                probe["done"].set()
+
+        self._probe_thread = threading.Thread(target=recognize, name="modulate-wake-probe", daemon=True)
+        self._probe_thread.start()
+        return probe
+
     def _capture(self, ptt):
         with self._lock:
             if self._stop.is_set() or (not ptt and not self._enabled):
@@ -379,6 +411,10 @@ class VoiceListener:
         self._clear_audio()
         converter = PCMResampler()
         native_blocks = 0
+        voiced = 0
+        probe = completed = None
+        completed_voiced = 0
+        confirmed = False
         last_audio = started = time.monotonic()
         with sd.RawInputStream(device=index, channels=1, samplerate=CAPTURE_RATE,
                                blocksize=CAPTURE_BLOCK_SAMPLES, dtype="int16",
@@ -391,10 +427,34 @@ class VoiceListener:
                     raise VoiceError(self._audio_problem or "Microphone audio gap; partial recording discarded")
                 if not stream.active:
                     raise VoiceError("Selected microphone stream stopped; retrying the same device")
+                if probe is not None and probe["done"].is_set() and not probe["handled"]:
+                    probe["handled"] = True
+                    if probe["error"]:
+                        raise VoiceError("Local wake recognition failed; partial recording discarded")
+                    remainder = wake_remainder(probe["text"] or "")
+                    if remainder is not None:
+                        confirmed = True
+                        if not remainder:
+                            self._gate.accept(probe["text"], now=time.monotonic())
+                        self._emit("listening", "Wake phrase heard; pause three seconds when finished")
+                if completed is not None and not self._vad.active and (probe is None or probe["done"].is_set()):
+                    if probe is not None and completed_voiced == probe["voiced"]:
+                        text = probe["text"] or ""
+                        remainder = wake_remainder(text)
+                        if not remainder:
+                            # Ambient speech or a bare/repeated wake phrase needs
+                            # no second recognition gap. Keep this stream open,
+                            # including any followup already in the VAD buffer.
+                            completed, probe = None, None
+                            confirmed = self._gate.armed(time.monotonic())
+                        else:
+                            return Utterance(completed.audio, completed.started_at, text, True)
+                    else:
+                        return Utterance(completed.audio, completed.started_at, invoked=confirmed)
                 if ptt:
                     self._emit("listening", "Push-to-talk: pause three seconds when finished")
-                elif self._gate.armed(time.monotonic()):
-                    self._emit("listening", "Wake phrase heard; say your request within six seconds")
+                elif confirmed or self._gate.armed(time.monotonic()):
+                    self._emit("listening", "Wake phrase heard; pause three seconds when finished")
                 else:
                     self._emit("wake_listening", self._wake_status())
                 try:
@@ -409,9 +469,26 @@ class VoiceListener:
                 native_blocks += 1
                 blocks = converter.feed(audio)
                 for audio in blocks:
+                    voiced += int(pcm_rms(audio) >= self._vad.threshold)
                     utterance = self._vad.feed(audio, timestamp)
                     if utterance is not None:
-                        return utterance
+                        if ptt:
+                            return utterance
+                        if completed is not None:
+                            joined = completed.audio + utterance.audio
+                            if len(joined) >= MAX_AUDIO_BYTES:
+                                raise VoiceError("Speech reached the 25-second limit; nothing submitted. Try a shorter request")
+                            completed = Utterance(joined, completed.started_at)
+                        else:
+                            completed = utterance
+                        completed_voiced = voiced
+                    if (completed is not None and len(completed.audio) + len(self._vad.chunks) * BLOCK_BYTES >= MAX_AUDIO_BYTES):
+                        raise VoiceError("Speech reached the 25-second limit; nothing submitted. Try a shorter request")
+                    if (not ptt and probe is None and not self._gate.armed(timestamp)
+                            and self._vad.active and self._vad.silence >= 20 and self._vad.voiced >= 3):
+                        probe = self._start_probe(b"".join(self._vad.chunks), voiced)
+                if confirmed and not self._gate.armed(time.monotonic()) and not self._vad.active and completed is None:
+                    confirmed = False
                 if ptt and not self._vad.active and native_blocks >= PTT_NO_SPEECH_BLOCKS:
                     message = "No speech detected; try push-to-talk again"
                     self._feedback_message(message)
@@ -430,6 +507,11 @@ class VoiceListener:
             request = text if remainder is None else remainder
         else:
             request = self._gate.accept(text, now=now, started_at=utterance.started_at)
+            if request is None and utterance.invoked and wake_remainder(text) is None:
+                # The trusted probe already heard the anchored wake phrase in
+                # this same retained audio; final recognition may omit it.
+                self._gate.reset()
+                request = text.strip()
         if not request:
             if ptt:
                 message = "No request recognized; try push-to-talk again"
@@ -509,11 +591,14 @@ class VoiceListener:
                         if epoch != self._epoch or (not ptt and (self._pending_ptt or not self._enabled)):
                             continue
                         self._transcribing = True
-                    if ptt or self._gate.armed(utterance.started_at):
-                        self._emit("transcribing", "Transcribing locally; microphone is paused")
+                    if utterance.transcript is not None:
+                        text = utterance.transcript
                     else:
-                        self._emit("wake_listening", "Checking locally for Hey Meta; microphone is paused")
-                    text = self._transcribe(utterance.audio)
+                        if ptt or utterance.invoked or self._gate.armed(utterance.started_at):
+                            self._emit("transcribing", "Transcribing locally; microphone is paused")
+                        else:
+                            self._emit("wake_listening", "Checking locally for Hey Meta; microphone is paused")
+                        text = self._transcribe(utterance.audio)
                     self._deliver(text, utterance, ptt, epoch)
                     del text, utterance
                 except Exception as error:

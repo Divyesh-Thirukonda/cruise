@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-29",
+  "deployment": {
+    "url": "https://divy.live/connect",
+    "portfolio_main": "b74d20308f93504ff84cba746b211229130750d0",
+    "vercel_id": "dpl_GN1cLPYrEmYJ7kF7SjCoyACYyC4V",
+    "status": "READY",
+    "companion_commit": "d308eff"
+  },
+  "checks": {
+    "host_suite": {
+      "run": 797,
+      "skipped": 11,
+      "result": "passed"
+    },
+    "final_host_gateway_speech_checks": 52,
+    "portfolio_api_tests": 26,
+    "portfolio_ui_tests": 7,
+    "responsive_widths_without_horizontal_overflow": [
+      390,
+      1440
+    ]
+  },
+  "live": {
+    "input_mode": "Typed requests through the production website API, using a temporary paired HTTP client; native result independently inspected through Chrome accessibility UI",
+    "browser_pairing": "passed",
+    "system_permission_disable_and_restore": "passed; supported action manifest removed/restored",
+    "camera_preview_without_sharing_permission": "403",
+    "revoked_browser_private_state": "401",
+    "unauthenticated_state_and_provider": "401",
+    "foreign_origin_mutation": "403",
+    "mac_volume_test": {
+      "before": 6,
+      "raised_to": 7,
+      "restored_to": 6,
+      "muted": false,
+      "meta_calls": 5,
+      "speaker_delivery": "Pi telemetry delivered; not a new human audibility confirmation"
+    },
+    "computer_use_test": {
+      "action": "Replaced a disposable lab input and clicked Verify phrase",
+      "visible_result": "Verified: Web connection verified",
+      "meta_calls": 12,
+      "speaker_delivery": "last telemetry cancelled; no claim of audibility"
+    },
+    "active_revision_preserved": "00157bb8ac8540913bd8734b62ab860533d9c3c4b751fa8454ccefa654573831",
+    "camera_running_after_restart": true,
+    "wake": true,
+    "user_context_records_preserved": 1,
+    "test_browser_sessions_remaining": 0
+  },
+  "accounting": {
+    "model_before": {
+      "calls": 462,
+      "charged_or_reserved_dollars": 9.706706
+    },
+    "model_after": {
+      "limit_dollars": 50.0,
+      "charged_or_reserved_dollars": 9.888706,
+      "calls": 479,
+      "halted": false
+    },
+    "tts_ledger": {
+      "version": 1,
+      "reserved_characters": 3316,
+      "settled_characters": 3098,
+      "requests": 48,
+      "uncertain_requests": 5
+    },
+    "ledgers_reset": false
+  },
+  "deployment_recovery": {
+    "failed_id": "dpl_CfEqTC21o9YVYQHWqsqKEUPiykce",
+    "reason": "Legacy compute rejected the 300-second provider function timeout",
+    "fix": "Enabled Fluid compute on the existing Hobby project; redeployed the same commit",
+    "plan_upgrade": false
+  },
+  "limits": [
+    "One configured Mac/Pi hub, with phone browsers acting as remote dashboards.",
+    "Native Mac permissions and running companion remain required.",
+    "Development Cloudflare tunnel must remain running; recreation changes its origin.",
+    "Camera preview sharing remains off by default.",
+    "These specific live trials do not establish general computer-use or network reliability."
+  ]
+}

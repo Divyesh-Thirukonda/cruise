@@ -63,8 +63,17 @@
       "no_clarification_or_package_write": true
     }
   ],
-  "physical_wake_trial": "pending",
-  "physical_menu_trial": "pending",
+  "physical_wake_trial": {
+    "status": "user_confirmed",
+    "input_mode": "spoken Hey Meta at requested normal speaking volume",
+    "result": "Wake phrase and request recognized",
+    "date": "2026-10-29"
+  },
+  "physical_menu_trial": {
+    "status": "user_confirmed",
+    "result": "Turning the knob scrolled the menu in the reversed direction",
+    "date": "2026-10-29"
+  },
   "post_install_samples": [
     {
       "connected": true,
@@ -201,5 +210,6 @@
       "encoder_direction": "forward",
       "active_revision_unchanged": true
     }
-  ]
+  ],
+  "physical_trial_limits": "One user-confirmed wake/menu trial; not a wake accuracy benchmark or noisy-room reliability measurement."
 }

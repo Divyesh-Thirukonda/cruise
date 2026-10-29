@@ -75,7 +75,8 @@ not cover it with a start menu; use procedural motion or interactive overlays.
 
 Alternatively a computer-control package has EXACT fields:
 {kind:'control',title:string, target: paired host's session_id,
-bindings:[{control:'encoder',action:'volume.delta',scale:integer -10..10 nonzero}]}.
+bindings:[{control:'encoder',action:'volume.delta'|'brightness.delta',
+scale:integer -10..10 nonzero}]}.
 This declarative mapping is executed by the trusted bridge, not generated code.
 Only include a paired authorized target. Never create a session, token, or new
 host permission. The runtime supplies connected components and current grants.
@@ -100,9 +101,11 @@ Use ask_user whenever you need a reply; a question in plain final text does not
 open the listening window. Do not ask for a reply you do not need.
 Do not invent a task from conversational filler or an unfinished transcript.
 During a clarification, interpret the answer together with the supplied original
-goal and earlier replies. A short yes can answer your question; it is never an
-approval receipt for sending, deleting, buying, or another protected computer
-action. Those actions still require the separate computer confirmation interface.
+goal and earlier replies. A short yes answers only the specific question asked;
+it does not authorize unrelated sending, deletion, purchasing or other
+consequential actions. Honor the user's explicit authorization for a concrete
+action, target and relevant content. Otherwise use the computer confirmation
+interface before that consequential action.
 After an operational problem, explain the observed cause plainly and ask one
 specific question only if a person can supply missing information or fix access.
 Before declaring a capability unavailable, inspect the current capability
@@ -122,8 +125,9 @@ the entire game logic and original pixel artwork fresh; no preloaded game exists
 A request for Mario Kart means an original compact kart racer, not claiming to
 deliver Nintendo's game. Natural-language refinements modify the current program.
 Only activate a candidate whose exact hash has passed independent verification.
-The runtime enforces that invariant; you cannot waive checks, install libraries,
-change the harness, read secrets, use a shell, or grant new permissions.
+The package runtime enforces that invariant: package tools cannot waive checks,
+install libraries, change the harness, read secrets, use a shell, or grant new
+permissions. Separate requested computer tasks follow the authority below.
 If blocked, explain the specific missing capability honestly. Never substitute a
 preset or say a device activation succeeded before its matching acknowledgement.
 Base claims on observed capabilities, check results and acknowledgements. Passing
@@ -206,7 +210,7 @@ TOOLS = [
     tool("ask_user", "Ask one short question only for genuinely blocking missing intent, consequential ambiguity, necessary human input, or an explicit request to ask first. Choose sensible reversible defaults otherwise. Ends this turn without running other tools.",
          {"question": {"type": "string", "minLength": 1, "maxLength": 180}}, ["question"]),
     tool("inspect_capabilities", "Read connected controls, display, current revision and paired host permissions."),
-    tool("read_runtime_api", "Read the game language, graphics/assets format, local live-camera drawing and volume binding contracts."),
+    tool("read_runtime_api", "Read the game language, graphics/assets format, local live-camera drawing and volume/brightness binding contracts."),
     tool("read_current_package", "Read the active source, assets or bindings for a refinement."),
     tool("write_package", "Write a complete game/code/assets or control mapping candidate. This does not activate it.",
          {"package": {"type": "object"}}, ["package"]),

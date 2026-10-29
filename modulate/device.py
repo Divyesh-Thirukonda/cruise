@@ -349,6 +349,9 @@ class Controller:
                 if not result.get("cancelled"):
                     with self.lock:
                         self._feedback("Already finished", "No new build was cancelled")
+            # Rendering owns the runtime lock before present() takes ours.
+            # Read its camera revision before taking ours to keep that order.
+            camera_fresh = self._live_camera_image() is not None
             with self.lock:
                 self.sequence += 1
                 delta = self.encoder_pending if not self._busy() and self.encoder_revision == self.state.get("revision") else 0
@@ -360,7 +363,7 @@ class Controller:
                           "commands": self.commands if self.state.get("kind") == "game" else [],
                           "telemetry": {"fps": round(self.fps, 1), "voice": self.voice_state,
                                         "camera": {"frames_received": self.camera_frames_received,
-                                                   "frame_fresh": self._live_camera_image() is not None},
+                                                   "frame_fresh": camera_fresh},
                                         "voice_history": list(self.voice_history),
                                         "speaker": dict(self.speaker_state),
                                         "processing": {"busy": bool(self._busy()),

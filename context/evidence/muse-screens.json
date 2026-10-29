@@ -1,0 +1,705 @@
+{
+  "date": "2026-10-29",
+  "implementation_commit": "89b29d8",
+  "pi_archive_sha256": "218671b51244c9f1fc32aa9ffbef846dfaff6764256a20d7921906f089cd8e55",
+  "checks": {
+    "host_tests_run": 921,
+    "host_platform_skips": 11,
+    "pi_focused_tests_passed": 260,
+    "pi_test_seconds": 5.738,
+    "diff_check": "passed"
+  },
+  "physical_confirmation": {
+    "source": "user observation",
+    "listening_hand_cup": true,
+    "talking_animation_during_reply": true,
+    "success_build_animation": "synthetic lifecycle coverage; not separately confirmed on hardware in this trial",
+    "other_states": "renderer previews and focused Pi tests; not an optical test of every state"
+  },
+  "active_revision_preserved": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462",
+  "network_observation": "Brief disconnect after the observed trial; connection recovered. Subsequent systemd read showed active/running, NRestarts=0 and no error-priority journal entries in the preceding three minutes. Cause not established.",
+  "final_device": {
+    "connected": true,
+    "display": {
+      "kind": "setup",
+      "title": "Link your computer",
+      "offer_id": null
+    },
+    "voice_state": "wake_listening",
+    "speaker_state": "idle"
+  },
+  "budget_after": {
+    "limit_dollars": 50.0,
+    "charged_or_reserved_dollars": 10.303666,
+    "calls": 506,
+    "halted": false
+  },
+  "notes": [
+    "No model calls are used by character rendering.",
+    "Provider budget remained 506 calls / $10.303666 held or used during this check.",
+    "No linking or permission grants were tested or changed.",
+    "Preview PNG/GIF is an offline illustration, not an optical recording."
+  ],
+  "telemetry_samples": [
+    {
+      "elapsed_seconds": 0.0,
+      "connected": true,
+      "display": {
+        "kind": "control",
+        "title": "Volume"
+      },
+      "voice_state": "wake_listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 0.8,
+      "connected": true,
+      "display": {
+        "kind": "control",
+        "title": "Volume"
+      },
+      "voice_state": "wake_listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 1.7,
+      "connected": true,
+      "display": {
+        "kind": "control",
+        "title": "Volume"
+      },
+      "voice_state": "wake_listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 2.4,
+      "connected": true,
+      "display": {
+        "kind": "control",
+        "title": "Volume"
+      },
+      "voice_state": "wake_listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 3.2,
+      "connected": true,
+      "display": {
+        "kind": "control",
+        "title": "Volume"
+      },
+      "voice_state": "wake_listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 4.0,
+      "connected": true,
+      "display": {
+        "kind": "control",
+        "title": "Volume"
+      },
+      "voice_state": "wake_listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 4.7,
+      "connected": true,
+      "display": {
+        "kind": "control",
+        "title": "Volume"
+      },
+      "voice_state": "wake_listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 5.5,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Listening"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 6.2,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Listening"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 7.0,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Listening"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 7.8,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Listening"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 8.5,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Listening"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 9.3,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Listening"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 10.1,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Listening"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 10.8,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Listening"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 11.6,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Listening"
+      },
+      "voice_state": "wake_listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 12.3,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Quick question"
+      },
+      "voice_state": "wake_listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 13.1,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Quick question"
+      },
+      "voice_state": "wake_listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 13.9,
+      "connected": true,
+      "display": {
+        "kind": "speaker",
+        "title": "Replying aloud"
+      },
+      "voice_state": "muted",
+      "speaker_state": "speaking",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 14.6,
+      "connected": true,
+      "display": {
+        "kind": "speaker",
+        "title": "Replying aloud"
+      },
+      "voice_state": "muted",
+      "speaker_state": "speaking",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 15.4,
+      "connected": true,
+      "display": {
+        "kind": "speaker",
+        "title": "Replying aloud"
+      },
+      "voice_state": "muted",
+      "speaker_state": "speaking",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 16.2,
+      "connected": true,
+      "display": {
+        "kind": "speaker",
+        "title": "Replying aloud"
+      },
+      "voice_state": "muted",
+      "speaker_state": "speaking",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 16.9,
+      "connected": true,
+      "display": {
+        "kind": "speaker",
+        "title": "Replying aloud"
+      },
+      "voice_state": "muted",
+      "speaker_state": "speaking",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 17.7,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 18.4,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 19.2,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 19.9,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 20.7,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 21.5,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 22.2,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 23.0,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 23.8,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 24.5,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 25.3,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 26.0,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 26.8,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 27.6,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 28.3,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 29.1,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 29.9,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 30.6,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 31.4,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 32.2,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 32.9,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 33.9,
+      "connected": true,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 34.6,
+      "connected": false,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 35.4,
+      "connected": false,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 36.4,
+      "connected": false,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 37.1,
+      "connected": false,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 37.9,
+      "connected": false,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 38.8,
+      "connected": false,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 39.6,
+      "connected": false,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 40.4,
+      "connected": false,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 41.1,
+      "connected": false,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 41.9,
+      "connected": false,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 42.7,
+      "connected": false,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 43.4,
+      "connected": false,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 44.2,
+      "connected": false,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 44.9,
+      "connected": false,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    },
+    {
+      "elapsed_seconds": 45.9,
+      "connected": false,
+      "display": {
+        "kind": "status",
+        "title": "Your answer"
+      },
+      "voice_state": "listening",
+      "speaker_state": "idle",
+      "active_revision": "435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462"
+    }
+  ]
+}

@@ -56,6 +56,12 @@ display-write throttling, overlay priority and activation acknowledgement rules.
 The full local suite ran 921 tests with 11 platform skips. Hardware deployment
 and physical observations are recorded separately in the build log.
 
+Installed on the Pi as `89b29d8`: all 260 focused Pi checks passed. The user
+confirmed seeing the cupped-hand listening pose and mouth animation during
+speech. The existing app revision was retained. Success/error lifecycle checks
+are synthetic; this trial does not claim optical validation of every state.
+[Sanitized deployment and trial evidence](evidence/muse-screens.json).
+
 ## Visual provenance
 
 The user requested Meta's Muse character and supplied a hand-drawn pose sketch.

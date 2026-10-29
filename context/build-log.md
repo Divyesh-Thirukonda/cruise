@@ -317,3 +317,18 @@ animation code were authored for Modulate during this event; no official source
 image or private user sketch is committed. Character design remains Meta's,
 with no claimed open asset license or official avatar-runtime integration.
 [Preview and provenance](muse-screens.md).
+
+Installed code `89b29d8` on the Pi after archive SHA256 verification
+(`218671b51244c9f1fc32aa9ffbef846dfaff6764256a20d7921906f089cd8e55`).
+All **260 focused Pi tests passed in 5.738 seconds**, followed by an active
+service restart. The user confirmed the listening hand-cup and talking-mouth
+animations on the physical display. Software telemetry separately observed
+Listening → Quick question → Replying aloud → Your answer, retaining the exact
+active revision. A brief later connection gap recovered; the service then
+reported active/running, zero automatic restarts and no error-priority journal
+entries in the preceding three minutes. The gap's cause was not established.
+
+No linking tests or new grants were performed. The Meta ledger stayed at
+506 calls / $10.303666 held or used under the existing $50 ceiling. New-build
+celebration and error paths have synthetic lifecycle coverage; no separate live
+build was generated just to exercise the illustration. [Trial evidence](evidence/muse-screens.json).

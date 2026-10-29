@@ -331,7 +331,7 @@ class Product(AssistantIO):
             self._stop_speech()
             self.clarification = None
             try:
-                self._question(question)
+                self._question(question, kind=followup["kind"] if followup else "clarification")
             except AgentError:
                 question = "I still couldn't understand the request. Please type it in Studio, or say Hey Meta and start again."
                 self.conversation = self.current_request = None

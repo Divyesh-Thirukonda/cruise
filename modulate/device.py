@@ -159,8 +159,12 @@ class Controller:
         self.voice.set_busy(bool(self._busy()))
         self.voice.set_enabled(bool(self.host.get("wake")) and not self._speech_guard())
         question = self.host.get("clarification")
+        speech = self.host.get("speech")
+        awaiting_audio = (type(speech) is dict and self._job_id(speech.get("id"))
+                          and speech["id"] not in self.speech_seen)
         identifier = None
-        if (not self._busy() and not self._speech_guard() and not self.host.get("speech_pending") and self.host.get("wake")
+        if (not self._busy() and not self._speech_guard() and not awaiting_audio
+                and not self.host.get("speech_pending") and self.host.get("wake")
                 and time.monotonic() - self.last_response <= 4 and type(question) is dict
                 and self._job_id(question.get("id")) and type(question.get("expires_at")) in (int, float)
                 and math.isfinite(question["expires_at"]) and question["expires_at"] > time.time()):
@@ -647,7 +651,12 @@ class Controller:
                         self.status("Listening" if voice == "listening" else "Understanding",
                                     "Speak your request" if voice == "listening" else "Local speech recognition")
                 elif question:
-                    self.status("Quick question", "\n".join(textwrap.wrap(question, 31)[:3]) + '\nReply after I finish speaking')
+                    speech = self.host.get("speech")
+                    waiting = self.host.get("speech_pending") or (type(speech) is dict
+                              and self._job_id(speech.get("id")) and speech["id"] not in self.speech_seen)
+                    footer = ("Say Hey Meta to answer" if voice == "wake_listening" and not waiting
+                              else "Reply after I finish speaking")
+                    self.status("Quick question", "\n".join(textwrap.wrap(question, 31)[:3]) + "\n" + footer)
                 elif self.host.get("agent_running") and not current.get("kind"):
                     self.status("Reinventing...", "Meta is building and testing\nFollow progress in Studio")
                 elif current.get("kind") == "control":

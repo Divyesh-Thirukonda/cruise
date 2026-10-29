@@ -182,6 +182,20 @@ class VoiceFlowTests(unittest.TestCase):
         self.assertIn("stopped retrying", self.product.response['text'])
         self.assertIsNone(self.product.active)
 
+    def test_missed_retry_answer_preserves_single_recovery_limit(self):
+        _, work = self.queued('Original synthetic goal', source='website')
+        failure = AgentProviderError('Provider request failed or timed out.')
+        with patch.object(self.product.agent, 'run', side_effect=failure): work()
+        first = self.product.state()['clarification']
+        self.product.unclear('empty', followup_id=first['id'])
+        repeated = self.product.state()['clarification']
+        self.assertNotEqual(repeated['id'], first['id'])
+        self.assertEqual(repeated['kind'], 'recovery')
+        _, retry = self.queued('yes', source='website', followup_id=repeated['id'])
+        with patch.object(self.product.agent, 'run', side_effect=failure): retry()
+        self.assertIsNone(self.product.state()['clarification'])
+        self.assertIn('stopped retrying', self.product.response['text'])
+
     def test_unclear_then_real_goal_then_yes_keeps_original_intent(self):
         self.product.unclear('empty')
         first = self.product.state()['clarification']

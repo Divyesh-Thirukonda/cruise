@@ -202,6 +202,23 @@ class DeviceSpeakerTests(unittest.TestCase):
         self.assertFalse(voice._enabled)
         self.assertEqual(self.controller.speech_ack, response["speech"]["id"])
 
+    def test_followup_waits_for_recovered_question_playback_before_consuming_grant(self):
+        voice = self.controller.voice = VoiceListener(lambda text: True, lambda status: None)
+        response = self.response()
+        identifier = "a" * 32
+        response["clarification"] = {"id": identifier, "expires_at": time.time() + 120}
+        self.speaker.value["available"] = False
+        self.apply(response)
+        self.assertIsNone(voice._followup_id)
+        self.assertNotIn(identifier, voice._followup_seen)
+        self.speaker.value["available"] = True
+        self.apply(response)
+        self.assertIsNone(voice._followup_id)
+        self.speaker.emit("idle")
+        with patch("modulate.device.time.monotonic", return_value=time.monotonic() + 0.36):
+            self.controller._sync_voice()
+        self.assertEqual(voice._followup_id, identifier)
+
     def test_big_game_buttons_do_not_stop_speech_but_tft_b_does(self):
         self.apply(self.response())
         sample = {**neutral_input(), "button_b": True}

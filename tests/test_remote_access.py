@@ -230,6 +230,72 @@ class RemoteAccessTests(unittest.TestCase):
         self.remote.revoke(token)
         self.assertEqual(self.http("/state", token=token)[0], 401)
 
+    def test_state_queued_behind_revocation_cannot_return_private_snapshot(self):
+        self.start_http()
+        token = self.claim()
+        authenticated = threading.Event()
+        authenticate = self.remote.authenticate
+
+        def observed_authenticate(value):
+            session = authenticate(value)
+            authenticated.set()
+            return session
+
+        result = {}
+
+        def read_state():
+            result["response"] = self.http("/state", token=token)
+
+        with patch.object(self.remote, "authenticate", side_effect=observed_authenticate):
+            with self.product.lock:
+                worker = threading.Thread(target=read_state, daemon=True)
+                worker.start()
+                self.assertTrue(authenticated.wait(1))
+                self.remote.revoke(token)
+            worker.join(3)
+        self.assertFalse(worker.is_alive())
+        status, body = result["response"]
+        self.assertEqual(status, 401)
+        self.assertNotIn("device", body)
+
+    def test_wake_rechecks_revocation_before_enabling_or_disabling(self):
+        for enabled in (True, False):
+            with self.subTest(enabled=enabled):
+                token = self.claim()
+                self.product.wake = not enabled
+                authenticated = threading.Event()
+                release = threading.Event()
+                authenticate = self.remote.authenticate
+
+                def delayed_authenticate(value):
+                    session = authenticate(value)
+                    authenticated.set()
+                    if not release.wait(2):
+                        raise RuntimeError("Timed out waiting for synthetic revocation")
+                    return session
+
+                result = {}
+
+                def change_wake():
+                    try:
+                        result["response"] = self.remote.command(token, "/api/wake", {"enabled": enabled})
+                    except RemoteAccessError as error:
+                        result["error"] = error
+
+                with patch.object(self.remote, "authenticate", side_effect=delayed_authenticate):
+                    worker = threading.Thread(target=change_wake, daemon=True)
+                    worker.start()
+                    try:
+                        self.assertTrue(authenticated.wait(1))
+                        self.remote.revoke(token)
+                    finally:
+                        release.set()
+                    worker.join(3)
+                self.assertFalse(worker.is_alive())
+                self.assertNotIn("response", result)
+                self.assertEqual(result["error"].status, 401)
+                self.assertEqual(self.product.wake, not enabled)
+
     def test_http_exact_commands_and_bounded_json_only(self):
         self.start_http()
         token = self.claim()

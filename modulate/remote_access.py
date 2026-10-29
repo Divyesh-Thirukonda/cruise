@@ -225,6 +225,15 @@ class RemoteAccess:
         product = self.product
         if path == "/api/request":
             return self.request(token, data)
+
+        def set_wake():
+            if type(data.get("enabled")) is not bool:
+                raise RemoteAccessError("enabled must be boolean")
+            if data["enabled"]:
+                product.require_permission("voice")
+            product.wake = data["enabled"]
+            return {"enabled": product.wake}
+
         routes = {
             "/api/context/clear": lambda: product.clear_context(),
             "/api/hardware/confirm": lambda: product.hardware_confirm(data.get("id"), data.get("step")),
@@ -240,14 +249,8 @@ class RemoteAccess:
             "/api/pairing": lambda: product.create_pairing(),
             "/api/revoke": lambda: product.revoke(),
             "/api/rollback": lambda: product.rollback(),
+            "/api/wake": set_wake,
         }
-        if path == "/api/wake":
-            if type(data.get("enabled")) is not bool:
-                raise RemoteAccessError("enabled must be boolean")
-            if data["enabled"]:
-                product.require_permission("voice")
-            product.wake = data["enabled"]
-            return {"enabled": product.wake}
         if path not in routes:
             raise RemoteAccessError("Unknown companion action", 404)
         # Recheck under the product lock immediately before dispatch; no
@@ -321,8 +324,10 @@ def handler_for(remote, server_secret):
                         return self.send(200, remote.revoke(token))
                 remote.authenticate(token)
                 if self.command == "GET" and path == "/state":
-                    state = remote.product.state()
-                    state["remote"] = remote.session(token)
+                    with remote.product.lock:
+                        remote.authenticate(token)
+                        state = remote.product.state()
+                        state["remote"] = remote.session(token)
                     return self.send(200, state)
                 if self.command == "GET" and path == "/preview":
                     candidate = parse_qs(parsed.query).get("candidate") == ["1"]

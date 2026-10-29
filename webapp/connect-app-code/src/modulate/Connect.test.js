@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import '@testing-library/jest-dom';
 import Connect from './Connect';
 import { command, connectApi } from './api';
+import { usePathname, useRouter } from 'next/navigation';
 
 jest.mock('./api', () => ({
   connectApi: jest.fn(), command: jest.fn(), previewUrl: () => '/test-preview.png',
@@ -21,20 +22,50 @@ const deferred = () => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  usePathname.mockReturnValue('/connect/studio');
   command.mockResolvedValue({ ok: true });
 });
 
-test('pairing submits the user’s access choices and camera sharing starts off', async () => {
-  connectApi.mockResolvedValue({ connected: false });
+test('first visit only asks for a code and linking preserves access until the next step', async () => {
+  usePathname.mockReturnValue('/connect');
+  let linked = false;
+  connectApi.mockImplementation(async (action, payload) => {
+    if (action === 'session' && payload?.code) { linked = true; return connectedSession; }
+    return action === 'session' ? linked ? connectedSession : { connected: false } : initialState;
+  });
   render(<Connect />);
-  const computerChoice = await screen.findByRole('checkbox', { name: 'Computer use' });
-  expect(screen.getByRole('checkbox', { name: 'Camera preview in browsers' })).not.toBeChecked();
-  fireEvent.click(computerChoice);
-  fireEvent.change(screen.getByLabelText('CONNECTION CODE'), { target: { value: '12345678' } });
+  await waitFor(() => expect(screen.getByLabelText('Connection code')).toBeEnabled());
+  expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+  expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Connection code'), { target: { value: '01234567' } });
   fireEvent.click(screen.getByRole('button', { name: 'Connect to Modulate' }));
-  await waitFor(() => expect(connectApi).toHaveBeenCalledWith('session', expect.objectContaining({
-    code: '12345678', permissions: expect.objectContaining({ computer: false, camera: true, remote_preview: false }),
-  })));
+  await screen.findByRole('heading', { name: 'Make it yours.' });
+  expect(connectApi).toHaveBeenCalledWith('session', { code: '01234567', name: 'Modulate web browser' });
+  expect(connectApi.mock.calls.some(([action]) => action === 'permissions')).toBe(false);
+  expect(useRouter().push).toHaveBeenCalledWith('/connect/access');
+  expect(useRouter().replace).not.toHaveBeenCalledWith('/connect/studio');
+  expect(screen.getByRole('switch', { name: 'Allow system controls' })).toHaveAttribute('aria-checked', 'true');
+  fireEvent.click(screen.getByRole('button', { name: 'Keep current access' }));
+  await screen.findByLabelText('What should it become?');
+  expect(connectApi.mock.calls.some(([action]) => action === 'permissions')).toBe(false);
+});
+
+test('access review saves only changed choices and stays put after a failed save', async () => {
+  usePathname.mockReturnValue('/connect/access');
+  connectApi.mockImplementation(async action => {
+    if (action === 'session') return connectedSession;
+    if (action === 'permissions') throw new Error('Save unavailable');
+    return initialState;
+  });
+  render(<Connect />);
+  const toggle = await screen.findByRole('switch', { name: 'Allow computer use' });
+  fireEvent.click(toggle);
+  fireEvent.click(screen.getByRole('button', { name: 'Save & open Studio' }));
+  await screen.findByText('Save unavailable');
+  expect(connectApi).toHaveBeenCalledWith('permissions', { permissions: { computer: true } });
+  expect(screen.getByRole('heading', { name: 'Make it yours.' })).toBeInTheDocument();
+  expect(toggle).toHaveAttribute('aria-checked', 'true');
+  expect(useRouter().push).not.toHaveBeenCalledWith('/connect/studio');
 });
 
 test('follow-up answers retain the exact question id', async () => {
@@ -58,7 +89,7 @@ test('a failed permissions update does not display a grant as successful', async
   });
   render(<Connect />);
   await screen.findByText('Hey Meta is on');
-  fireEvent.click(within(screen.getByRole('navigation', { name: 'Modulate workspace' })).getByRole('button', { name: 'Permissions' }));
+  fireEvent.click(within(screen.getByRole('navigation', { name: 'Modulate workspace' })).getByRole('button', { name: 'Access' }));
   const toggle = screen.getByRole('switch', { name: 'Allow computer use' });
   expect(toggle).toHaveAttribute('aria-checked', 'false');
   fireEvent.click(toggle);
@@ -126,7 +157,7 @@ test('a permission update refreshes immediately and an older session cannot rest
   });
   render(<Connect />);
   await screen.findByText('Hey Meta is on');
-  fireEvent.click(within(screen.getByRole('navigation', { name: 'Modulate workspace' })).getByRole('button', { name: 'Permissions' }));
+  fireEvent.click(within(screen.getByRole('navigation', { name: 'Modulate workspace' })).getByRole('button', { name: 'Access' }));
   fireEvent.click(screen.getByRole('button', { name: 'Refresh', exact: true }));
   await waitFor(() => expect(sessionReads).toBe(2));
   const toggle = screen.getByRole('switch', { name: 'Allow system controls' });
@@ -150,7 +181,7 @@ test('an old authentication error cannot clear a successfully refreshed connecti
   });
   render(<Connect />);
   await screen.findByText('Hey Meta is on');
-  fireEvent.click(within(screen.getByRole('navigation', { name: 'Modulate workspace' })).getByRole('button', { name: 'Permissions' }));
+  fireEvent.click(within(screen.getByRole('navigation', { name: 'Modulate workspace' })).getByRole('button', { name: 'Access' }));
   fireEvent.click(screen.getByRole('button', { name: 'Refresh', exact: true }));
   await waitFor(() => expect(stateReads).toBe(2));
   fireEvent.click(screen.getByRole('switch', { name: 'Allow system controls' }));

@@ -3,8 +3,8 @@
 `https://modulate-connect.vercel.app/connect` is the remote Studio for the existing Modulate hub. Its dedicated Vercel project is `modulate-connect`, linked to `Divyesh-Thirukonda/cruise` on GitHub with production branch `main` and root directory `webapp/connect-app-code`. The Mac companion remains the trusted runtime for the paired Pi, the agent, native computer tools, private state, and spending ledgers.
 
 The connection-specific web source is included in this hackathon repository at
-[webapp/connect-app-code](../webapp/connect-app-code). It contains the React
-dashboard, Vercel endpoints, tests and standalone build configuration, with a
+[webapp/connect-app-code](../webapp/connect-app-code). It contains the React/Next.js
+connection flow and workspace, server endpoints, tests and build configuration, with a
 manifest preserving the original portfolio source commit/hashes and the current
 standalone hashes. The portfolio is no longer the deployment source. Historical
 divy.live trials in the evidence remain labeled with their original destination.
@@ -13,8 +13,15 @@ divy.live trials in the evidence remain labeled with their original destination.
 
 1. Keep the Mac companion and its outbound connection running.
 2. On that Mac, open `http://127.0.0.1:8787` and create a browser connection code.
-3. On a phone or computer, visit `https://modulate-connect.vercel.app/connect`, enter the single-use eight-digit code, and choose the device's access switches.
-4. Use the dashboard to send requests, inspect the running program and checks, answer follow-up questions, edit voice drafts, cancel work, manage hardware, and control the existing paired Mac.
+3. On a phone or computer, visit `https://modulate-connect.vercel.app/connect` and enter the single-use eight-digit code. Preserve leading zeroes. The first screen shows only a brief introduction, connection and setup help.
+4. Once connected, review the existing device access settings on the next screen. **Keep current access** opens Studio without a permission write; **Save & open Studio** sends only choices you changed. Connecting a browser itself does not reset device permissions.
+5. Use Studio for the running app and requests. **App library**, **Device** and **Access** have their own pages; expand **Developer tools** for agent activity or generated source/checks. The workspace sidebar appears after connection, and returning valid sessions open Studio directly.
+
+This guided flow is implemented in Next.js 16.4.3 and React 19.3.1. Production
+verification is pending in the [build log](build-log.md). It reorganizes the
+existing gateway/runtime operations; no new physical pairing is needed for the
+web update. Active work retains visible stop/cancel controls while visiting
+setup or access review.
 
 Moving from divy.live to the new hostname requires one fresh browser connection
 code because Secure host-only cookies cannot move between domains. Existing
@@ -23,6 +30,35 @@ Pi/native Mac pairing, saved apps, permissions and ledgers are retained.
 The browser connection expires after eight hours and can be disconnected independently of the Pi's native Mac pairing. Local Studio can revoke every remote browser. A paired browser is a trusted administrator for this one Modulate hub. The access switches apply to the device as a whole, including its microphone requests; they are not separate per-browser sandboxes.
 
 Page reloads and companion restarts retain an unexpired browser session. During a companion outage the dashboard disables actions and retries automatically. Disconnect immediately clears the browser's private view; older polling responses cannot restore it. Reconnecting requires a fresh code because the original code was consumed.
+
+## Set up with Codex
+
+The separate `/connect/setup` page offers **Copy Codex prompt** and an optional
+**Download plugin**, with the full prompt available for manual copying if the
+browser clipboard is unavailable. The main connection page links here when a
+visitor has no code. Setup guidance does not require access to private dashboard
+state.
+
+The downloadable [Modulate Setup plugin](../plugins/modulate-setup) includes a
+local Codex manifest, setup skill, read-only inspection helper and explicit
+plugin installer. Unzip `/downloads/modulate-setup.zip`, open its folder in Codex
+and ask it to install Modulate Setup. This installs a guided skill into a local
+plugin source; enabling it remains a Codex action. Downloading it does not grant
+native access, start companion services or bundle provider keys.
+
+The skill checks for running **and stopped** installations before recreating
+anything. It preserves existing apps, credentials, enrollment, pairing and
+spending records; distinguishes replacing a Pi from adding another; and guides
+the next necessary physical or macOS permission step. A new user chooses their
+own provider access and spending ceiling before paid tests. The copyable prompt
+also works without installing the plugin by pointing Codex at its published
+setup guidance.
+
+The public deployment still routes to one configured companion. Setting up a
+separate Mac/Pi requires its own local runtime and, if remote access is wanted,
+a separate configured gateway/deployment. The plugin does not enroll arbitrary
+machines into this shared hub. No signed one-click native installer or public
+multi-tenant provisioning is claimed.
 
 ## On-device setup
 

@@ -96,6 +96,35 @@ class RemoteAccessTests(unittest.TestCase):
         with self.assertRaises(RemoteAccessError):
             self.remote.claim(code)
 
+    def test_claim_without_permissions_preserves_current_device_grants(self):
+        self.remote.set_permissions({"computer": False, "system": False, "speaker": False,
+                                     "remote_preview": True})
+        expected = self.remote.local_status()["permissions"]
+        code = self.remote.create_pairing()["code"]
+        with patch.object(self.remote, "set_permissions", wraps=self.remote.set_permissions) as update:
+            result = self.remote.claim(code, "Second browser")
+        update.assert_not_called()
+        self.assertEqual(result["permissions"], expected)
+        reloaded = RemoteAccess(self.product, self.directory, clock=lambda: self.now)
+        self.assertEqual(reloaded.session(result["token"])["permissions"], expected)
+
+    def test_claim_without_permissions_does_not_restore_grants_from_code_creation(self):
+        code = self.remote.create_pairing()["code"]
+        self.remote.set_permissions({"camera": False, "audio": False, "hardware": False})
+        expected = self.remote.local_status()["permissions"]
+        result = self.remote.claim(code)
+        self.assertEqual(result["permissions"], expected)
+        self.assertFalse(self.product.permission_allowed("camera"))
+        self.assertFalse(self.product.permission_allowed("audio"))
+        self.assertFalse(self.product.permission_allowed("hardware"))
+
+    def test_claim_with_explicit_permissions_keeps_existing_default_merge_semantics(self):
+        self.remote.set_permissions({key: False for key in PERMISSIONS})
+        token = self.claim(permissions={"camera": False, "remote_preview": True})
+        self.assertEqual(self.remote.session(token)["permissions"], {
+            **PERMISSIONS, "camera": False, "remote_preview": True,
+        })
+
     def test_expiry_and_revocation_invalidate_private_reads_and_tools(self):
         token = self.claim()
         self.remote.job_owner = hashlib.sha256(token.encode()).hexdigest()

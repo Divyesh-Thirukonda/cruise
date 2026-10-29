@@ -1,0 +1,4 @@
+interface:
+  display_name: "Modulate Setup"
+  short_description: "Connect or repair your Mac and Modulate device"
+  default_prompt: "Use $modulate-setup to connect my Mac and Raspberry Pi while preserving my existing apps and settings."

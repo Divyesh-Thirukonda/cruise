@@ -1,0 +1,20 @@
+{
+  "name": "modulate-setup",
+  "version": "0.1.0",
+  "description": "Set up or repair a Modulate Mac companion and Raspberry Pi connection with Codex.",
+  "author": { "name": "Modulate" },
+  "homepage": "https://modulate-connect.vercel.app/connect/setup",
+  "repository": "https://github.com/Divyesh-Thirukonda/cruise",
+  "skills": "./skills/",
+  "requires_local_executor": true,
+  "interface": {
+    "displayName": "Modulate Setup",
+    "shortDescription": "Connect your Mac, Raspberry Pi, and Modulate.",
+    "longDescription": "Guided local setup and recovery for Modulate. Inspects an existing installation, prepares the companion and Pi runtime, and guides the human steps for pairing and macOS permissions. No credentials, background hooks, or automatic native installation are bundled.",
+    "developerName": "Modulate",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "defaultPrompt": ["Use $modulate-setup to connect my Mac and Raspberry Pi, preserving my existing apps and settings."],
+    "brandColor": "#469DFF"
+  }
+}

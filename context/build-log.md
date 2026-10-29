@@ -480,3 +480,52 @@ test run exposed CRA's React-19-incompatible SVG component mock; serving the log
 as a normal SVG image resolved it without dependency changes. Browser inspection
 at 1280×720 and 390×844 confirmed the card and action fit, the Meta symbol renders,
 and the mobile connect action closes navigation. No pairing or device state changed.
+
+### Guided connection flow, Next.js and setup plugin — October 29
+
+Implemented the user-requested simpler web flow: a short first-visit introduction
+and connection code, a separate review of current access, then Studio. The
+workspace sidebar appears only after connection. Device controls and access
+choices have separate pages, and agent activity/source inspection move under
+**Developer tools**. Returning sessions resume Studio. Stop/cancel controls
+remain reachable during active work from setup/access screens.
+
+Browser linking preserves existing device permissions. The access review saves
+only edited switches, or opens Studio without a permission write when keeping
+the current settings. Existing private session recovery and gateway operations
+remain in place; no physical Pi re-pairing or enrollment reset was performed.
+
+Replaced the Create React App shell with **Next.js 16.4.3 and React 19.3.1**.
+The App Router serves supported `/connect` screens and adapts the existing server
+gateways to Next.js route handlers. Vercel uses the Next.js framework, and local
+development uses `npm run dev`; `npm start` serves a completed production build.
+Updated documentation and current hashes for the eleven originally exported
+files, preserving their original portfolio hashes and provenance.
+
+Added the setup page's copyable Codex prompt and downloadable **Modulate Setup**
+plugin. The plugin uses the documented local Codex manifest/catalog format and
+includes a setup skill, read-only inspection helper and explicit installer. It
+discovers existing or stopped installations, preserves apps/private state and
+spending ledgers, distinguishes replacing a Pi from adding one, and leaves
+physical confirmation/native OS permission steps to the user. Its download is
+not a signed native installer or automatic access grant. The shared deployment
+still routes to one configured hub; independent users require their own runtime
+and remote configuration.
+
+The archive and web prompt are generated from reviewed source with a checksum;
+no credentials, local enrollment data or private runtime files are included.
+Five package/install tests pass, covering source/download parity, read-only
+preview, preservation/conflicts, path escape rejection and concurrent catalog
+updates. The skill-creator validator passes. Forward review prompted explicit
+offline-state recovery and safer catalog/file handling. No plugin was installed
+into the development user's real Codex configuration for these checks.
+
+Final local verification passed: 24 client tests, 39 API/adapter tests, 19
+Python remote-access regressions, five plugin-package tests and the Next.js
+production build. Browser checks exercised code → access → Studio and Device
+using an isolated synthetic companion; the copy-prompt control also worked.
+The live companion was reloaded while idle and retained the current app, access
+settings, wake state, pairing state and spending ledger. Production deployment
+verification is pending. No live hardware re-pairing or new provider request was
+needed for this work. Reused dependencies include Next.js, React, Jest,
+Testing Library and Lucide; the existing CC0 Simple Icons Meta symbol remains.

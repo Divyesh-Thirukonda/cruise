@@ -1,0 +1,66 @@
+{
+  "kind": "live physical trial with user confirmation",
+  "date": "2026-10-28",
+  "code_revision": "65bc241a322313bf00c51da54e517589d2ee3c97",
+  "checks": {
+    "host": {
+      "ran": 512,
+      "skipped": 11,
+      "result": "passed"
+    },
+    "pi_focused": {
+      "ran": 177,
+      "skipped": 0,
+      "result": "passed"
+    }
+  },
+  "speech": {
+    "provider": "elevenlabs",
+    "model": "eleven_flash_v2_5",
+    "voice": "Roger",
+    "output": "USB Jieli via paplay",
+    "sink_volume_percent": 75,
+    "user_confirmation": "Natural voice; volume is good",
+    "last_delivery": "delivered"
+  },
+  "conversation": {
+    "test_request": "Tell me a joke, but first ask if I want a space joke.",
+    "question": "Do you want a space joke?",
+    "answer": "yes without repeating the wake phrase",
+    "user_confirmation": "Yes, it understood my direct answer",
+    "result": "Why didn't the astronaut book a moon hotel?\n\nIt had no atmosphere!",
+    "clarification_cleared": true,
+    "returned_to": "wake_listening",
+    "model_calls": 2
+  },
+  "preserved_revision": "2d24f9ab84e5cd66881f2f6972fc1c29cbf361520173a81278af84b872b510da",
+  "meta_budget": {
+    "limit_dollars": 50.0,
+    "charged_or_reserved_dollars": 5.764938,
+    "calls": 214,
+    "halted": false
+  },
+  "limitations": [
+    "This is one successful direct-answer trial, not a noise or recognition reliability benchmark.",
+    "Recovery failures are covered by automated fault tests, not deliberately induced on the live device."
+  ],
+  "final_deployment": {
+    "code_revision": "5a30a28",
+    "pi_archive_sha256": "ab0a60434f064ce9058f5d32555ac49104bbf25258bd60ed3e28d24cca2f216e",
+    "host_focused": {
+      "ran": 136,
+      "skipped": 3,
+      "result": "passed"
+    },
+    "pi_focused": {
+      "ran": 136,
+      "skipped": 0,
+      "result": "passed"
+    },
+    "service": "active",
+    "retained_revision": "2d24f9ab84e5cd66881f2f6972fc1c29cbf361520173a81278af84b872b510da",
+    "speech_provider": "elevenlabs",
+    "wake_state": "wake_listening",
+    "computer_access": "off: Chrome must be foreground to re-enable"
+  }
+}

@@ -28,7 +28,7 @@ from .speaker_volume import SpeakerVolumeDevice
 from .hardware_device import HardwareDevice
 from .audio_receiver import AudioReceiver
 from .voice import VoiceListener
-from .setup_screen import SetupScreen
+from .setup_screen import SetupScreen, setup_address_lines
 from .library_screen import LibraryScreen
 from .muse_screen import render_card
 from .deployment import CONNECT_HOST
@@ -950,11 +950,18 @@ class Controller:
         draw.text((9, 6), "MODULATE / SETUP", font=font(10), fill="#469DFF")
         draw.text((9, 24), card["title"][:25], font=font(15), fill="white")
         if card["kind"] == "enrollment_code":
-            draw.text((9, 45), f"{card['address']}:{card['port']}", font=font(11), fill="#CCD5E0")
+            for index, line in enumerate(setup_address_lines(card["address"], card["port"])):
+                draw.text((9, 44 + index * 12), line, font=font(10), fill="#CCD5E0")
             fingerprint = card["fingerprint"].upper()
-            draw.text((9, 61), "Key: " + fingerprint[:10] + " " + fingerprint[10:], font=font(10), fill="#CCD5E0")
-            draw.text((9, 79), card["code"], font=font(26), fill="#74B8FF")
+            draw.text((9, 70), "Key: " + fingerprint[:10] + " " + fingerprint[10:], font=font(9), fill="#CCD5E0")
+            draw.text((9, 82), card["code"], font=font(24), fill="#74B8FF")
             footer = "A: new code   B: cancel"
+        elif card["kind"] == "enrollment_confirm":
+            for index, line in enumerate(setup_address_lines(card["host_address"])):
+                draw.text((9, 44 + index * 12), line, font=font(10), fill="#CCD5E0")
+            draw.text((9, 73), "Match request on your Mac:", font=font(10), fill="#CCD5E0")
+            draw.text((9, 86), card["id"][-8:].upper(), font=font(19), fill="#74B8FF")
+            footer = "A: link   B: decline"
         elif card["kind"] == "browser_code":
             draw.text((9, 46), CONNECT_HOST, font=font(11), fill="#CCD5E0")
             draw.text((9, 60), "/connect", font=font(10), fill="#CCD5E0")

@@ -23,7 +23,7 @@ class DeviceEnrollmentTests(unittest.TestCase):
         root = Path(cls.cert_dir.name)
         subprocess.run(["openssl", "req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1",
                         "-nodes", "-days", "2", "-subj", "/CN=Modulate companion", "-addext",
-                        "subjectAltName=IP:192.168.1.2,IP:127.0.0.1", "-keyout", str(root / "key.pem"),
+                        "subjectAltName=IP:192.168.1.2,IP:127.0.0.1,IP:::1,IP:2001:db8::2", "-keyout", str(root / "key.pem"),
                         "-out", str(root / "cert.pem")], check=True, capture_output=True)
         cls.pem = (root / "cert.pem").read_text()
 
@@ -163,6 +163,23 @@ class DeviceEnrollmentTests(unittest.TestCase):
             self.propose(data={**self.data, "host_url": "https://192.168.1.99:8788"}, peer="192.168.1.99")
         self.assertNotIn("pending", self.server.snapshot())
 
+    def test_zero_exit_mismatching_or_missing_openssl_result_never_authorizes(self):
+        # Linux's deployed OpenSSL can return 0 for a negative -checkip result.
+        # A successful process is not evidence that the certificate matched.
+        outputs = (b"IP 192.168.1.99 does NOT match certificate\n", b"",
+                   b"IP 192.168.1.2 does match certificate\n",
+                   b"unexpected output\n")
+        for output in outputs:
+            with self.subTest(output=output):
+                self.code = self.open()
+                completed = subprocess.CompletedProcess(["openssl"], 0, stdout=output, stderr=b"")
+                with patch("modulate.device_enrollment.subprocess.run", return_value=completed):
+                    with self.assertRaises(EnrollmentError):
+                        self.propose(data={**self.data, "host_url": "https://192.168.1.99:8788"},
+                                     peer="192.168.1.99")
+                self.assertFalse(self.path.exists())
+                self.assertNotIn("pending", self.server.snapshot())
+
     def test_atomic_commit_refuses_concurrent_target_and_leaves_no_orphan_cert(self):
         self.code = self.open()
         proposal = self.propose()
@@ -194,11 +211,11 @@ class DeviceEnrollmentTests(unittest.TestCase):
         self.assertTrue(self.server.confirm(proposal["id"]))
         self.assertEqual(json.loads(self.path.read_text())["device_key"], self.data["device_key"])
 
-    def connection(self):
+    def connection(self, address="127.0.0.1"):
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         context.check_hostname = False
         context.verify_mode = ssl.CERT_NONE
-        connection = http.client.HTTPSConnection("127.0.0.1", self.server.port, context=context, timeout=3)
+        connection = http.client.HTTPSConnection(address, self.server.port, context=context, timeout=3)
         connection.connect()
         self.addCleanup(connection.close)
         fingerprint = hashlib.sha256(connection.sock.getpeercert(binary_form=True)).hexdigest()[:20]
@@ -256,6 +273,73 @@ class DeviceEnrollmentTests(unittest.TestCase):
             response = connection.getresponse()
             self.assertEqual(response.status, 200)
             self.assertEqual(json.loads(response.read()), {"id": proposal["id"], "status": "complete"})
+
+    def test_ipv6_tls_round_trip_and_bracketed_companion_origin(self):
+        if self.server.server.address_family != socket.AF_INET6:
+            self.skipTest("Dual-stack IPv6 is unavailable")
+        from modulate.device_enrollment import usable_address
+        def fixture_address(value):
+            return "::1" if value == "::1" else usable_address(value)
+        self.code = self.open()
+        with patch("modulate.device_enrollment.usable_address", side_effect=fixture_address):
+            try:
+                connection = self.connection("::1")
+            except OSError:
+                self.skipTest("IPv6 loopback is unavailable")
+            connection.request("POST", "/enroll", json.dumps({"code": self.code, "enrollment": {
+                **self.data, "host_url": "https://[::1]:8788"}}), {"Content-Type": "application/json"})
+            response = connection.getresponse()
+            self.assertEqual(response.status, 200)
+            proposal = json.loads(response.read())
+            self.assertEqual(proposal["status"], "awaiting_confirmation")
+            self.assertTrue(self.server.confirm(proposal["id"]))
+            connection = self.connection("::1")
+            connection.request("POST", "/status", json.dumps(self.receipt(proposal)), {"Content-Type": "application/json"})
+            response = connection.getresponse()
+            self.assertEqual(response.status, 200)
+            self.assertEqual(json.loads(response.read()), {"id": proposal["id"], "status": "complete"})
+        self.assertEqual(json.loads(self.path.read_text())["host_url"], "https://[::1]:8788")
+
+    def test_mapped_ipv4_peers_match_but_mapped_loopback_is_still_rejected(self):
+        from modulate.device_enrollment import usable_address
+        self.assertEqual(usable_address("::ffff:192.168.1.2"), "192.168.1.2")
+        for invalid in ("::ffff:127.0.0.1", "2001:db8::2%en0", "::ffff:192.168.1.2%en0"):
+            with self.subTest(address=invalid), self.assertRaises(EnrollmentError):
+                usable_address(invalid)
+        self.code = self.open()
+        proposal = self.propose(peer="::ffff:192.168.1.2")
+        self.assertEqual(self.server.status(self.receipt(proposal), "::ffff:192.168.1.2")["status"],
+                         "awaiting_confirmation")
+        self.assertTrue(self.server.confirm(proposal["id"]))
+        self.assertEqual(self.server.status(self.receipt(proposal), "::ffff:192.168.1.2")["status"], "complete")
+
+    def test_network_discovery_prefers_global_ipv6_then_usable_ipv4(self):
+        from modulate.device_enrollment import local_address
+        with patch("modulate.device_enrollment.socket.getaddrinfo", return_value=[]):
+            for addresses, expected in (
+                ("100.64.0.2 2606:4700:4700::1111 ", "2606:4700:4700::1111"),
+                ("fe80::1234 192.168.1.3 fd00::3", "192.168.1.3"),
+                ("127.0.0.1 ::ffff:192.168.1.3", "192.168.1.3"),
+                ("::1 fe80::3", None),
+            ):
+                result = subprocess.CompletedProcess(["hostname", "-I"], 0, stdout=addresses, stderr="")
+                with self.subTest(addresses=addresses), patch("modulate.device_enrollment.subprocess.run", return_value=result):
+                    self.assertEqual(local_address(), expected)
+            result = subprocess.CompletedProcess(["hostname", "-I"], 0,
+                        stdout="100.64.0.2 2606:4700:4700::1111", stderr="")
+            with patch("modulate.device_enrollment.subprocess.run", return_value=result):
+                self.assertEqual(local_address(socket.AF_INET), "100.64.0.2")
+
+    def test_ipv4_listener_fallback_when_ipv6_is_not_supported(self):
+        self.server.close()
+        with patch("modulate.device_enrollment._IPv6Server", side_effect=OSError("No IPv6")):
+            self.assertTrue(self.server.start())
+        self.assertEqual(self.server.server.address_family, socket.AF_INET)
+        connection = self.connection()
+        connection.request("GET", "/")
+        response = connection.getresponse()
+        self.assertEqual(response.status, 404)
+        response.read()
 
     def test_missing_network_recovers_on_physical_retry_without_restart(self):
         self.server.address_override = None

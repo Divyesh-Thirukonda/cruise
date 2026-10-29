@@ -175,9 +175,10 @@ The installed `computer_audio` tool uses the existing enrolled TLS origin and be
 The customer setup contract assumes the device software is factory-loaded.
 Customer agents operate on the Mac; Raspberry Pi Connect, SSH credentials,
 developer accounts and historical private addresses are not setup dependencies.
-The device must already have a working network route to the Mac (IPv4 for this
-bootstrap release). Wi-Fi provisioning and a distributable OS image are separate
-work, not provided by the downloadable skill.
+The device must already have a working IPv4 or IPv6 network route to the Mac.
+Wi-Fi provisioning and a distributable OS image are separate work, not provided
+by the downloadable skill. Same Wi-Fi alone is insufficient on isolated guest
+networks; the setup screen prefers a usable IPv6 address when available.
 
 On an unenrolled boot only, the trusted device service starts HTTPS port 8790.
 Its own local EC certificate is pinned by the first 20 hexadecimal SHA-256

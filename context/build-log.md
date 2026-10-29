@@ -603,3 +603,24 @@ source verification and a Next.js production build. Tests include actual local
 HTTPS protocol traffic with simulated physical confirmation; this is not a
 customer/physical-device onboarding success. No model calls were required.
 Factory installation and deployed website verification are recorded separately.
+
+## October 29 — Factory compatibility and IPv6 enrollment
+
+The first authorized factory-update attempt ran 89 checks on the Pi and caught
+one real platform difference: its OpenSSL returned success for a nonmatching IP
+SAN. The installer restored the prior files and restarted the service, retaining
+empty enrollment, pairing and app state. Both enrollment sides now require the
+explicit positive certificate-match result; regression tests cover exit-zero
+mismatches and stale certificates.
+
+A read-only network probe found the current Wi-Fi's IPv4 peer path unavailable
+while IPv6 was reachable. Added dual-stack device setup, family-correct Mac route
+selection, normalized peer checks and IPv4-only fallback. Long IPv6 addresses
+remain complete and readable on the mini display, including the physical request
+confirmation. No provider calls or new pairing were used for these checks.
+
+Validation after the fixes: 1,001 Python tests completed, 13 skipped; five plugin
+package checks passed; all 39 API and 24 client tests and the Next.js production
+build passed. IPv6 protocol tests use local TLS with simulated physical input.
+Synthetic 240-by-135 setup/confirmation renders were inspected. Live factory
+installation and customer confirmation remain separate evidence below.

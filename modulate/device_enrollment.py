@@ -33,17 +33,27 @@ class EnrollmentError(Exception):
         self.status = status
 
 
-def usable_address(value):
+def _address(value):
     try:
         address = ipaddress.ip_address(value)
     except (ValueError, TypeError):
         raise EnrollmentError("Use a literal local-network address") from None
+    if address.version == 6 and address.scope_id is not None:
+        raise EnrollmentError("Use an address without a scope identifier")
+    # A dual-stack IPv6 listener reports IPv4 peers as ::ffff:a.b.c.d.
+    if address.version == 6 and address.ipv4_mapped:
+        return address.ipv4_mapped
+    return address
+
+
+def usable_address(value):
+    address = _address(value)
     if address.is_loopback or address.is_unspecified or address.is_multicast or address.is_link_local:
         raise EnrollmentError("Use a reachable local-network address")
     return str(address)
 
 
-def local_address():
+def local_address(family=socket.AF_UNSPEC):
     """Read configured addresses; never probe an Internet service for discovery."""
     candidates = []
     try:
@@ -52,17 +62,24 @@ def local_address():
     except (OSError, subprocess.SubprocessError):
         pass
     try:
-        candidates += [entry[4][0] for entry in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET)]
+        candidates += [entry[4][0] for entry in socket.getaddrinfo(socket.gethostname(), None, socket.AF_UNSPEC)]
     except OSError:
         pass
+    addresses = []
     for candidate in candidates:
         try:
-            address = usable_address(candidate)
-            if ipaddress.ip_address(address).version == 4:
-                return address
+            address = _address(usable_address(candidate))
+            if family == socket.AF_INET and address.version != 4:
+                continue
+            if address not in addresses:
+                addresses.append(address)
         except EnrollmentError:
             pass
-    return None
+    # Campus/guest networks can isolate their IPv4 addresses while local IPv6
+    # remains reachable. Prefer a configured global IPv6 address, then IPv4.
+    addresses.sort(key=lambda address: 0 if address.version == 6 and address.is_global
+                   else 1 if address.version == 4 else 2)
+    return str(addresses[0]) if addresses else None
 
 
 def _exists(path):
@@ -146,7 +163,12 @@ class EnrollmentServer:
                 context.load_cert_chain(cert, key)
                 self.fingerprint = hashlib.sha256(ssl.PEM_cert_to_DER_cert(cert.read_text())).hexdigest()[:20]
                 self.address = self.address or local_address()
-                self.server = _Server(("0.0.0.0", self.port), _handler(self), context)
+                try:
+                    self.server = _IPv6Server(("::", self.port), _handler(self), context)
+                except OSError:
+                    self.server = _Server(("0.0.0.0", self.port), _handler(self), context)
+                    if self.address and _address(self.address).version != 4:
+                        self.address = local_address(socket.AF_INET)
                 self.port = self.server.server_address[1]
                 self.worker = threading.Thread(target=self.server.serve_forever, daemon=True)
                 self.worker.start()
@@ -205,7 +227,10 @@ class EnrollmentServer:
             self.pending = None
             self.receipt = None
             self.attempts = 0
-            self.address = self.address_override or local_address()
+            family = socket.AF_INET if self.server.address_family == socket.AF_INET else socket.AF_UNSPEC
+            self.address = self.address_override or local_address(family)
+            if self.address and family == socket.AF_INET and _address(self.address).version != 4:
+                self.address = local_address(socket.AF_INET)
             if not self.address:
                 self.error = "Connect the device to Wi-Fi, then press A to retry."
                 return self.snapshot()
@@ -296,13 +321,18 @@ class EnrollmentServer:
                 stream.flush()
                 result = subprocess.run(["openssl", "x509", "-in", stream.name, "-noout", "-checkip", host],
                                         capture_output=True, timeout=3)
-                if result.returncode != 0:
+                # Some deployed OpenSSL versions exit zero even when -checkip
+                # reports a mismatch. Require the exact positive result; empty,
+                # negative or unfamiliar output must never authorize enrollment.
+                expected = f"IP {host} does match certificate".encode("ascii")
+                if result.returncode != 0 or result.stdout.strip() != expected:
                     raise ValueError("Certificate address mismatch")
         except (OSError, ValueError, ssl.SSLError, subprocess.SubprocessError):
             raise EnrollmentError("Companion certificate does not match its address") from None
         return {"host_url": data["host_url"].rstrip("/"), "device_key": key, "ca_pem": pem}, host
 
     def status(self, body, peer):
+        peer = str(_address(peer))
         with self.lock:
             self._expire()
             if type(body) is not dict or set(body) != {"id", "code"}:
@@ -408,6 +438,14 @@ class _Server(ThreadingHTTPServer):
         pass  # No request bodies, credentials or traceback locals in service logs.
 
 
+class _IPv6Server(_Server):
+    address_family = socket.AF_INET6
+
+    def server_bind(self):
+        self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        super().server_bind()
+
+
 def _handler(owner):
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
@@ -443,7 +481,7 @@ def _handler(owner):
                 if type(body) is not dict:
                     raise ValueError()
                 action = owner.propose if self.path == "/enroll" else owner.status
-                self.send(200, action(body, self.client_address[0]))
+                self.send(200, action(body, str(_address(self.client_address[0]))))
             except EnrollmentError as error:
                 self.send(error.status, {"error": str(error)})
             except (ValueError, TypeError, RecursionError, OSError):

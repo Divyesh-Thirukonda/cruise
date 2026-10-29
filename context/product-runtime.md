@@ -104,8 +104,9 @@ The explicit anchored wake phrase and Whisper's joint silence/low-confidence
 rejection remain. The capture fix preserves a synthetic 350 ms delayed onset;
 it does not make Whisper a dedicated wake-word model. The USB microphone was
 enabled at 75% with automatic gain control and was not adjusted. All 217 focused
-Pi checks passed without skips. A fresh physical wake trial is still required
-to assess this change in the user's room.
+Pi checks passed without skips. The user then confirmed the requested normal-volume
+“Hey Meta, reverse the knob here” trial was heard and physical menu scrolling
+reversed. This single successful trial does not establish general wake accuracy.
 
 Validation: **164 focused Pi tests passed without skips in 3.260 s**. The host ran **435 tests with 11 skips** (eight lacking NumPy and three lacking PyAV); the eight SpeechActivity tests separately passed under a host Python with NumPy. On the actual Pi, the bundled ONNX adapter labeled **0 of 1,000 synthetic zero-PCM 25 ms blocks** as speech in **0.229 s**, excluding model construction. This checks compatibility and execution time, not live audio or wake accuracy. The latest user program, revision `2d24f9ab84e5cd66881f2f6972fc1c29cbf361520173a81278af84b872b510da`, survived restart. The host was not restarted, preserving its current Chrome grant.
 

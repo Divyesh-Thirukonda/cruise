@@ -392,6 +392,7 @@ then used its trusted tool; neither asked a question nor wrote a package. The
 active revision remained `435c5a97aa45895005220a43ba952007349bb8ca85dc02ea57c38910a0a88462`.
 The ledger moved from 506 / $10.303666 to 512 / $10.373154 calls / held-or-used
 dollars. No linking test was performed. The boot setup card may be dismissed with
-small B before physical menu testing. Requested a fresh spoken wake/menu trial;
-its outcome is pending, not counted as a successful physical test.
+small B before physical menu testing. The user subsequently confirmed that the
+spoken “Hey Meta, reverse the knob here” was heard and physical menu scrolling
+reversed. This establishes that trial, not general wake/noise reliability.
 [Sanitized evidence](evidence/wake-library-preferences.json).

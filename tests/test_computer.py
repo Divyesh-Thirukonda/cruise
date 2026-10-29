@@ -286,7 +286,7 @@ class ComputerTests(unittest.TestCase):
             self.controller.focus()
 
     def test_duration_is_bounded_and_expiry_uses_monotonic_time(self):
-        for value in (True, 0, -1, 16, float("nan"), "15"):
+        for value in (True, 0, -1, .999, 120.001, 121, float("nan"), float("inf"), "120"):
             with self.assertRaises(ComputerError):
                 self.controller.enable(value)
         session = self.controller.enable(1)
@@ -297,6 +297,42 @@ class ComputerTests(unittest.TestCase):
             self.controller.act(identifier, {"type": "key", "keys": ["enter"]})
         self.assertFalse(self.controller.status()["enabled"])
         self.assertEqual([call[0] for call in self.desktop.calls], ["capture"])
+
+    def test_default_remains_fifteen_minutes_and_explicit_two_hours_expires(self):
+        default = self.controller.enable()
+        self.assertEqual(default["expires_at"], 1900)
+        self.assertEqual(self.controller.grant["deadline"], self.now + 900)
+        extended = self.controller.enable(120)
+        self.assertEqual(extended["expires_at"], 8200)
+        self.assertEqual(self.controller.grant["deadline"], self.now + 7200)
+        self.now += 7199
+        self.controller.begin_task()
+        self.controller.focus()
+        identifier = self.controller.observe()["observation_id"]
+        self.assertTrue(self.controller.status()["enabled"])
+        self.now += 1
+        with self.assertRaisesRegex(ComputerError, "expired"):
+            self.controller.act(identifier, {"type": "key", "keys": ["enter"]})
+        self.assertFalse(self.controller.status()["enabled"])
+        self.assertIsNone(self.controller.grant)
+        self.assertFalse(any(call[0] == "action" for call in self.desktop.calls))
+
+    def test_two_hour_grant_keeps_action_limit_cancel_and_revoke(self):
+        self.controller.enable(120)
+        identifier = self.controller.observe()["observation_id"]
+        self.controller.grant["actions"] = 100
+        with self.assertRaisesRegex(ComputerError, "action limit"):
+            self.controller.act(identifier, {"type": "key", "keys": ["enter"]})
+        self.controller.cancel()
+        with self.assertRaisesRegex(ComputerError, "cancelled"):
+            self.controller.focus()
+        self.controller.begin_task()
+        self.assertEqual(self.controller.grant["actions"], 100)
+        self.controller.revoke()
+        self.controller.begin_task()
+        with self.assertRaises(ComputerError):
+            self.controller.observe()
+        self.assertFalse(self.controller.status()["enabled"])
 
     def test_normalized_center_maps_to_actual_window_coordinates(self):
         identifier = self.observe()

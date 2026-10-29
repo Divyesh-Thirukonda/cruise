@@ -29,14 +29,14 @@ class AssistantIO:
                                      if self.computer_approval else None)
         return value
 
-    def computer_session(self, action):
+    def computer_session(self, action, minutes=15):
         if action == "enable":
             if not self.connected():
                 raise AgentError("Connect the controller before enabling computer control")
             if self.running:
                 raise AgentError("Finish or cancel the current request first")
             try:
-                return self.computer.enable(minutes=15)
+                return self.computer.enable(minutes=minutes)
             except ComputerError as error:
                 raise AgentError(str(error)) from None
         if action != "revoke":

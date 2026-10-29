@@ -1,7 +1,11 @@
 {
   "recorded_date": "2026-10-28",
   "timezone": "America/New_York",
-  "implementation_commits": ["3713dc2", "6c1d5e0", "f4e09e7"],
+  "implementation_commits": [
+    "3713dc2",
+    "6c1d5e0",
+    "f4e09e7"
+  ],
   "live_local_form_trial": {
     "input_mode": "typed request to the actual running Studio service",
     "page": "disposable local synthetic form",
@@ -31,7 +35,7 @@
     "PyObjC integer subclass failed strict native window validation; normalized IDs",
     "Pixel coordinate contract mismatched Muse Spark normalized coordinates; aligned 0 to 1000 mapping",
     "Spoken Gmail task failed; exact original provider error was not retained by its private error path",
-    "Implemented one-time focus of the granted Chrome window for a new task, useful ephemeral failures, and bounded malformed-turn repair; live Gmail retest pending"
+    "Implemented one-time Chrome focus, ephemeral failures and bounded malformed-turn repair; a later spoken latest-email trial completed with a user-heard reply"
   ],
   "validation": {
     "local_tests_run": 417,
@@ -53,10 +57,33 @@
   },
   "privacy": "No email text, screenshots, credentials, audio, or private transcript included",
   "limits": [
-    "Typed synthetic-page success does not establish voice email success",
-    "Focus recovery is tested with native mocks; live foreground restoration remains pending",
+    "One live spoken latest-email trial succeeded; no broad voice or email reliability benchmark",
+    "First observation succeeded through the one-time focus path; independent foreground-restoration stress testing remains pending",
     "Computer actions are confined to a temporary Chrome-window grant; no arbitrary desktop-app claim",
     "Semantic consequential-action confirmation is prototype protection, not jailbreak resistance",
-    "User subsequently generated and refined Metro Dash; those changes were preserved"
-  ]
+    "User subsequently generated Star Dash; its revision was retained through the session update"
+  ],
+  "renewed_session_trial": {
+    "authorized_duration_minutes": 120,
+    "grant_expires_at": "2026-10-29T03:56:15.193006Z",
+    "input_mode": "spoken request; user confirmed audible email reply",
+    "job_id": "c9daab72dd504723ad68ec514153c159",
+    "provider": "meta",
+    "model": "muse-spark-1.3",
+    "model_calls": 5,
+    "successful_observe_tools": 1,
+    "successful_native_action_tools": 2,
+    "result": "Latest email sender and subject returned through native Chrome observation/actions",
+    "independent_ui_subject_verification": true,
+    "user_confirmed_spoken_reply": true,
+    "scope_limit": "One latest-email response independently verified; three-subject completeness and broad voice reliability not established",
+    "retained_game_revision": "ea33eb8db3035c38d02cf367ddb3378da1eb3d4acbb1b249bac4f7d7e44d5382",
+    "focused_tests_passed": 69,
+    "budget_snapshot": {
+      "authorized_total_dollars": 50,
+      "calls": 147,
+      "charged_or_reserved_dollars": 5.343662,
+      "existing_usage_and_holds_retained": true
+    }
+  }
 }

@@ -2,7 +2,7 @@
 
 Implementation snapshot, October 28, 2026. The prototype demonstrates typed generation of Pixel Kart Sprint and spoken generation of MODULATE: Self Assembly, physical controls, paired native Mac volume, PTT/hands-free refinements and UI rollback without model calls. The [runtime guide](product-runtime.md) records exact packages, timings and preceding audio failures. Repeated fault, revocation, noise and performance trials remain.
 
-The user-requested browser computer-task and spoken-reply paths are implemented separately. An authorized typed live Meta task completed a local form in eight calls, with independently checked browser effects and a user-heard Pi final reply. Both native permissions report granted. The spoken Gmail attempt failed and remains unvalidated. Later spoken requests created Metro Dash and refined collisions; that revised game is preserved.
+The browser computer-task and spoken-reply paths have a successful typed local-form trial and, after an earlier failure, a spoken Gmail latest-email readout. Visible Gmail independently confirmed the subject and the user heard the answer. Both native permissions report granted, and the authorized 120-minute session was enabled. Star Dash remained retained. This establishes those trials, not three verified subjects or broad reliability.
 
 ## Data and control flow
 
@@ -24,7 +24,7 @@ flowchart LR
     U[Local companion UI] --> Q
     U --> P[Pairing and revocation]
     P --> H
-    U --> S[Separate 15-minute Chrome grant]
+    U --> S[Separate expiring Chrome grant]
     S --> N[Native screenshot and cursor helper]
     M <-->|Temporary screenshots and bounded actions| N
     M --> E[Transient answer and local Pi speech]
@@ -42,7 +42,7 @@ The model generates application code for a fixed runtime, not new firmware, shel
 | Rendering and controls | Trusted Pillow renderer and Pi hardware adapters. Generated code receives normalized input and returns bounded drawing commands. Advertised controls depend on successful device reads. |
 | Companion | Loopback-served HTML/CSS/JavaScript, actual preview/events/checks, typed fallback, pairing, cancel, revoke and rollback. No external frontend dependency or browser microphone capture. |
 | Native bridge | Fixed macOS volume scripts with validated values, revocable hashed-token sessions, serialized actions and sequence rejection. Other operating systems report unsupported. |
-| Computer tasks | Independent native Python helper for one granted Chrome window, with fresh screenshots and bounded mouse/keyboard actions. A typed live Meta local-form trial succeeded; spoken Gmail use remains unvalidated. |
+| Computer tasks | Independent native Python helper for one granted Chrome window, with fresh screenshots and bounded actions. Typed local-form and spoken latest-email readout trials succeeded; earlier failures remain recorded. |
 | Spoken replies | Local eSpeak NG synthesis piped to the selected USB output via paplay; transient text/audio, microphone pause and physical interruption. Studio's speaker test and the live local-form task's final reply were user-confirmed audible. |
 
 The joystick at `0x20` has user-confirmed steering, with X reaching −1 and 1 in live samples. Encoder deltas at `0x36` were subsequently captured while changing native Mac volume; the user confirmed direction. Green `0x6E` and red `0x6F` buttons independently reported firmware 259 after power cycling and worked in the game. Green OR PiTFT A supplies logical `button_a`; red OR PiTFT B supplies `button_b`. Pairing/PTT use physical PiTFT buttons only. Bluetooth microphone, gesture, IMU and hot swapping are not current capabilities.
@@ -85,7 +85,7 @@ The bridge uses fixed `osascript` programs with separate validated arguments; th
 
 The user explicitly requested actual computer interaction, including reading email through the browser, instead of a Gmail API. This path uses an independently implemented Python helper, not generated application code. Installed computer-use plugin metadata was inspected, but no reusable `SKILL.md` source was present; no Codex service, token or proprietary runtime was copied.
 
-Studio offers a separate, default-off 15-minute computer grant. Enabling requires native Screen Recording and Accessibility permissions and a frontmost Chrome window wholly on the primary display. The grant fixes that window's identity and geometry. The helper rechecks permissions, focus, scope, expiry and cancellation before capture/action. Each observation is single-use and expires after 30 seconds. Clicks use Muse Spark's **normalized 0–1000 grid** over the exact screenshot, from top-left `(0,0)` to bottom-right `(1000,1000)`; the helper maps that grid to the granted window's logical display coordinates. Image/desktop pixel coordinates and extra window offsets are incorrect. Sessions permit at most 100 actions. Screenshots remain in memory, use a JPEG edge limit of 1280 pixels and stay below 350 KB. Capture covers the visible screen rectangle, so overlays within that area may also appear.
+Studio's computer access requires an explicit grant and defaults to 15 minutes. Deployed duration support accepts 1–120 minutes; the UI offers 15 minutes, one hour or two hours. The user's 120-minute renewal was enabled, with expiry/countdown and Stop visible; 69 focused integration tests passed separately. Preserve expiry and stop/revoke at every duration. Enabling requires native Screen Recording and Accessibility permissions and a frontmost Chrome window wholly on the primary display. The grant fixes that window's identity and geometry. The helper rechecks permissions, focus, scope, expiry and cancellation before capture/action. Each observation is single-use and expires after 30 seconds. Clicks use Muse Spark's **normalized 0–1000 grid** over the exact screenshot, from top-left `(0,0)` to bottom-right `(1000,1000)`; the helper maps that grid to the granted window's logical display coordinates. Image/desktop pixel coordinates and extra window offsets are incorrect. Sessions permit at most 100 actions. Screenshots remain in memory, use a JPEG edge limit of 1280 pixels and stay below 350 KB. Capture covers the visible screen rectangle, so overlays within that area may also appear.
 
 Before the first observation of each new task, the service may focus the exact granted Chrome window once, after rechecking identity and geometry. It consumes that opportunity even if focusing fails; subsequent tool retries never bring Chrome forward again. A focus change during the task still stops actions. Failure feedback now uses the transient on-screen/spoken response path, with private task errors kept out of durable activity details.
 
@@ -110,5 +110,5 @@ The product's staging, watchdog and rollback require broader fault testing befor
 - Extend the demonstrated paired native-volume action with explicit revoke/disconnect trials and confirm that stale events cannot affect the host.
 - Extend the successful UI rollback −10 → −1 → −10 (zero model calls) with failure, timeout and restart trials. Software acknowledgements are not optical display readback.
 - Test wake/noise and false triggers after the successful hands-free trials, disclosing the transcription gap and initial stream-overflow failures. Keep host preview, fixtures, typed fallback and replay distinct from live evidence.
-- Retry the failed spoken Gmail task only after approval for a fresh Chrome session and the proposed $7 total ceiling. Test the one-time focus and response-repair fixes live, plus window changes, cancellation and revocation. The successful typed form interaction is not a general browser reliability benchmark.
-- Extend the user-heard local-form reply with physical interruption and microphone isolation checks. The Pi passed 92 earlier speaker/device tests plus 46 final device checks; the latest spoken Metro Dash collision refinement remains preserved. Local validation ran 417 tests with three Mac PyAV skips.
+- Extend the successful spoken latest-email trial with repeated focus/window-change, cancellation and revocation checks. Preserve the earlier failure; do not infer three subjects or general reliability. The $50 ceiling retains existing usage and unknown-cost holds.
+- Extend user-heard replies with physical interruption and microphone isolation checks. The Pi passed 92 earlier speaker/device tests plus 46 final device checks; Star Dash remains retained. Local validation ran 417 tests with three Mac PyAV skips.

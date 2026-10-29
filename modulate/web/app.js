@@ -203,7 +203,7 @@
     $("computer-panel").dataset.active = String(active);
     $("computer-live-notice").hidden = !active;
     text("computer-live-scope", scope);
-    text("computer-scope", `${scope} · 15-minute session`);
+    text("computer-scope", scope);
     for (const [id, key, label] of [["computer-screen-permission", "screen_recording", "Screen Recording"], ["computer-input-permission", "accessibility", "Accessibility"]]) {
       text(id, `${label}: ${permissions[key] === true ? "granted" : permissions[key] === false ? "required" : "unknown"}`);
     }
@@ -213,6 +213,8 @@
     const seconds = Number.isFinite(expires) ? Math.max(0, Math.ceil((expires - Date.now()) / 1000)) : null;
     text("computer-expiry", !ui.online ? "Reconnect to check or stop the session." : enabled && seconds !== null ? `Access expires in ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}. You can stop it at any time.` : expired && computer?.enabled ? "This session has expired. Enable a new session to continue." : "");
     $("computer-enable").hidden = enabled;
+    $("computer-duration-label").hidden = enabled;
+    $("computer-duration").disabled = pending;
     $("computer-enable").disabled = !ui.online || !supported || permissions.screen_recording !== true || permissions.accessibility !== true || pending;
     $("computer-revoke").hidden = computer?.enabled !== true;
     $("computer-revoke").disabled = !ui.online || pending;
@@ -257,7 +259,10 @@
   async function computerAction(kind) {
     renderComputer();
     if ($(kind === "enable" ? "computer-enable" : "computer-revoke").disabled) return;
-    return action("computer", "/api/computer", {action: kind});
+    const payload = {action: kind};
+    if (kind === "enable") payload.minutes = Number($("computer-duration").value);
+    return action("computer", "/api/computer", payload,
+      kind === "enable" ? `Computer control enabled for ${payload.minutes} minutes.` : "Computer control stopped.");
   }
 
   async function computerApproval(approved) {

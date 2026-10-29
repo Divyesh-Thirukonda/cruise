@@ -33,8 +33,8 @@ class FakeProduct:
         self.calls.append(("draft", job_id, action, text))
         return {"accepted": True}
 
-    def computer_session(self, action):
-        self.calls.append(("computer_session", action))
+    def computer_session(self, action, minutes=15):
+        self.calls.append(("computer_session", action, minutes))
         return {"enabled": action == "enable"}
 
     def approve_computer_action(self, identifier, approved):
@@ -152,19 +152,21 @@ class StudioTests(unittest.TestCase):
         for path in ("/api/computer", "/api/computer/approval", "/api/response/dismiss", "/api/speaker"):
             for headers in invalid:
                 with self.subTest(path=path, headers=headers):
-                    self.assertEqual(self.request(port, path, method="POST", body="{}", headers=headers)[0], 403)
+                    payload = {"action": "enable", "minutes": 120} if path == "/api/computer" else {}
+                    self.assertEqual(self.request(port, path, method="POST", body=json.dumps(payload), headers=headers)[0], 403)
         self.assertEqual(product.calls, [], "Rejected requests must not reach computer or speaker actions")
 
     def test_assistant_routes_forward_exact_actions_ids_and_approval_decisions(self):
         product, port = self.start(csrf="synthetic-csrf", cookie="synthetic-session")
         cases = [
-            ("/api/computer", {"action": "enable"}, ("computer_session", "enable"), {"enabled": True}),
-            ("/api/computer", {"action": "revoke"}, ("computer_session", "revoke"), {"enabled": False}),
+            ("/api/computer", {"action": "enable"}, ("computer_session", "enable", 15), {"enabled": True}),
+            ("/api/computer", {"action": "revoke"}, ("computer_session", "revoke", 15), {"enabled": False}),
             ("/api/computer/approval", {"id": "a" * 32, "approved": True}, ("computer_approval", "a" * 32, True), {"accepted": True}),
             ("/api/computer/approval", {"id": "b" * 32, "approved": False}, ("computer_approval", "b" * 32, False), {"accepted": True}),
             ("/api/response/dismiss", {"id": "c" * 32}, ("dismiss_response", "c" * 32), {"dismissed": True}),
             ("/api/speaker", {"action": "test"}, ("speaker_action", "test"), {"accepted": True}),
             ("/api/speaker", {"action": "stop"}, ("speaker_action", "stop"), {"accepted": True}),
+            ("/api/computer", {"action": "enable", "minutes": 120}, ("computer_session", "enable", 120), {"enabled": True}),
         ]
         for path, payload, expected_call, expected_result in cases:
             with self.subTest(path=path, payload=payload):

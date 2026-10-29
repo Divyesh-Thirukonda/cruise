@@ -188,8 +188,8 @@ class ComputerController:
             self.lock.release()
 
     def enable(self, minutes=15):
-        if type(minutes) not in (int, float) or not math.isfinite(minutes) or not 1 <= minutes <= 15:
-            raise ComputerError("Computer access must last 1–15 minutes")
+        if type(minutes) not in (int, float) or not math.isfinite(minutes) or not 1 <= minutes <= 120:
+            raise ComputerError("Computer access must last 1–120 minutes")
         with self.lock:
             info = self._inspect()
             if not info["supported"] or not all(info["permissions"].values()):

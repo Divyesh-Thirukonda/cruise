@@ -35,6 +35,7 @@ class FakeComputer:
         self.focuses = 0
         self.task_starts = 0
         self.on_focus = None
+        self.enabled_durations = []
 
     def status(self):
         return {"supported": True, "enabled": self.enabled, "expires_at": None,
@@ -42,6 +43,7 @@ class FakeComputer:
                 "permissions": {"screen_recording": True, "accessibility": True}}
 
     def enable(self, minutes):
+        self.enabled_durations.append(minutes)
         self.enabled = True
         return self.status()
 
@@ -129,6 +131,23 @@ class AssistantIOTests(unittest.TestCase):
                 operation()
         self.assertEqual(self.computer.observations, 0)
         self.assertEqual(self.computer.actions, [])
+
+    def test_session_duration_defaults_to_fifteen_and_forwards_explicit_minutes(self):
+        self.heartbeat()
+        self.product.computer_session("enable")
+        self.product.computer_session("enable", minutes=120)
+        self.assertEqual(self.computer.enabled_durations, [15, 120])
+        self.product.computer_session("revoke")
+        self.assertFalse(self.computer.enabled)
+        self.assertEqual(self.computer.enabled_durations, [15, 120])
+
+    def test_session_duration_validation_errors_from_controller_are_preserved(self):
+        self.heartbeat()
+        with patch.object(self.computer, "enable", side_effect=ComputerError("Synthetic invalid duration")) as enable:
+            with self.assertRaisesRegex(AgentError, "invalid duration"):
+                self.product.computer_session("enable", minutes=None)
+        enable.assert_called_once_with(minutes=None)
+        self.assertFalse(self.computer.enabled)
 
     def test_revocation_and_disconnect_block_observation_and_actions(self):
         for reason in ("revoked", "disconnected"):

@@ -2,7 +2,7 @@
 
 Status: October 28, 2026. Modulate replaces Cruise. The live prototype has typed and spoken generated Pi games, physical controls, paired native Mac volume, PTT/wake refinements and UI rollback. The first kart used text; Self Assembly came through voice. Wake reliability and broader fault/performance trials remain unmeasured. See [current evidence](product-runtime.md) and the separate [number prototype](number-prototype.md).
 
-The user has extended the product to general computer tasks through actual cursor/keyboard interaction and spoken responses. A typed live Meta local-form task completed with independently checked browser effects and a user-heard Pi reply. The subsequent spoken Gmail attempt failed; email reading remains unvalidated. Later spoken requests created Metro Dash and refined collisions, with the revised game preserved.
+The user has extended the product to general computer tasks through actual cursor/keyboard interaction and spoken responses. After a typed local-form success and an earlier failed spoken Gmail attempt, a spoken latest-email readout completed: visible Gmail independently confirmed the subject, and the user heard the Pi's answer. This verifies that trial, not three subjects or broad browser reliability. The latest generated game, Star Dash — Astronaut Runner, stayed retained.
 
 ## Project one-liner
 
@@ -31,7 +31,7 @@ The earlier music/video creator workflow and phone-game controller examples are 
 | “Hey Meta, make a kart-racing game.” | Generate a small game for the connected display and controls; test it and activate it on the device | Actual Meta response, generated source/package, independent check results, physical input moving the kart on the PiTFT |
 | “Make steering less sensitive and make button B boost.” | Revise the existing code or bindings using the current program and hardware context | A new revision, fresh checks, and a visible effect beyond switching a stored preset |
 | “Make this knob control my computer's volume.” | Select the paired computer's supported volume action and bind encoder movement with bounded steps | Explicit pairing, a working host bridge, observed OS volume change, and correct behavior after disconnect |
-| “Hey Meta, read my email.” | With a separate grant, use the visible Chrome browser through screenshots and cursor/keyboard actions, then speak a concise answer | Typed local-form interaction and spoken reply succeeded; the spoken Gmail attempt failed. No Gmail API is used, and email reading is not yet demonstrated |
+| “Hey Meta, read my email.” | With a separate grant, use visible Chrome through screenshots and cursor/keyboard actions, then speak an answer | Spoken latest-email readout completed in five Meta calls; visible Gmail confirmed the subject and the user heard it. Earlier failure retained; three subjects were not independently verified. No Gmail API |
 
 The first game uses the joystick and large green/red buttons, physically confirmed by the user. Distinct button addresses were verified after a power cycle. A 240-sample game window reached joystick X −1 and 1 and included both buttons; later volume traces captured encoder motion. The 240×135 display showed 13.4 fps in the first run; sustained performance and input-to-display timing remain to measure.
 
@@ -57,7 +57,7 @@ The local companion website is a pairing and preview surface. The user links the
 
 A webpage's media-volume control does not prove OS volume control. The selected macOS bridge uses fixed trusted OS calls; knob motion now changes native volume, corroborated by independent OS reads. Revocation and broader fault tests remain. See the [architecture](architecture.md).
 
-Computer tasks use a separate 15-minute grant for one Chrome window on the primary display. Meta sees temporary screenshots and chooses visible actions through a fixed native helper; there is no arbitrary-app or host-script tool. The helper may bring the granted window forward once at the start of a task, but does not repeatedly refocus it after a failure. Volume pairing grants no cursor access. The user chose browser interaction over a Gmail API; the typed local-form trial validated actual cursor operation and an audible answer. The current app remains intact, and screen-derived answers are transient. A fresh session and proposed higher total budget await approval before retrying the failed spoken Gmail task.
+Computer tasks use a separate expiring grant for one Chrome window on the primary display. The default remains 15 minutes; the user's two-hour renewal was enabled with expiry and stop/revoke retained. Meta sees temporary screenshots and chooses visible actions through a fixed native helper; there is no arbitrary-app or host-script tool. It may bring the granted window forward once per task, never repeatedly after failure. Volume pairing grants no cursor access. Typed local-form and spoken latest-email trials completed with audible replies, with the game retained and responses transient. The $50 total ceiling is verified live; [runtime evidence](product-runtime.md#computer-tasks-and-spoken-replies) records exact scope and expiry.
 
 ## Why Meta and an inference provider matter
 
@@ -90,4 +90,4 @@ This is a target script, not existing footage. If generation takes longer, label
 
 Weights are organizer facts from the supplied guide; these evidence targets are team recommendations. Do not promise a score or prize.
 
-Keep the demonstrated game, volume and spoken-refinement loop as the core evidence. The typed local-form task and audible reply can supply separate computer-task evidence; label the typed input and test-page scope. Retry spoken Gmail only after the pending session/budget approval and preserve the failed attempt. Defer arbitrary commercial games, phone-game integration, generated low-level drivers, firmware flashing, unrestricted desktop/app access and custom hardware fabrication. See the [build plan](plan.md).
+Keep the demonstrated game, volume and spoken-refinement loop as core evidence. Add the typed local-form task and spoken latest-email readout with their input modes and narrow verification scope labeled. Preserve earlier failures and exclude private email contents from public evidence. Defer arbitrary commercial games, phone-game integration, generated low-level drivers, firmware flashing, unrestricted desktop/app access and custom hardware fabrication. See the [build plan](plan.md).

@@ -194,7 +194,7 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
                 elif path == "/api/draft":
                     result = product.draft(data.get("job_id"), data.get("action"), data.get("text"))
                 elif path == "/api/computer":
-                    result = product.computer_session(data.get("action"))
+                    result = product.computer_session(data.get("action"), minutes=data.get("minutes", 15))
                 elif path == "/api/computer/approval":
                     result = product.approve_computer_action(data.get("id"), data.get("approved"))
                 elif path == "/api/response/dismiss":

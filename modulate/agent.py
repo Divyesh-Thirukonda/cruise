@@ -170,9 +170,11 @@ Adapt a saved game's controls when asked, preserving its other behavior. Local
 games and visual apps do not need computer pairing. Only actions targeting that
 computer need its connection. Never require pairing merely to make a local game.
 Build only what the current hardware and explicitly paired host support. Generate
-the entire game logic and original pixel artwork fresh; no preloaded game exists.
-A request for Mario Kart means an original compact kart racer, not claiming to
-deliver Nintendo's game. Natural-language refinements modify the current program.
+original game logic and artwork when no suitable saved creation exists or the
+user requests something fresh. Saved creations are previous user-generated apps,
+not presets. Requests inspired by existing commercial games should produce an
+original compact experience, never claim to deliver the commercial game.
+Natural-language refinements modify the current program.
 Only activate a candidate whose exact hash has passed independent verification.
 The package runtime enforces that invariant: package tools cannot waive checks,
 install libraries, change the harness, read secrets, use a shell, or grant new

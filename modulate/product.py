@@ -12,7 +12,7 @@ import threading
 import time
 import uuid
 
-from .agent import AgentError, Ledger, Orchestrator, digest
+from .agent import AgentError, AttemptIncomplete, Ledger, Orchestrator, digest
 from .agent_provider import AgentProviderError
 from .game_runtime import validate_commands, validate_input, validate_package
 from .host_bridge import BridgeStore, BridgeError
@@ -331,6 +331,8 @@ class Product(AssistantIO):
             phase, title = {"coder": ("coding", "Writing your app"), "artist": ("coding", "Creating the artwork"),
                             "reviewer": ("checking", "Reviewing your app")}.get(role, ("planning", "Planning the next step"))
             self.progress.update(phase=phase, title=title, role=role, tool=None)
+        elif kind == "model_retry":
+            self.progress.update(phase="planning", title="Reconnecting to Meta", role=role, tool=None)
         elif kind in {"tool_started", "tool_finished"}:
             tool = entry.get("tool")
             phase, title = _TOOL_PROGRESS.get(tool, ("planning", "Working on your request"))
@@ -509,6 +511,8 @@ class Product(AssistantIO):
     def _failure_guidance(error):
         """Fixed operational explanations; never echo exception payloads or invent intent."""
         message = str(error).lower()
+        if isinstance(error, AttemptIncomplete):
+            return error.guidance, None
         if isinstance(error, AgentProviderError):
             if any(word in message for word in ("credential", "http 401", "http 403", "configuration", "endpoint")):
                 return ("Meta access isn't available. Check the provider credentials and account access in the companion, then start a new request.", None)

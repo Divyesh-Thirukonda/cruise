@@ -1090,10 +1090,10 @@ class Product(AssistantIO):
             return copy.deepcopy(self.pairing)
 
     def local_pairing(self):
-        """Read the existing comparison code for authenticated, local Studio only.
+        """Read the comparison code for authenticated setup surfaces only.
 
         Device-initiated pairing uses the same pending request. Do not put this
-        value in state(), capabilities, agent context or the remote gateway.
+        value in state(), capabilities, agent context or public session responses.
         """
         with self.lock:
             if (not self.pairing or time.time() >= self.pairing["expires_at"]

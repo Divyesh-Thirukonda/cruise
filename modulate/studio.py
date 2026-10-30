@@ -58,6 +58,7 @@ def load_credentials(path):
         raise ValueError("Credential file must have mode600")
     allowed = {"MODEL_API_KEY", "FIREWORKS_API_KEY", "ELEVENLABS_API_KEY",
                "ELEVENLABS_VOICE_ID", "ELEVENLABS_MODEL_ID", "MODULATE_TTS_PROVIDER", "MODULATE_TTS_CHARACTER_LIMIT",
+               "MODULATE_MMS_PYTHON", "MODULATE_MMS_MODEL_DIR",
                "MODULATE_REMOTE_SECRET", "MODULATE_CLOUD_KEY", "MODULATE_CLOUD_URL"}
     for line in path.read_text().splitlines():
         name, separator, value = line.partition("=")

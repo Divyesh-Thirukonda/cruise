@@ -261,3 +261,9 @@ Explicit pairing actions reuse valid pending offers, check current device
 online/native pairing/gateway state and retain physical confirmation. No
 credential is passed in a return URL. The reviewed public destination remains
 fixed; a missing gateway is a visible incomplete step, not a successful web link.
+
+## Pi MMS speech and website Mac comparison — October 30
+
+The current speech provider is local Meta MMS English VITS in an isolated, persistent CPU worker. The existing in-memory 24 kHz PCM contract, delivery digest, mic pause, cancellation and physical stop remain. Provider identity is carried separately from the exact audio descriptor and appears as `meta_mms/paplay` in device telemetry. Historical ElevenLabs ledger state is retained but MMS does not reserve characters. See [pinned weights, license, bounds and live timings](meta-mms.md).
+
+An authenticated browser state response adds only the currently pending Mac comparison code. Public session metadata and model/tool context never contain it. Reading the code cannot approve native access; the Pi small-A action remains the only authorization path. The normal comparison UI is the Vercel setup page. The native AppKit Modulate app owns the optional helper and presents human-operated OS permission controls; its child helper retains the pinned LAN link, eight-hour pairing, sequence consumption and lease watchdog.

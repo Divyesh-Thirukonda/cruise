@@ -33,9 +33,15 @@ class AssistantIO(MacAccess):
         self.speech_pending = None
         self.speech_cancel = None
         self.speech_worker = None
-        if os.environ.get("MODULATE_TTS_PROVIDER") == "elevenlabs":
+        self.tts_provider = os.environ.get("MODULATE_TTS_PROVIDER") or "local"
+        if self.tts_provider == "elevenlabs":
             from .tts import ElevenLabsTTS
             self.tts = ElevenLabsTTS(self.directory, max_chars=int(os.environ.get("MODULATE_TTS_CHARACTER_LIMIT", "5000")))
+        elif self.tts_provider == "meta_mms":
+            from .mms_tts import MMSTTS
+            self.tts = MMSTTS()
+        elif self.tts_provider != "local":
+            raise ValueError("Unsupported speech provider; choose local, meta_mms or elevenlabs")
 
     def computer_status(self):
         self._sync_computer_pairing()
@@ -211,7 +217,7 @@ class AssistantIO(MacAccess):
                                       "bytes": len(audio), "sha256": hashlib.sha256(audio).hexdigest()}
                         self.speech_audio = {"id": message["id"], "data": audio,
                                              "expires_at": message["expires_at"]}
-                        self.speech_message = {**message, "audio": descriptor}
+                        self.speech_message = {**message, "audio": descriptor, "provider": self.tts_provider}
             except Exception as error:
                 with self.lock:
                     if not cancel.is_set() and self.speech_pending is message:
@@ -223,7 +229,8 @@ class AssistantIO(MacAccess):
                                                 and error.category == "busy"
                                                 and message["expires_at"] > time.time())
                         if not waiting_for_previous:
-                            self.speech_error = "ElevenLabs could not produce this reply. The text is still available in Studio."
+                            provider = "Meta MMS" if self.tts_provider == "meta_mms" else "ElevenLabs"
+                            self.speech_error = provider + " could not produce this reply. The text is still available in Studio."
                 if waiting_for_previous:
                     cancel.wait(.1)
             finally:
@@ -243,7 +250,7 @@ class AssistantIO(MacAccess):
             return self.speech_audio["data"]
 
     def speech_status(self):
-        return {"provider": "elevenlabs" if self.tts is not None else "local",
+        return {"provider": self.tts_provider,
                 "pending": self.speech_pending is not None, "error": self.speech_error}
 
     def _publish_response(self, text, job_id):

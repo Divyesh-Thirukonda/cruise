@@ -160,3 +160,5 @@ git switch -c codex/short-description
 Read the product brief and build plan, then follow [CONTRIBUTING.md](CONTRIBUTING.md). The [product runtime guide](context/product-runtime.md) is the current setup entry point; the [number prototype guide](context/number-prototype.md) documents the earlier experiment. Run checks in the installed virtual environment.
 
 The repository is public for judging. Keep API keys, private conversations, raw microphone recordings, account details, and raw participant materials out of commits. A project license has not yet been selected by the team.
+
+**Local Meta speech and optional Mac access:** the Pi now speaks with [Meta MMS-TTS](context/meta-mms.md), without ElevenLabs calls. The native Modulate Mac app provides a visible macOS permission identity; a live Pi Meta request opened Gmail and read the latest message while Orbit Catch retained its revision. [Website pairing and native setup](context/optional-mac.md).

@@ -276,6 +276,7 @@ class Controller:
             if type(speech["audio"]) is not dict or speech["audio"].get("id") != identifier:
                 return
             audio["audio"] = speech["audio"]
+            if speech.get("provider") == "meta_mms": audio["provider"] = "meta_mms"
         try:
             # Only accepted speech interrupts capture. Unavailable output is
             # retried by heartbeat without invalidating every wake recording.

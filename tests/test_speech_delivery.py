@@ -64,6 +64,7 @@ class SpeechDeliveryTests(unittest.TestCase):
         self.sequence = 0
         self.synthesis = SyntheticSpeech()
         self.product.tts = self.synthesis
+        self.product.tts_provider = "elevenlabs"
         self.addCleanup(self.stop_worker)
 
     def stop_worker(self):

@@ -342,7 +342,7 @@
     const speech = ui.state?.speech;
     const errorText = speech?.error || speaker?.error;
     const error = typeof errorText === "string" && errorText ? ` · ${errorText}` : "";
-    const provider = speech?.provider === "elevenlabs" ? "ElevenLabs" : "Local voice";
+    const provider = speech?.provider === "meta_mms" ? "Meta MMS · on device" : speech?.provider === "elevenlabs" ? "ElevenLabs" : "Local voice";
     const delivery = speech?.pending ? "Preparing voice" : status;
     text("speaker-detail", !online ? "Device offline · audio status unavailable" : !speaker ? "Awaiting device audio status" : available ? `${provider} · ${delivery}${error}` : `Speaker unavailable${error}`);
     $("speaker-detail").dataset.state = errorText ? "error" : "normal";

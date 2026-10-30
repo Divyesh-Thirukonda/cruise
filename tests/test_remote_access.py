@@ -84,6 +84,22 @@ class RemoteAccessTests(unittest.TestCase):
         reloaded = RemoteAccess(self.product, self.directory, clock=lambda: self.now)
         self.assertTrue(reloaded.session(token)["connected"])
 
+    def test_website_comparison_requires_claimed_browser_and_cannot_pair_mac(self):
+        token = self.claim()
+        code = self.product.create_pairing()["code"]
+        self.start_http()
+        for path in ("/state", "/session"):
+            self.assertNotIn(code, json.dumps(self.http(path)[1]))
+        status, state = self.http("/state", token=token)
+        self.assertEqual(status, 200)
+        self.assertEqual(state["mac_pairing"]["code"], code)
+        self.assertFalse(self.product.state()["paired"])
+        self.assertNotIn("mac_pairing", self.product.state())
+        self.product.pairing["expires_at"] = time.time()-1
+        self.assertIsNone(self.http("/state", token=token)[1]["mac_pairing"])
+        self.remote.revoke(token)
+        self.assertEqual(self.http("/state", token=token)[0], 401)
+
     def test_wrong_code_locks_after_six_attempts_and_expires(self):
         code = self.remote.create_pairing()["code"]
         for _ in range(6):

@@ -350,6 +350,9 @@ def handler_for(remote, server_secret):
                         remote.authenticate(token)
                         state = remote.product.state()
                         state["remote"] = remote.session(token)
+                        # Only a claimed browser may see the comparison code.
+                        # Reading it cannot authorize the separate native session.
+                        state["mac_pairing"] = remote.product.local_pairing()
                     return self.send(200, state)
                 if self.command == "GET" and path == "/preview":
                     candidate = parse_qs(parsed.query).get("candidate") == ["1"]

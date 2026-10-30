@@ -32,7 +32,7 @@ _ERRORS = {
     "playback_failed": "Configured audio output rejected playback",
     "timeout": "Speech playback exceeded its time limit",
     "unavailable": "Local speech output is unavailable",
-    "audio_failed": "ElevenLabs speech audio could not be fetched or verified",
+    "audio_failed": "Speech audio could not be fetched or verified",
 }
 
 
@@ -266,8 +266,8 @@ class Speaker:
 
     def snapshot(self):
         with self._changed:
-            backend = ("elevenlabs/" + self._info.get("pcm_backend", self._info.get("backend", "configured-output"))
-                       if self._provider == "elevenlabs" else self._info.get("backend"))
+            backend = (self._provider + "/" + self._info.get("pcm_backend", self._info.get("backend", "configured-output"))
+                       if self._provider != "local" else self._info.get("backend"))
             return {**self._info, "backend": backend, "provider": self._provider,
                     "state": self._state, "error": self._error,
                     "request_id": self._sequence or None, "last_delivery": self._last_delivery}
@@ -295,7 +295,7 @@ class Speaker:
         self._notify()
         return available
 
-    def speak(self, text, audio=None, *, before_playback=None):
+    def speak(self, text, audio=None, *, before_playback=None, provider="elevenlabs"):
         """Queue accepted speech, optionally pausing capture before it can play.
 
         The trusted hook runs only after validation and availability checks,
@@ -316,7 +316,7 @@ class Speaker:
                 before_playback()
             self._sequence += 1
             self._pending = (self._sequence, text, audio)
-            self._provider = "elevenlabs" if audio is not None else "local"
+            self._provider = ("meta_mms" if provider == "meta_mms" else "elevenlabs") if audio is not None else "local"
             if self._active_cancel:
                 self._active_cancel.set()
             self._state, self._error, self._last_delivery = "queued", None, None

@@ -196,7 +196,7 @@
 .mc-studio-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(270px, 1fr); gap: 20px; align-items: start; }
 .mc-workspace-column, .mc-activity-column { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
 .mc-preview-card { padding: 21px 23px 0; overflow: hidden; }
-.mc-preview-stage { padding: 16px 30px 32px; display: grid; place-items: center; background: radial-gradient(ellipse at center, #202938, #14171c 70%); border: 1px solid #292f39; border-radius: 8px; }
+.mc-preview-stage { padding: 16px 30px 32px; display: grid; grid-template-columns: minmax(0, 1fr); place-items: center; background: radial-gradient(ellipse at center, #202938, #14171c 70%); border: 1px solid #292f39; border-radius: 8px; }
 .mc-screen-device { width: 370px; max-width: 100%; background: linear-gradient(135deg, #313944, #222934); border: 1px solid #657082; border-radius: 14px; padding: 15px 17px 13px; box-shadow: 0 8px 0 #111820, 0 9px 0 #3e4754, 0 20px 30px #0005; margin: 12px 0 7px; }
 .mc-screen-top, .mc-screen-bottom { display: flex; align-items: center; justify-content: space-between; }
 .mc-screen-top > span { color: #8290a3; font-size: 8px; letter-spacing: .03em; }

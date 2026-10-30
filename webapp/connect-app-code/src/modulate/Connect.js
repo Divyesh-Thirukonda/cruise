@@ -69,6 +69,7 @@ export default function Connect() {
   const refreshGeneration = useRef(0);
   const mutationRunning = useRef(false);
   const requestRef = useRef(null);
+  const mainShellRef = useRef(null);
   const pairingRef = useRef(null);
   const draftIdRef = useRef(null);
   const authenticated = session?.connected === true;
@@ -203,6 +204,9 @@ export default function Connect() {
   const act = (key, path, payload, success) => run(key, () => command(path, payload), success);
   const navigate = next => { setView(next); setMenuOpen(false); router.push(ROUTES[next]); };
   useEffect(() => {
+    if (mainShellRef.current) mainShellRef.current.scrollTop = 0;
+  }, [view]);
+  useEffect(() => {
     if (loading || busy === 'connect') return;
     if (authenticated && view === 'connect') { setView('studio'); router.replace(ROUTES.studio); }
     else if (!authenticated && !['connect', 'setup'].includes(view)) { setView('connect'); router.replace(ROUTES.connect); }
@@ -309,7 +313,7 @@ export default function Connect() {
       </div>
     </aside>
 
-    <div className="mc-main-shell">
+    <div className="mc-main-shell" ref={mainShellRef}>
       <main className="mc-main" id="mc-main">
         <div className="mc-page-heading"><div className="mc-page-title"><button className="mc-menu-button" type="button" aria-label="Open navigation" aria-expanded={menuOpen} aria-controls="mc-navigation" onClick={() => setMenuOpen(true)}><Menu size={22} /></button><div><h1>{pageTitles[view][0]}</h1><p>{pageTitles[view][1]}</p></div></div>{authenticated && <Button icon={RefreshCw} quiet disabled={Boolean(busy)} onClick={refresh}>Refresh</Button>}</div>
         {notice && <div className={`mc-notice mc-notice-${notice.type}`} role="status">{notice.type === 'success' ? <CheckCircle2 size={18} /> : <Bell size={18} />}<span>{notice.text}</span><button aria-label="Dismiss notification" onClick={() => setNotice(null)}><X size={16} /></button></div>}

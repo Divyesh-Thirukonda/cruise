@@ -59,3 +59,17 @@ describe('uncertain command outcomes', () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 });
+
+  test('cancellation while session credentials load prevents the command from dispatching', async () => {
+    jest.resetModules();
+    let resolve;
+    global.fetch = jest.fn(() => new Promise(yes => { resolve = yes; }));
+    const { connectApi } = require('./api');
+    const controller = new AbortController();
+    const result = expect(connectApi('command', {}, { signal: controller.signal })).rejects.toMatchObject({ name: 'AbortError' });
+    controller.abort();
+    resolve({ ok: true, json: async () => ({ csrfToken: 'test' }) });
+    await result;
+    expect(fetch).toHaveBeenCalledTimes(1);
+    delete global.fetch;
+  });

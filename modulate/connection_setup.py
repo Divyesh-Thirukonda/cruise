@@ -22,6 +22,7 @@ class ConnectionSetup:
         remote = product.remote_access.local_status() if product.remote_access else {}
         return {"ai_host": "pi" if product.standalone else "mac",
                 "paired_mac": bool(product._paired_session()),
+                "mac_helper": dict(product.mac_link.endpoint) if getattr(product, "mac_link", None) else None,
                 "remote_enabled": remote.get("enabled") is True,
                 "browser_count": len(remote.get("browsers", [])), "connect_url": CONNECT_URL}
 
@@ -41,7 +42,7 @@ class ConnectionSetup:
                        and display.get("offer_id") == offer_id)
         if product.standalone:
             instructions = ["Modulate runs its agent on the Pi using Wi-Fi for Meta and spoken replies.",
-                            "Connect a browser to manage apps. Native Mac control is not connected in this standalone installation."]
+                            "Browser linking is optional. To control your Mac, run the optional Mac helper, compare its code with Modulate, then press small A on Modulate."]
         elif not product.connected():
             instructions = ["Keep Modulate powered and on the companion's network.",
                             "Keep the companion running on your Mac; continue in the connection setup page."]
@@ -65,10 +66,11 @@ class ConnectionSetup:
                 "native_permissions": {key: permissions.get(key) if type(permissions.get(key)) is bool else None
                                        for key in ("screen_recording", "accessibility")},
                 "computer_paused": native.get("paused") is True,
+                "mac_helper": dict(product.mac_link.endpoint) if getattr(product, "mac_link", None) else None,
                 "display_status": {"offer_id": offer_id, "visible": visible},
                 "permissions": dict(remote.get("permissions", {})),
                 "instructions": instructions,
-                "limits": [("New AI requests require internet; saved apps run locally. A native Mac bridge is not connected in this standalone installation."
+                "limits": [("New AI requests require internet; saved apps run locally. Optional Mac controls require the paired helper on the same network."
                             if product.standalone else "Meta runs on the companion; an offline Pi shows local setup guidance without AI."),
                            "A browser controls this configured Mac/Pi hub, not the phone's own operating system.",
                            "Your setup agent handles Mac software and browser steps; physical confirmation and required macOS permission dialogs need you."]}

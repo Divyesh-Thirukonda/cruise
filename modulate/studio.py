@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import fcntl
+import hashlib
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import ipaddress
@@ -363,6 +364,22 @@ def main(argv=None):
     provider = AgentProvider({"provider": args.provider, "model": args.model, "max_tokens": 8192,
                               "reasoning_effort": "low" if args.provider == "meta" else None})
     product = Product(directory, provider, budget=args.budget, standalone=args.standalone)
+    mac_server = None
+    if args.standalone:
+        from .device_enrollment import local_address
+        from .mac_link import handler_for as mac_handler
+        mac_address = local_address()
+        if mac_address:
+            mac_directory = directory / "mac-link"
+            mac_directory.mkdir(mode=0o700, exist_ok=True)
+            mac_tls, mac_certificate = tls_material(mac_directory, mac_address)
+            mac_server_type = IPv6Server if ":" in mac_address else ThreadingHTTPServer
+            mac_server = mac_server_type((mac_address, 8790), mac_handler(product))
+            mac_server.daemon_threads = True
+            mac_server.socket = mac_tls.wrap_socket(mac_server.socket, server_side=True)
+            product.mac_link.endpoint = {"address": mac_address, "port": 8790,
+                "fingerprint": hashlib.sha256(ssl.PEM_cert_to_DER_cert(mac_certificate.read_text())).hexdigest()[:20]}
+            threading.Thread(target=mac_server.serve_forever, daemon=True).start()
     remote_server = None
     if os.environ.get("MODULATE_REMOTE_SECRET"):
         from .remote_access import RemoteAccess, handler_for as remote_handler
@@ -410,6 +427,9 @@ def main(argv=None):
             product.remote_access.stopped.set()
             remote_server.shutdown()
             remote_server.server_close()
+        if mac_server:
+            mac_server.shutdown()
+            mac_server.server_close()
         lock.close()
 
 

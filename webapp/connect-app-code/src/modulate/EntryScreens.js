@@ -25,7 +25,7 @@ export function ConnectionUnavailable({ onSetup }) {
 
 export function ConnectionLanding({ standalone = false, loading, busy, notice, onDismissNotice, connectionUnavailable, navigate, code, setCode, onConnect }) {
   return <EntryFrame navigate={navigate} className="mf-landing">
-    <div className="mf-intro"><span className="mf-kicker">A NEW IDEA. THE SAME DEVICE.</span><h1>What will yours<br />become?</h1><p>A game. A music controller. Something only you imagined.<br className="mf-desktop-break" /> Connect Modulate, then say what you want to make.</p><GadgetIllustration /></div>
+    <div className="mf-intro"><span className="mf-kicker">A NEW IDEA. THE SAME DEVICE.</span><h1>What will yours<br />become?</h1><p>A game. A music controller. Something only you imagined.<br className="mf-desktop-break" /> Speak to Modulate to make it. Link this browser when you want a dashboard.</p><GadgetIllustration /></div>
     <section className="mf-connect-panel" aria-labelledby="mf-connect-title">
       <div className="mf-step-label">LET’S GET CONNECTED</div><h2 id="mf-connect-title">Your Modulate, right here.</h2>
       <div className="mf-setup-link"><span>{standalone ? 'No Mac needed.' : 'First time?'}</span> <Link href="/connect/setup" onClick={event => { event.preventDefault(); navigate('setup'); }}>{standalone ? 'Find your device code' : 'Set up your Mac'}</Link></div>
@@ -50,8 +50,9 @@ export function SetupScreen({ standalone = false, navigate, connected, urgentCon
   if (standalone) return <EntryFrame navigate={navigate} back={connected ? 'studio' : 'connect'} urgentControls={urgentControls} className="mf-setup">
     <Notice notice={notice} onDismissNotice={onDismissNotice} />
     <div className="mf-heading"><span className="mf-kicker">YOUR DEVICE. ITS OWN AI.</span><h1>Just Modulate<br />and Wi-Fi.</h1><p>Speak to create apps and hear replies without a Mac. Connect this browser when you want to manage your device.</p></div>
-    <section className="mf-prompt-card"><h2>Get your connection code.</h2><p>Hold the small A button on Modulate for one second to open setup. Release it, then press A to show a one-use browser code. Enter that code here.</p><p>Connecting a browser does not grant access to your computer. Mac controls are not connected in this standalone setup.</p></section>
+    <section className="mf-prompt-card"><h2>Get your connection code.</h2><p>Hold the small A button on Modulate for one second to open setup. Release it, then press A to show a one-use browser code. Enter that code here.</p><p>This eight-digit code links only your browser. Enter it on the website; it does not grant native Mac access.</p></section>
     <Button primary icon={ArrowRight} onClick={() => navigate('connect')}>Enter device code</Button>
+    <section className="mf-prompt-card"><h2>Optional: connect this Mac.</h2><p>For brightness, volume, desktop actions, camera or computer audio, copy this prompt into your coding agent on the Mac. It installs or reconnects the native helper.</p><Button primary icon={copied ? Check : Copy} onClick={copyPrompt}>{copied ? 'Prompt copied' : 'Copy Mac setup prompt'}</Button><details open={copyError || undefined}><summary>See the full prompt</summary><textarea aria-label="Agent setup prompt" readOnly value={SETUP_PROMPT} rows={9} onFocus={event => event.target.select()} /></details><p>The helper and Modulate show a matching eight-digit comparison code. Compare them and press small A on Modulate. You do not type that comparison code into the website.</p><p>Temporary disconnections reconnect within the existing eight-hour session. After expiry or revocation, pair again. Your device keeps working on its own.</p></section>
   </EntryFrame>;
   return <EntryFrame navigate={navigate} back={connected ? 'studio' : 'connect'} urgentControls={urgentControls} className="mf-setup">
     <Notice notice={notice} onDismissNotice={onDismissNotice} />

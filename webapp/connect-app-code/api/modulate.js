@@ -54,7 +54,9 @@ function config() {
   return { origin: url.origin, secret };
 }
 async function forward(path, method, body, session) {
-  const { origin, secret } = config();
+  const secret = process.env.MODULATE_REMOTE_SECRET;
+  const dynamic = process.env.MODULATE_DEVICE_DISCOVERY === '1';
+  const origin = dynamic ? await require('../server/device-registry.cjs').resolve(secret) : config().origin;
   const headers = { Authorization: `Bearer ${secret}`, Accept: path.startsWith('/preview') ? 'image/png' : 'application/json' };
   if (session) headers['X-Modulate-Session'] = session;
   if (body !== undefined) headers['Content-Type'] = 'application/json';

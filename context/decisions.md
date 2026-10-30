@@ -451,3 +451,17 @@ is separately revocable from the authenticated Device screen; connector tokens
 cannot mint grants or administer permissions. Existing eight-hour credentials
 retain their old expiry. Native Mac pairing remains eight hours, and model
 ledger/OS/device permission boundaries remain unchanged. No new paid dependency.
+
+
+## October 30 — Muse command transcription with local wake
+
+Integrated and enabled Meta `muse-voice-transcribe-1.0` for invoked commands,
+PTT and clarification answers. Ambient/media wake checks and busy cancellation
+remain local Whisper/Silero; local MMS replies remain separate. Preserve native
+capture/resampling, three-second silence/review, permission/epoch cancellation
+and normal request/check/activate flow. Existing server-held provider key and
+$50 shared ledger cover audio at verified $0.18/hour; no key or ceiling change.
+Cloud failures discard the request without hidden fallback or automatic retry.
+Three MMS synthetic samples were slower than local Whisper, with both models
+mishearing the synthetic wake phrase; this is an integration choice, not proven
+recognition or speed improvement. Keep local recognition as explicit rollback.

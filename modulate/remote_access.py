@@ -21,6 +21,7 @@ from urllib.parse import parse_qs, urlparse
 from .agent import AgentError
 from .host_bridge import BridgeError
 from .deployment import CONNECT_URL
+from .connector_requests import ConnectorRequests, ConnectorRequestError, identifier
 
 
 PERMISSIONS = {"computer": True, "system": True, "camera": True, "audio": True,
@@ -50,6 +51,7 @@ def _permissions(value, *, partial=False):
 class RemoteAccess:
     def __init__(self, product, directory, *, clock=time.time, gateway_enabled=True):
         self.product = product
+        self.connector_requests = ConnectorRequests(directory / "connector-requests.json")
         self.path = directory / "remote-access.json"
         self.clock = clock
         self.gateway_enabled = gateway_enabled
@@ -231,6 +233,64 @@ class RemoteAccess:
                 if not value or value["expires_at"] <= self.clock():
                     raise AgentError("The browser that started this request disconnected; start again from a connected browser")
 
+    def connector_request(self, token, data):
+        if (type(data) is not dict or set(data) - {"request_id", "text", "followup_id"}
+                or not identifier(data.get("request_id")) or type(data.get("text")) is not str
+                or not 1 <= len(data["text"].strip()) <= 4000
+                or data.get("followup_id") is not None and not identifier(data["followup_id"])):
+            raise RemoteAccessError("Send request_id, text (1–4000 characters), and optional followup_id")
+        with self.product.lock:
+            session = self.authenticate(token)
+            owner = _hash(token)
+            record, fresh = self.connector_requests.reserve(owner, data["request_id"],
+                {"text": data["text"].strip(), "followup_id": data.get("followup_id")}, session["expires_at"], self.clock())
+            if fresh:
+                # The durable reservation precedes dispatch. If interrupted after
+                # this point, retrying cannot start a duplicate physical action.
+                try:
+                    result = self.request(token, data)
+                except Exception:
+                    # Retain an unknown-outcome reservation rather than replay.
+                    raise
+                record["job_id"] = result["job_id"]
+                self.connector_requests.save()
+            return self.connector_status(token, data["request_id"])
+
+    def connector_status(self, token, request_id):
+        with self.product.lock:
+            self.authenticate(token)
+            try:
+                record = self.connector_requests.find(_hash(token), request_id)
+            except ConnectorRequestError as error:
+                raise RemoteAccessError(str(error), 404) from None
+            job_id = record["job_id"]
+            result = {"request_id": request_id, "job_id": job_id, "running": False}
+            if job_id is None:
+                return {**result, "status": "unknown", "summary": "Dispatch was interrupted or rejected. Do not replay automatically; inspect Modulate Studio."}
+            agent = self.product.agent_state()
+            if agent["job_id"] != job_id:
+                return {**result, "status": "superseded", "summary": "Another request has replaced this job's visible status. Do not assume success or replay."}
+            response = self.product._response_state()
+            question = self.product._clarification_state()
+            active = self.product.active or {}
+            package = active.get("package") or {}
+            return {**result, "running": agent["running"], "status": agent["status"],
+                    "phase": agent["phase"], "summary": agent["summary"],
+                    "response": response["text"] if response else None,
+                    "clarification": question if question and question["job_id"] == job_id else None,
+                    "device_connected": self.product.connected(),
+                    "active_app": {"title": package.get("title"), "kind": package.get("kind"),
+                                   "revision": active.get("revision"),
+                                   "confirmed_on_device": bool(active and self.product.connected()
+                                                               and self.product.device_revision == active.get("revision"))} if active else None}
+
+    def connector_cancel(self, token, request_id):
+        with self.product.lock:
+            status = self.connector_status(token, request_id)
+            if status["job_id"] is None or status["status"] in {"unknown", "superseded"}:
+                raise RemoteAccessError("This request cannot cancel the currently running job", 409)
+            return self.product.cancel(status["job_id"])
+
     def speaker_command(self, token, data):
         self.authenticate(token)
         if (type(data) is not dict or data.get("action") not in {"get", "set"}
@@ -367,6 +427,16 @@ def handler_for(remote, server_secret):
                         remote.authenticate(token)
                         return self.send(200, remote.revoke(token))
                 remote.authenticate(token)
+                if path == "/connector-request":
+                    if self.command == "POST":
+                        return self.send(200, remote.connector_request(token, data))
+                    request_id = parse_qs(parsed.query).get("request_id", [])
+                    if len(request_id) != 1 or not identifier(request_id[0]):
+                        raise RemoteAccessError("Provide one valid request_id")
+                    if self.command == "GET":
+                        return self.send(200, remote.connector_status(token, request_id[0]))
+                    if self.command == "DELETE":
+                        return self.send(200, remote.connector_cancel(token, request_id[0]))
                 if self.command == "POST" and path == "/speaker-control":
                     return self.send(200, remote.speaker_command(token, data))
                 if self.command == "GET" and path == "/state":

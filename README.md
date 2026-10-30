@@ -60,6 +60,8 @@ The latest voice update keeps ambient transcription visually quiet. A wake-only 
 
 **Mac speaker mode is installed and user-confirmed:** “Hey Meta, turn into a speaker for my computer” streams local system audio through the Pi speaker. “Hey Meta, stop being a speaker,” screen button B or Studio’s **Stop computer audio** ends it and restores the Mac’s previous mute state when still owned. The current device app is retained. [Setup, live evidence and limits](context/product-runtime.md#mac-system-audio-capture-and-routing).
 
+The Pi agent can now [install and verify its supported IMU driver](context/driver-setup.md) through hardware-debugger. A controlled missing-driver trial recovered real readings in 7.578 seconds, preserved the game and survived a device-service restart. The first installable pack is LSM6DS3TR-C.
+
 Hardware setup now has its own **hardware-debugger** skill. Ask “Hey Meta, check my hardware” for driver, bus and device-health diagnostics, or describe a newly added Qwiic Button. Supported address repair guides isolation, a checked address change, a power-cycle check and reconnection through voice or Studio. The setup survives reboot, and missing controls pause the saved app. See [supported boards, wiring steps and verification limits](context/hardware-debugger.md).
 
 Saved apps now have an **app library** with favorites, Trash and restore. Say “Hey Meta, open my app library,” then use voice or the connected knob/joystick and A/B buttons. Successfully activated revisions are saved automatically and rechecked when reopened. [Usage and storage details](context/app-library.md).

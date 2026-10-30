@@ -518,6 +518,21 @@ class Orchestrator:
         prompt = SYSTEM if role == "orchestrator" else SYSTEM + f"\nYou are the {role} specialist. Return candidate IDs, observations and any missing user intent to the orchestrator. Never activate or ask the user directly."
         prompt += "\nAvailable Modulate skills (choose and load the relevant skill before acting):\n" + json.dumps(catalog())
         prompt += """
+Prefer the shortest verified path to the requested outcome. When independent,
+load the relevant skill and inspect the needed live state in the same response
+using multiple tool calls, rather than separate model round trips. Do not inspect
+unrelated systems or delegate a simple task. Never skip verification or replay
+an uncertain computer action to save time.
+The context library.saved_apps is a bounded catalog of real saved creations,
+not presets. For a request to make/open an experience already represented there,
+reuse the most suitable saved app with app_library launch unless the user asks
+for a fresh/different version or specifies changes requiring generation. You
+choose semantic suitability; no title/keyword router selects an app. Reuse must
+still pass current hardware/permission checks. If the launch fails due to changed
+controls, inspect live capabilities and create a suitable adaptation with the normal checked tools.
+Say that you reopened a saved app; never describe a cache hit as new generation.
+For an edit to the active experience, refine it rather than launch an unrelated
+saved version. If no suitable app exists, generate normally.
 For saved apps, past games, favorites, Trash or returning home, load app-library
 and use app_library. Successfully activated apps are saved automatically. Reopen
 an exact stored revision with launch; do not regenerate an approximation. An open

@@ -48,8 +48,34 @@ class LibraryManager:
         def display_title(title):
             return " ".join("".join(character if character.isprintable() else " "
                                     for character in title).split()) or "Untitled app"
-        return [{**item, "title": display_title(item["title"]), "active": item["id"] == self.product.revision,
-                 "protected": item["id"] in protected} for item in items]
+        seen = set()
+        result = []
+        for item in items:
+            title = display_title(item["title"])
+            family = (item["kind"], title.casefold(), item["trashed"])
+            latest = family not in seen
+            seen.add(family)
+            result.append({**item, "title": title, "latest": latest,
+                           "active": item["id"] == self.product.revision,
+                           "protected": item["id"] in protected})
+        return result
+
+    def catalog(self, limit=40):
+        """Bounded metadata for semantic reuse; no saved code enters the prompt."""
+        try:
+            items = self.entries()
+        except (OSError, ValueError, AgentError):
+            return []
+        seen, result = set(), []
+        for item in items:
+            family = (item["kind"], item["title"].casefold())
+            if item["trashed"] or family in seen:
+                continue
+            seen.add(family)
+            result.append({key: item[key] for key in ("id", "title", "kind")})
+            if len(result) >= limit:
+                break
+        return result
 
     def _expire(self):
         if self.confirmation and self.confirmation["expires_at"] <= self.clock():
@@ -69,7 +95,7 @@ class LibraryManager:
                     "notice": str(error)[:120]}
         tab = self.view["tab"]
         items = [item for item in items if (item["trashed"] if tab == "trash" else
-                 not item["trashed"] and (tab != "favorites" or item["favorite"]))]
+                 not item["trashed"] and (item["favorite"] if tab == "favorites" else item["latest"]))]
         ids = {item["id"] for item in items}
         if self.view["selected_id"] not in ids:
             selected = items[0]["id"] if items else None

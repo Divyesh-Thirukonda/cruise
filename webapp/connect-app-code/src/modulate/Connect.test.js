@@ -346,3 +346,24 @@ test('a failed browser claim stays on the connection form and gives actionable h
   expect(screen.queryByText(/private upstream/)).not.toBeInTheDocument();
   expect(useRouter().push).not.toHaveBeenCalledWith('/connect/access');
 });
+
+test('a failed preview retries after reconnecting without a new app revision', async () => {
+  let offline = false;
+  connectApi.mockImplementation(async action => {
+    if (offline) throw new Error('Temporary tunnel outage');
+    return action === 'session' ? connectedSession : {
+      ...initialState, active: { kind: 'game', revision: 'unchanged-revision', package: { title: 'Same game' } },
+    };
+  });
+  render(<Connect />);
+  const label = 'Actual host-rendered preview of the active Modulate program';
+  fireEvent.error(await screen.findByAltText(label));
+  expect(screen.queryByAltText(label)).not.toBeInTheDocument();
+  offline = true;
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  await screen.findByText('Your Modulate connection isn’t reachable yet. Ask your setup agent to finish or reconnect it.');
+  offline = false;
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  expect(await screen.findByAltText(label)).toBeInTheDocument();
+  expect(command).not.toHaveBeenCalled();
+});

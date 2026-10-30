@@ -40,7 +40,7 @@ it must not be replayed automatically. Status may be superseded by another task;
 that is not proof of success. Current-app state is separate from this job's result.
 
 A clarification includes an ID to send with the user's next reply. Cancellation
-is restricted to the identified request. Each parent session can only read its
+is restricted to the identified request. Each connector authorization can only read its
 own connector jobs. No raw events, screenshots, generated source, credential or
 unrequested browser/email history is exposed by the status API. Requested task
 results can contain private information, for example an email subject requested
@@ -54,12 +54,16 @@ approval checks, hardware safeguards, sandboxing and the $50 model ledger remain
 enforced. The connector has no permission, pairing or budget administration API.
 It cannot bypass physical native pairing. The Mac was unpaired during these tests.
 
-Credentials seal a parent browser token with AES-GCM under a derived server-only
-key. Generic dashboard endpoints reject these opaque tokens. They expire with the
-parent browser session, at most eight hours. Disconnect the parent browser to
-revoke them and cancel its current job. Closing the tab or hiding a token does
-not revoke it. Renew through the secure credential store after expiry. There is
-no permanent connector grant or independent per-token revocation UI.
+New full-request credentials have a dedicated seven-day Pi authorization, sealed
+with AES-GCM under a derived server-only key. The Pi persists only its hash.
+Browser expiry/disconnection, agent restarts and changing tunnel addresses do not
+expire this authorization. The site lists each grant and its expiry under Device
+→ Connect Muse; **Revoke Muse access** revokes that grant and cancels its owned
+running job. A connector cannot create grants or access dashboard administration.
+Renew once after seven days through Muse's secure credential store; no Meta API
+key entry is needed. Existing eight-hour credentials retain their original expiry
+and require reconnection to adopt the new duration. Native Mac pairing still has
+its separate eight-hour expiry and physical confirmation requirement.
 
 The earlier **Modulate Speaker** connection was disconnected in Muse after full
 connection succeeded. Its previously issued token remains restricted to volume read/set;
@@ -101,6 +105,21 @@ actual title-screen preview, with tilt/encoder steering, A boost and B brake.
 Physical play was not retested because the user cannot reach the device.
 See `evidence/muse-agent-connector.json`.
 
+## Seven-day authorization — October 30, 2026
+
+Dedicated authorization passed live HTTPS reads after parent browser revocation,
+an agent-service restart, and a controlled tunnel replacement. The final tunnel
+trial recovered in 28.256s. An earlier 60s observation window expired just before
+automatic registration at about 64s; initial retry delays are now capped at 5s
+for the first 90s, with backoff retained for prolonged outages. Revoking the
+temporary dedicated grant returned 401. The active game was preserved; no audio
+or model generation was requested. This was not a full Pi reboot or a real week
+of uptime. Clock-advanced tests cover exact seven-day expiry. See
+`evidence/muse-week-connection.json`.
+
+Checks: 1,144 Python tests with 13 platform skips; 46 focused Pi checks; 60 API
+and 42 UI checks; production build; three tunnel retry checks on Mac and Pi.
+
 ## Sources and reused components
 
 [Meta's connector help](https://www.meta.com/en-gb/help/superintelligence/1687253048996149/)
@@ -111,3 +130,10 @@ Python standard-library storage retains request identities. No Instacart code,
 new paid service or new account is used. The connector is private, not a reviewed
 public directory listing. Muse's network approvals caused timeouts and setup
 delay; direct device API timings are not Muse end-to-end latency.
+
+The user approved saving the seven-day token. Reconnected the existing Modulate
+entry through Muse's secure credential form, with expiry shown as November 6,
+2026 at 5:54 PM EST. Muse confirmed a fresh speaker GET returned verified volume 80,
+not muted, and updated its own connector doc/helper with the new expiry/revoke
+path. No token was pasted in chat, and the clipboard was replaced with the
+public website URL afterward. Native Mac pairing remains separate.

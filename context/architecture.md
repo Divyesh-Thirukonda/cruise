@@ -286,8 +286,12 @@ are authorized by discovery. See [scope and live trial](component-setup.md).
 ## Muse custom connector — October 30
 
 Muse is an additional text input channel to the existing Pi agent. A sealed
-full-request credential binds to an expiring browser session and fixed HTTPS
-API; the old speaker credential remains speaker-only. The API permits bounded
+full-request credential binds to a dedicated persisted seven-day Pi authorization
+and fixed HTTPS API; the old speaker credential remains speaker-only. Browser
+expiry/revocation does not revoke the new connector grant. Authenticated browsers
+can list expiry and revoke a specific grant, including its running job; connector
+credentials cannot administer grants. Old eight-hour grants retain their expiry.
+The API permits bounded
 text submission, owned job status/clarification, cancellation and speaker read/set.
 It cannot administer pairing, permissions or budgets. Native Mac access and
 hardware/app safety checks remain inside the existing trusted runtime.

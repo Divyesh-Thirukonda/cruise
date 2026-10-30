@@ -85,7 +85,7 @@ class MuseTranscriber:
                         or type(result.get("transcript")) is not str or len(result["transcript"]) > 2000
                         or any(ord(c) < 32 and c not in "\n\t" for c in result["transcript"])
                         or type(result.get("audioDurationMs")) is not int
-                        or abs(result["audioDurationMs"] - duration_ms) > 1):
+                        or not 0 <= result["audioDurationMs"] - duration_ms <= 80):
                     raise ValueError()
             except urllib.error.HTTPError as error:
                 error.close()  # Do not read a provider body containing private details.

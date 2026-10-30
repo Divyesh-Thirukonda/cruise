@@ -66,6 +66,16 @@ class HardwareTests(unittest.TestCase):
         self.controls = Controls(SimpleNamespace(buttons=[]), diagnostic_backend=self.bus)
         self.worker = self.make_worker()
 
+    def test_background_discovery_publishes_new_address_without_readdressing(self):
+        self.worker._scan(uuid.uuid4().hex)
+        self.bus.devices[0x39] = {}
+        previous = self.worker._last_discovery
+        with patch('modulate.hardware_device.time.monotonic', return_value=previous + 16):
+            self.worker.refresh_inventory()
+        self.assertIn(0x39, self.worker.snapshot()['report']['addresses'])
+        self.assertEqual(self.bus.writes, [])
+        self.assertNotIn('0x39', str(self.controls.capabilities()['controls']))
+
     def make_worker(self):
         worker = HardwareDevice(self.controls, self.directory.name, self.session,
                                 boot_id=self.boot, clock=lambda: self.now)

@@ -38,6 +38,9 @@ class AttemptIncomplete(AgentError):
                          "This is a per-attempt work limit, not a speech or daily usage allowance.")
 
 
+_SETUP_TOOLS = frozenset({"load_skill", "inspect_capabilities", "hardware_debug", "ask_user"})
+
+
 _ADAPT_TOOLS = frozenset({"load_skill", "inspect_capabilities", "read_runtime_api",
                          "read_current_package", "write_package", "test_package",
                          "preview_package", "activate_package"})
@@ -269,7 +272,7 @@ def tool(name, description, properties=None, required=None):
 
 TOOLS = [
     tool("load_skill", "Read a bundled Modulate skill for the current task. Choose from the catalog in your instructions; skills guide decisions without granting extra tools or permissions.",
-         {"name": {"type": "string", "enum": ["computer-use", "device-apps", "games", "hardware-controls", "hardware-debugger", "connection-setup", "app-library"]}}, ["name"]),
+         {"name": {"type": "string", "enum": ["computer-use", "device-apps", "games", "hardware-controls", "hardware-debugger", "component-setup", "connection-setup", "app-library"]}}, ["name"]),
     tool("app_library", "Browse/open saved apps, manage favorites/Trash, or change launcher preferences. set_preferences saves encoder_direction for library navigation only; it never edits the active app or drivers. Use an absolute forward/reversed value based on current preferences. Saved packages are rechecked before launch. Omit entry_id for the selected item (current app outside the menu). purge requires a trusted human confirmation.",
          {"action": {"type": "string", "enum": ["list", "open", "close", "select", "tab", "favorite", "trash", "restore", "launch", "purge", "cancel_purge", "set_preferences"]},
           "entry_id": {"type": "string"}, "tab": {"type": "string", "enum": ["all", "favorites", "trash"]},
@@ -460,6 +463,7 @@ class Orchestrator:
         self.candidates = {}
         self.request_id = None
         self.private_request = False
+        self.setting_up_components = False
         self.adapting_controls = False
         self.protocol_repairs = 0
         self.transport_retries = 0
@@ -478,15 +482,15 @@ class Orchestrator:
         with (self.directory / "trace.jsonl").open("a") as stream:
             stream.write(json.dumps(entry) + "\n")
 
-    def run(self, text, *, private=False, adapt_controls=False):
+    def run(self, text, *, private=False, adapt_controls=False, component_setup=False):
         if not self.run_lock.acquire(blocking=False):
             raise AgentError("Another request is already running")
         try:
-            return self._run(text, private=private, adapt_controls=adapt_controls)
+            return self._run(text, private=private, adapt_controls=adapt_controls, component_setup=component_setup)
         finally:
             self.run_lock.release()
 
-    def _run(self, text, *, private=False, adapt_controls=False):
+    def _run(self, text, *, private=False, adapt_controls=False, component_setup=False):
         # Public requests remain <=4000 chars. Trusted conversation assembly
         # retains the original and at most four bounded question/reply turns.
         if not isinstance(text, str) or not 1 <= len(text.strip()) <= 24_000:
@@ -502,13 +506,14 @@ class Orchestrator:
         self.candidates = {}
         self.clarification = None
         self.private_request = bool(private)
+        self.setting_up_components = bool(component_setup)
         self.adapting_controls = bool(adapt_controls)
         self.base_revision = self.service.revision
         self.manifest = self.service.capabilities()
         self.manifest_revision = digest(self.manifest)
         self.event("request_started", title="Listening to your idea", detail=text, role="orchestrator")
         try:
-            result = self.loop(text, "orchestrator", self.max_calls)
+            result = self.loop(text, "orchestrator", min(8, self.max_calls) if self.setting_up_components else self.max_calls)
             self.event("request_finished", title="Agent finished", detail=result, role="orchestrator")
             return result
         except Exception as error:
@@ -559,6 +564,13 @@ Mac/Pi hub, not its own operating system. Inspect ai_host: a standalone Pi runs
 the agent itself and needs no Mac for local apps, speech, or browser linking.
 New Meta requests need internet; saved apps run locally without model calls.
 Only native computer tasks require the optional paired Mac.
+For newly attached components or a requested component that is not ready, load
+component-setup. The context components list distinguishes read-backed ready
+inputs from detected addresses needing identification/setup. Only ready runtime
+signals can be used in generated apps; a saved user label is not chip identity.
+Continue the original app request after verified setup. Choose signal-to-action
+mappings based on the request, units and current capabilities, never fixed device
+roles. Do not require Codex for supported setup.
 For missing modules, wiring, I2C conflicts or hardware faults, use hardware-debugger
 and hardware_debug. Hardware-controls is for settings and mappings. Inspect actual
 health before diagnosing a collision: identical devices at one address cannot be
@@ -621,6 +633,8 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
                  "then the final reply. Do not delegate more work. " if role == "orchestrator" and remaining <= 4 else "") +
                 ("Return your candidate IDs and useful findings to the parent now. "
                  if role != "orchestrator" and remaining == 1 else ""))
+            if self.setting_up_components:
+                tools = [item for item in TOOLS if item["function"]["name"] in _SETUP_TOOLS]
             if self.adapting_controls:
                 tools = [item for item in TOOLS if item["function"]["name"] in _ADAPT_TOOLS]
             if self.private_request:
@@ -794,6 +808,9 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
             raise AgentError("Waiting for the user's clarification")
         if self.private_request and name not in {"computer_observe", "computer_act", "camera_control", "computer_audio", "system_control", "speaker_control", "load_skill", "read_recent_context", "ask_user", "inspect_capabilities", "connection_setup", "app_library"}:
             raise AgentError("Computer task contents cannot be written into device packages or delegated")
+        if self.setting_up_components and (name not in _SETUP_TOOLS or
+                name == "hardware_debug" and arguments.get("action") not in {"inspect", "scan", "reinitialize", "install_driver"}):
+            raise AgentError("Automatic component setup cannot change apps, addresses or computer state")
         if name == "load_skill":
             result = load_skill(arguments["name"])
             if arguments["name"] not in self.loaded_skills:

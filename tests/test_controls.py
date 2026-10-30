@@ -57,11 +57,43 @@ class ControlsTests(unittest.TestCase):
                                      return_value=(self.encoder, self.press, self.bus)).start()
         self.joystick_factory = patch("modulate.controls._open_joystick", return_value=self.joystick).start()
         self.external_factory = patch("modulate.controls._open_external_buttons", side_effect=OSError("not configured")).start()
+        self.imu_factory = patch("modulate.controls.open_imu", side_effect=OSError("not connected")).start()
         self.addCleanup(patch.stopall)
         self.controls = Controls(self.screen)
 
     def statuses(self):
         return {device["id"]: device["status"] for device in self.controls.capabilities()["devices"]}
+
+    def test_imu_read_failure_neutralizes_all_axes_and_recovers(self):
+        from modulate.imu import IMU_DEFAULTS
+        sensor = SimpleNamespace(acceleration=(0, 0, 9.8), gyro=(0.1, 0.2, 0.3))
+        self.imu_factory.side_effect = None
+        self.imu_factory.return_value = sensor, self.bus, 0x6A
+        self.controls.hardware_reinitialize()
+        self.assertIn("imu", self.controls.capabilities()["controls"])
+        self.assertEqual(self.controls.poll()["imu_az"], 9.8)
+        manifest = self.controls.capabilities()
+        sensor.acceleration = (5, 0, 8)
+        self.controls.poll()
+        self.assertEqual(manifest, self.controls.capabilities())
+        sensor.gyro = (float("nan"), 0, 0)
+        self.assertEqual({k: self.controls.poll()[k] for k in IMU_DEFAULTS}, IMU_DEFAULTS)
+        self.assertNotIn("imu", self.controls.capabilities()["controls"])
+        sensor.gyro = (0, 0, 0)
+        self.assertGreater(self.controls.poll()["tilt_x"], 0)
+        self.assertIn("imu", self.controls.capabilities()["controls"])
+
+    def test_discovery_opens_missing_imu_without_consuming_encoder_delta(self):
+        self.encoder.current = -2
+        self.imu_factory.side_effect = None
+        self.imu_factory.return_value = SimpleNamespace(acceleration=(0, 0, 9.8), gyro=(0, 0, 0)), self.bus, 0x6A
+        self.controls.hardware_reinitialize(refresh_missing=True)
+        self.assertNotIn("imu", self.controls.capabilities()["controls"])
+        self.assertEqual(self.controls.poll()["encoder_delta"], 2)
+        self.assertIn("imu", self.controls.capabilities()["controls"])
+        self.imu_factory.assert_called_with(self.bus)
+        self.controls.close()
+        self.bus.deinit.assert_called_once()
 
     def test_stationary_bench_center_is_neutral_with_exact_input_keys_and_types(self):
         self.assertEqual(self.controls.poll(), neutral_input())

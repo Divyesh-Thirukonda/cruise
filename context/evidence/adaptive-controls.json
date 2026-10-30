@@ -1,0 +1,398 @@
+{
+  "date": "2026-10-30",
+  "timezone": "America/New_York",
+  "path": "live Pi agent, live Meta model, physical PiTFT and controls",
+  "cause": "Saved Orbit Catch required disconnected joystick; suspended predecessor also prevented any replacement. IMU driver/input contract was absent.",
+  "automatic_adaptation": {
+    "input_mode": "automatic stable hardware-change event",
+    "before_revision": "491f6971e962eff1495c40374430d8d27004fdba49742c49e31787cfb10046b8",
+    "after_revision": "4743b83a650f7ffa3f8d394baeac6491a3a38ccd4dc7c9dcb1670e518d2bf9e6",
+    "before_controls": [
+      "joystick",
+      "button_a"
+    ],
+    "after_controls": [
+      "button_a",
+      "encoder"
+    ],
+    "model_calls": 7,
+    "charged_or_reserved_dollars": 0.099571,
+    "agent_seconds": 14.316,
+    "assets_preserved": true,
+    "physical_confirmation": "User confirmed knob moves ship after A start.",
+    "trace": [
+      {
+        "at": "2026-10-30T05:15:46.156046+00:00",
+        "type": "request_started"
+      },
+      {
+        "at": "2026-10-30T05:15:46.187478+00:00",
+        "type": "model_call"
+      },
+      {
+        "at": "2026-10-30T05:15:48.178089+00:00",
+        "type": "tool_started",
+        "tool": "load_skill"
+      },
+      {
+        "at": "2026-10-30T05:15:48.178711+00:00",
+        "type": "tool_finished",
+        "tool": "load_skill",
+        "status": "passed",
+        "seconds": 0.001
+      },
+      {
+        "at": "2026-10-30T05:15:48.209221+00:00",
+        "type": "model_call"
+      },
+      {
+        "at": "2026-10-30T05:15:49.125892+00:00",
+        "type": "tool_started",
+        "tool": "read_current_package"
+      },
+      {
+        "at": "2026-10-30T05:15:49.126209+00:00",
+        "type": "tool_finished",
+        "tool": "read_current_package",
+        "status": "passed",
+        "seconds": 0.0
+      },
+      {
+        "at": "2026-10-30T05:15:49.126431+00:00",
+        "type": "tool_started",
+        "tool": "inspect_capabilities"
+      },
+      {
+        "at": "2026-10-30T05:15:49.126909+00:00",
+        "type": "tool_finished",
+        "tool": "inspect_capabilities",
+        "status": "passed",
+        "seconds": 0.0
+      },
+      {
+        "at": "2026-10-30T05:15:49.147292+00:00",
+        "type": "model_call"
+      },
+      {
+        "at": "2026-10-30T05:15:50.524687+00:00",
+        "type": "tool_started",
+        "tool": "read_runtime_api"
+      },
+      {
+        "at": "2026-10-30T05:15:50.524889+00:00",
+        "type": "tool_finished",
+        "tool": "read_runtime_api",
+        "status": "passed",
+        "seconds": 0.0
+      },
+      {
+        "at": "2026-10-30T05:15:50.545366+00:00",
+        "type": "model_call"
+      },
+      {
+        "at": "2026-10-30T05:15:55.217228+00:00",
+        "type": "tool_started",
+        "tool": "write_package"
+      },
+      {
+        "at": "2026-10-30T05:15:55.218137+00:00",
+        "type": "tool_finished",
+        "tool": "write_package",
+        "status": "passed",
+        "seconds": 0.001
+      },
+      {
+        "at": "2026-10-30T05:15:55.238185+00:00",
+        "type": "model_call"
+      },
+      {
+        "at": "2026-10-30T05:15:56.758158+00:00",
+        "type": "tool_started",
+        "tool": "test_package"
+      },
+      {
+        "at": "2026-10-30T05:15:57.465874+00:00",
+        "type": "tool_finished",
+        "tool": "test_package",
+        "status": "passed",
+        "seconds": 0.708
+      },
+      {
+        "at": "2026-10-30T05:15:57.490206+00:00",
+        "type": "model_call"
+      },
+      {
+        "at": "2026-10-30T05:15:58.298404+00:00",
+        "type": "tool_started",
+        "tool": "activate_package"
+      },
+      {
+        "at": "2026-10-30T05:15:59.491899+00:00",
+        "type": "tool_finished",
+        "tool": "activate_package",
+        "status": "passed",
+        "seconds": 1.193
+      },
+      {
+        "at": "2026-10-30T05:15:59.513875+00:00",
+        "type": "model_call"
+      },
+      {
+        "at": "2026-10-30T05:16:00.471659+00:00",
+        "type": "request_finished"
+      }
+    ]
+  },
+  "motion_adaptation": {
+    "input_mode": "typed API request on behalf of user; not voice",
+    "before_revision": "4743b83a650f7ffa3f8d394baeac6491a3a38ccd4dc7c9dcb1670e518d2bf9e6",
+    "after_revision": "15ec238a3ac61c887db52a9a5a4466475c6227c83d4a5836bc9a7a8f6083ee29",
+    "before_controls": [
+      "button_a",
+      "encoder"
+    ],
+    "after_controls": [
+      "button_a",
+      "imu"
+    ],
+    "model_calls": 6,
+    "charged_or_reserved_dollars": 0.115248,
+    "agent_seconds": 20.487,
+    "assets_preserved": true,
+    "physical_confirmation": "User confirmed: Yes, tilt controls the ship.",
+    "trace": [
+      {
+        "at": "2026-10-30T05:24:34.526320+00:00",
+        "type": "request_started"
+      },
+      {
+        "at": "2026-10-30T05:24:34.562520+00:00",
+        "type": "model_call"
+      },
+      {
+        "at": "2026-10-30T05:24:37.231881+00:00",
+        "type": "tool_started",
+        "tool": "load_skill"
+      },
+      {
+        "at": "2026-10-30T05:24:37.232494+00:00",
+        "type": "tool_finished",
+        "tool": "load_skill",
+        "status": "passed",
+        "seconds": 0.001
+      },
+      {
+        "at": "2026-10-30T05:24:37.256192+00:00",
+        "type": "model_call"
+      },
+      {
+        "at": "2026-10-30T05:24:38.795453+00:00",
+        "type": "tool_started",
+        "tool": "inspect_capabilities"
+      },
+      {
+        "at": "2026-10-30T05:24:38.796084+00:00",
+        "type": "tool_finished",
+        "tool": "inspect_capabilities",
+        "status": "passed",
+        "seconds": 0.001
+      },
+      {
+        "at": "2026-10-30T05:24:38.796312+00:00",
+        "type": "tool_started",
+        "tool": "read_runtime_api"
+      },
+      {
+        "at": "2026-10-30T05:24:38.796396+00:00",
+        "type": "tool_finished",
+        "tool": "read_runtime_api",
+        "status": "passed",
+        "seconds": 0.0
+      },
+      {
+        "at": "2026-10-30T05:24:38.796499+00:00",
+        "type": "tool_started",
+        "tool": "read_current_package"
+      },
+      {
+        "at": "2026-10-30T05:24:38.796684+00:00",
+        "type": "tool_finished",
+        "tool": "read_current_package",
+        "status": "passed",
+        "seconds": 0.0
+      },
+      {
+        "at": "2026-10-30T05:24:38.796852+00:00",
+        "type": "tool_started",
+        "tool": "hardware_debug"
+      },
+      {
+        "at": "2026-10-30T05:24:38.797043+00:00",
+        "type": "tool_finished",
+        "tool": "hardware_debug",
+        "status": "passed",
+        "seconds": 0.0
+      },
+      {
+        "at": "2026-10-30T05:24:38.817839+00:00",
+        "type": "model_call"
+      },
+      {
+        "at": "2026-10-30T05:24:48.662105+00:00",
+        "type": "tool_started",
+        "tool": "write_package"
+      },
+      {
+        "at": "2026-10-30T05:24:48.663449+00:00",
+        "type": "tool_finished",
+        "tool": "write_package",
+        "status": "passed",
+        "seconds": 0.001
+      },
+      {
+        "at": "2026-10-30T05:24:48.688582+00:00",
+        "type": "model_call"
+      },
+      {
+        "at": "2026-10-30T05:24:50.337110+00:00",
+        "type": "tool_started",
+        "tool": "test_package"
+      },
+      {
+        "at": "2026-10-30T05:24:50.956953+00:00",
+        "type": "tool_finished",
+        "tool": "test_package",
+        "status": "passed",
+        "seconds": 0.62
+      },
+      {
+        "at": "2026-10-30T05:24:50.979093+00:00",
+        "type": "model_call"
+      },
+      {
+        "at": "2026-10-30T05:24:52.303104+00:00",
+        "type": "tool_started",
+        "tool": "activate_package"
+      },
+      {
+        "at": "2026-10-30T05:24:53.654044+00:00",
+        "type": "tool_finished",
+        "tool": "activate_package",
+        "status": "passed",
+        "seconds": 1.351
+      },
+      {
+        "at": "2026-10-30T05:24:53.677942+00:00",
+        "type": "model_call"
+      },
+      {
+        "at": "2026-10-30T05:24:55.013488+00:00",
+        "type": "request_finished"
+      }
+    ]
+  },
+  "motion_contract": {
+    "model": "LSM6DS3TR-C",
+    "address": "0x6a",
+    "who_am_i": "0x6a",
+    "driver": "adafruit-circuitpython-lsm6ds 4.6.3",
+    "register_library": "adafruit-circuitpython-register 1.13.0",
+    "units": [
+      "m/s^2 acceleration including gravity",
+      "radians/s angular velocity",
+      "tilt_x/tilt_y normalized to +/-45 degrees"
+    ],
+    "chosen_by_meta": "tilt_x, capture neutral on A start/retry, 0.05 dead zone, 0.25 smoothing fraction",
+    "sample_ranges": {
+      "imu_ax": {
+        "min": -10.627123372249999,
+        "max": 9.2350988247
+      },
+      "imu_ay": {
+        "min": -5.43350191895,
+        "max": 8.64706267075
+      },
+      "imu_az": {
+        "min": -4.17128799745,
+        "max": 12.0382905006
+      },
+      "imu_gx": {
+        "min": -4.264602944169894,
+        "max": 4.999626542031656
+      },
+      "imu_gy": {
+        "min": -5.003597166079944,
+        "max": 5.003597166079944
+      },
+      "imu_gz": {
+        "min": -3.360827824255931,
+        "max": 2.6293167015138077
+      },
+      "tilt_x": {
+        "min": -1.0,
+        "max": 1.0
+      },
+      "tilt_y": {
+        "min": -0.674336520924167,
+        "max": 1.0
+      }
+    }
+  },
+  "synthetic_generated_package_check": {
+    "kind": "synthetic input replay of actual Meta-generated package",
+    "revision": "15ec238a3ac61c887db52a9a5a4466475c6227c83d4a5836bc9a7a8f6083ee29",
+    "neutral": -0.3881298978988969,
+    "center_ship_x": 112,
+    "stationary_ship_x": 112,
+    "left_ship_x": 111.45833333333333,
+    "right_ship_x": 117.77940877278648,
+    "assets_preserved": true
+  },
+  "final_state": {
+    "controls": [
+      "encoder",
+      "encoder_pressed",
+      "button_a",
+      "button_b",
+      "imu"
+    ],
+    "app": {
+      "suspended": false,
+      "missing_controls": [],
+      "suspension_reason": null
+    },
+    "display": {
+      "kind": "game",
+      "title": "Orbit Catch"
+    },
+    "error": null,
+    "services": [
+      "active",
+      "active",
+      "active"
+    ],
+    "speech": {
+      "provider": "meta_mms",
+      "pending": false,
+      "error": null
+    },
+    "speech_delivery": "delivered",
+    "budget": {
+      "limit_dollars": 50.0,
+      "charged_or_reserved_dollars": 11.948991,
+      "calls": 642,
+      "halted": false
+    }
+  },
+  "tests": {
+    "host": "1089 tests, 13 skipped, 42.677 s",
+    "pi": "208 tests, 19.809 s",
+    "note": "Synthetic tests are separate from user-confirmed physical knob and tilt trials."
+  },
+  "limits": [
+    "Supported drivers identify hardware; unknown peripherals still need a trusted driver and input contract.",
+    "Physical unplug/replug of the new IMU driver has not been demonstrated. Background rediscovery/failure behavior is covered by synthetic tests.",
+    "No absolute heading/position or general motion reliability claim.",
+    "Adding a module does not automatically replace a healthy app; the next request sees it. A suspended local app can trigger one debounced checked adaptation."
+  ]
+}

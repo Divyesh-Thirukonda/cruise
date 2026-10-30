@@ -12,6 +12,7 @@ from functools import wraps
 import math
 import threading
 import uuid
+from .imu import IMU_DEFAULTS, IMU_DESCRIPTION, motion_sample, open_imu
 
 
 JOYSTICK_ADDRESS = 0x20
@@ -26,7 +27,7 @@ JOYSTICK_CENTER = (516, 504)
 
 def neutral_input():
     return {"joystick_x": 0.0, "joystick_y": 0.0, "encoder_delta": 0,
-            "button_a": False, "button_b": False, "encoder_pressed": False}
+            "button_a": False, "button_b": False, "encoder_pressed": False, **IMU_DEFAULTS}
 
 
 def _locked(method):
@@ -162,10 +163,12 @@ class Controls:
         self.max_encoder_delta = max_encoder_delta
         self._encoder = self._encoder_button = self._bus = self._joystick = None
         self._external_buttons = None
+        self._imu = None
+        self._imu_address = None
         self._position = None
         self._closed = False
         self._status = {"encoder": "unavailable", "joystick": "unavailable",
-                        "pitft_buttons": "unavailable", "qwiic_buttons": "unavailable"}
+                        "pitft_buttons": "unavailable", "qwiic_buttons": "unavailable", "imu": "unavailable"}
         try:
             self._encoder, self._encoder_button, self._bus = _open_encoder()
         except Exception:
@@ -176,6 +179,10 @@ class Controls:
             pass
         try:
             self._external_buttons = _open_external_buttons()
+        except Exception:
+            pass
+        try:
+            self._imu, self._bus, self._imu_address = open_imu(self._bus)
         except Exception:
             pass
         self.poll()  # Establish encoder baseline and a read-backed manifest.
@@ -256,6 +263,12 @@ class Controls:
                 # A recovered device starts a new baseline; never replay turns
                 # that accumulated while its reads were unavailable.
                 self._position = None
+        if self._imu is not None:
+            try:
+                sample.update(motion_sample(self._imu.acceleration, self._imu.gyro))
+                self._status["imu"] = "ready"
+            except Exception:
+                self._status["imu"] = "read_error"
         return sample
 
     def capabilities(self):
@@ -270,6 +283,8 @@ class Controls:
             controls.extend(("encoder", "encoder_pressed"))
         if status["pitft_buttons"] == "ready" or status["qwiic_buttons"] == "ready":
             controls.extend(("button_a", "button_b"))
+        if status["imu"] == "ready":
+            controls.append("imu")
         warnings = []
         if status["qwiic_buttons"] not in ("ready", "closed"):
             warnings.append("Qwiic buttons are unavailable until 0x6e and 0x6f are independently identified; check missing modules, wiring, or a possible address conflict.")
@@ -279,7 +294,9 @@ class Controls:
         return {"controls": controls,
                 "devices": [{"id": device, "address": address, "status": status[device]}
                             for device, address in (("joystick", "0x20"), ("encoder", "0x36"),
-                                                    ("pitft_buttons", None), ("qwiic_buttons", "0x6e / 0x6f"))],
+                                                    ("pitft_buttons", None), ("qwiic_buttons", "0x6e / 0x6f"))]
+                           + [{"id": "imu", "address": hex(self._imu_address) if self._imu_address else None,
+                               "status": status["imu"], **IMU_DESCRIPTION}],
                 "button_sources": {"button_a": "PiTFT A or green Qwiic 0x6e", "button_b": "PiTFT B or red Qwiic 0x6f"},
                 "warnings": warnings}
 
@@ -334,10 +351,12 @@ class Controls:
         return report
 
     @_locked
-    def hardware_reinitialize(self):
+    def hardware_reinitialize(self, *, refresh_missing=False):
         if self._closed:
             raise OSError("Controls closed")
+        reopened_encoder = False
         if self._encoder is None or self._status["encoder"] == "read_error":
+            reopened_encoder = True
             self._encoder = self._encoder_button = None
             self._status["encoder"] = "unavailable"
             try:
@@ -362,15 +381,27 @@ class Controls:
                 self._external_buttons = _open_external_buttons()
             except Exception:
                 pass
-        self._position = None  # Reinitialization never replays accumulated turns.
-        self.poll()
+        if not refresh_missing or reopened_encoder:
+            self._position = None  # Reinitialization never replays accumulated turns.
+        if self._imu is None or self._status["imu"] == "read_error":
+            self._imu = None
+            self._imu_address = None
+            self._status["imu"] = "unavailable"
+            try:
+                self._imu, self._bus, self._imu_address = open_imu(self._bus)
+            except Exception:
+                pass
+        if not refresh_missing:
+            self.poll()
+        # Background discovery must not consume encoder deltas/button events.
+        # The normal next input poll establishes read-backed availability.
         return self.capabilities()
 
     @_locked
     def close(self):
         self._closed = True
         self._position = None
-        for device in ("joystick", "encoder", "pitft_buttons", "qwiic_buttons"):
+        for device in self._status:
             self._status[device] = "closed"
         if self._bus is not None:
             bus, self._bus = self._bus, None

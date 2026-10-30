@@ -377,21 +377,57 @@ class DeviceActivationTests(unittest.TestCase):
         self.assertEqual(recovered.tick({"encoder_delta": 0}, 0.03)["state"]["ticks"], 1)
         self.assertEqual(self.verify.call_count, 2)
 
-    def test_suspended_program_rejects_new_activation_and_keeps_predecessor(self):
+    def test_suspended_program_accepts_verified_adaptation_and_preserves_predecessor(self):
         self.activate(game())
         active = self.activate(game("Second"))
         self.manager.close()
-        before = self.manager.path.read_bytes()
         self.available = []
-        recovered = self.reopen()
-        replacement = game("Replacement")
+        self.manager = self.reopen()
+        replacement = game("Adapted")
+        replacement["controls"] = []
+        self.activate(replacement)
+        self.assertFalse(self.manager.snapshot()["suspended"])
+        self.assertEqual(self.saved()["previous"]["revision"], active["revision"])
+        self.assertEqual(self.manager.tick({}, .03)["state"]["ticks"], 1)
+        self.assertEqual(self.reopen().snapshot()["title"], "Adapted")
+
+    def test_failed_adaptation_restores_suspended_predecessor_on_abort_and_restart(self):
+        active = self.activate(game())
+        self.manager.close()
+        self.available = []
+        self.manager = self.reopen()
+        replacement = game("Adapted")
         replacement["controls"] = []
         message = self.transaction(replacement)
-        snapshot = recovered.process(message)
-        self.assertEqual(snapshot["ack"]["phase"], "failed")
-        self.assertEqual(snapshot["revision"], active["revision"])
+        self.manager.process(message)
+        self.manager.process(self.phase(message, "commit"))
+        self.assertFalse(self.manager.snapshot()["suspended"])
+        snapshot = self.manager.process(self.phase(message, "abort"))
         self.assertTrue(snapshot["suspended"])
-        self.assertEqual(self.manager.path.read_bytes(), before)
+        self.assertEqual(snapshot["revision"], active["revision"])
+        self.assertIsNone(self.manager.tick({}, .03))
+        recovered = self.reopen()
+        self.assertTrue(recovered.snapshot()["suspended"])
+        self.assertEqual(recovered.snapshot()["revision"], active["revision"])
+
+    def test_suspended_base_cannot_resume_while_replacement_is_staged(self):
+        self.activate(game())
+        self.manager.close()
+        self.available = []
+        self.manager = self.reopen()
+        replacement = game("Adapted")
+        replacement["controls"] = []
+        message = self.transaction(replacement)
+        self.manager.process(message)
+        self.available = ["encoder"]
+        self.now += 2
+        count = len(FakeGame.instances)
+        self.assertIsNone(self.manager.tick({}, .03))
+        self.assertEqual(len(FakeGame.instances), count)
+        self.manager.process(self.phase(message, "commit"))
+        self.manager.process(self.phase(message, "confirmed"))
+        self.assertFalse(self.manager.snapshot()["suspended"])
+        self.assertEqual(self.manager.snapshot()["title"], "Adapted")
 
     def test_missing_hardware_does_not_hide_structurally_invalid_saved_package(self):
         fallback = game("Fallback")

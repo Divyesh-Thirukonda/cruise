@@ -158,6 +158,24 @@ class AgentTests(unittest.TestCase):
         self.assertFalse(any(item["type"] == "tool_started" for item in self.service.events))
         self.assertEqual(agent.ledger.status()["charged_or_reserved_dollars"], 0)
 
+    def test_motion_samples_are_observations_not_activation_manifest_revisions(self):
+        agent, _ = self.prepare()
+        before = digest(self.service.capabilities())
+        self.service.input = {"imu_ax": 2, "tilt_x": .3}
+        inspected = agent.dispatch("inspect_capabilities", {}, "orchestrator")
+        self.assertEqual(inspected["input_sample"], self.service.input)
+        self.service.input["tilt_x"] = -.4
+        self.assertEqual(digest(self.service.capabilities()), before)
+        self.assertEqual(inspected["input_sample"]["tilt_x"], .3)
+
+    def test_imu_package_requires_live_capability(self):
+        agent, _ = self.prepare()
+        with self.assertRaises(AgentError):
+            agent.dispatch("write_package", {"package": game_package("imu")}, "orchestrator")
+        self.service.manifest["controls"].append("imu")
+        agent.manifest = self.service.capabilities()
+        self.assertIn("candidate_id", agent.dispatch("write_package", {"package": game_package("imu")}, "orchestrator"))
+
     def test_orchestrator_can_finish_after_twelve_turns_within_shared_call_budget(self):
         steps = [reply(("inspect_capabilities", {})) for _ in range(12)]
         agent, provider = self.make([*steps, reply(content="Finished after inspecting the last result.")])

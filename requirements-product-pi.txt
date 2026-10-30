@@ -6,6 +6,8 @@ quickjs-ng==0.17.0.2
 adafruit-blinka==10.0.0
 adafruit-circuitpython-rgb-display==3.14.6
 adafruit-circuitpython-seesaw==1.18.2
+adafruit-circuitpython-lsm6ds==4.6.3
+adafruit-circuitpython-register==1.13.0
 sparkfun-qwiic-joystick==2.0.0
 sparkfun-qwiic-button==2.0.3
 sounddevice==0.5.6

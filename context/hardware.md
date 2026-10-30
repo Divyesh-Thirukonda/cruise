@@ -57,7 +57,7 @@ The October 28 product revision adds voice requests, generated games on the devi
 
 ## Smallest useful assembly
 
-The current product uses **Pi 5 + Mini PiTFT + joystick + encoder + green/red Qwiic buttons + USB microphone**. Distinct button addresses survived a power cycle; game input, encoder volume effects and spoken control refinements are confirmed. Leave APDS9960 and IMU out until they serve a tested interaction.
+The current product uses **Pi 5 + Mini PiTFT + joystick + encoder + green/red Qwiic buttons + USB microphone**. Distinct button addresses survived a power cycle; game input, encoder volume effects and spoken control refinements are confirmed. The October 30 session has the joystick disconnected and the LSM6DS3TR-C IMU connected at `0x6A` (WHO_AM_I `0x6A`). Adafruit driver 4.6.3 now returns real acceleration and gyro readings; the app contract exposes them to Meta. APDS9960 remains unverified. Current live controls, rather than this inventory, determine each generated package. See [adaptive controls](adaptive-controls.md).
 
 The added USB speaker has user-confirmed Studio-to-Pi speech and a live typed Meta local-form reply. Keep it separate from the untested Bluetooth speaker/microphone inventory entry.
 

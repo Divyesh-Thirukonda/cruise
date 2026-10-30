@@ -275,8 +275,9 @@ class DeviceActivation:
             return
         if pending["phase"] == "activated":
             self._active = pending["old"]
+            self._suspended = pending["old_suspended"]
             try:
-                self.present(self._active.image if self._active else self._idle())
+                self.present(self._active.image if self._active and self._active.image is not None else self._idle())
             except Exception:
                 error += "; previous display could not be presented"
             self._failure = {"revision": pending["revision"],
@@ -339,8 +340,6 @@ class DeviceActivation:
             try:
                 phase = message["phase"]
                 if phase == "stage":
-                    if self._suspended:
-                        raise HardwareUnavailable("Saved program is paused; reconnect required controls before activation")
                     if self._failure is not None:
                         raise ActivationError("Host must acknowledge runtime recovery before another activation")
                     base = self._active.revision if self._active else None
@@ -351,6 +350,7 @@ class DeviceActivation:
                     deadline = time.monotonic() + TIMEOUT_SECONDS
                     candidate = self._prepare(message["package"])
                     self._pending = {**message, "candidate": candidate, "old": self._active,
+                                     "old_suspended": self._suspended,
                                      "deadline": deadline, "phase": "ready"}
                     if candidate.revision != message["revision"]:
                         raise ActivationError("Normalized package revision changed")
@@ -371,6 +371,7 @@ class DeviceActivation:
                                intent={key: pending[key] for key in ("id", "revision", "base_revision")})
                     self.present(pending["candidate"].image)
                     self._active = pending["candidate"]
+                    self._suspended = False
                     pending["deadline"] = time.monotonic() + TIMEOUT_SECONDS
                     self._ack = {"id": pending["id"], "revision": pending["revision"], "phase": "activated"}
                 elif phase == "confirmed":
@@ -477,6 +478,10 @@ class DeviceActivation:
             if self._closed or self._active is None:
                 return None
             if self._suspended:
+                if self._pending:
+                    # A checked replacement owns the transition. Do not restart
+                    # its suspended predecessor underneath the transaction.
+                    return None
                 if time.monotonic() < self._resume_after:
                     return None
                 self._resume_after = time.monotonic() + 1.0
@@ -542,11 +547,14 @@ class DeviceActivation:
 
     def _snapshot(self):
         active = self._active
+        required = (active.package.get("controls", []) if active and active.package["kind"] == "game"
+                    else ["encoder"] if active else [])
         return {"revision": active.revision if active else None,
                 "kind": active.package["kind"] if active else None,
                 "title": active.package["title"] if active else None,
                 "ack": _copy(self._ack), "error": self._error, "failure": _copy(self._failure),
                 "suspended": self._suspended,
+                "missing_controls": sorted(set(required) - set(self.controls())),
                 "suspension_reason": "required_controls_unavailable" if self._suspended else None,
                 "pending": self._pending["phase"] if self._pending else None}
 

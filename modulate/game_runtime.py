@@ -19,6 +19,7 @@ import sys
 import tempfile
 import threading
 import time
+from .imu import IMU_DEFAULTS
 
 WIDTH, HEIGHT = 240, 135
 MAX_CODE_BYTES = 40 * 1024
@@ -35,9 +36,9 @@ STARTUP_WALL_SECONDS = 4.0
 ENGINE_VERSION = "0.17.0.2"
 _COLOR = re.compile(r"#[0-9a-fA-F]{6}\Z")
 _ID = re.compile(r"[A-Za-z][A-Za-z0-9_-]{0,31}\Z")
-_CONTROLS = {"joystick", "encoder", "button_a", "button_b", "encoder_pressed"}
+_CONTROLS = {"joystick", "encoder", "button_a", "button_b", "encoder_pressed", "imu"}
 DEFAULT_INPUT = {"joystick_x": 0.0, "joystick_y": 0.0, "encoder_delta": 0,
-                 "button_a": False, "button_b": False, "encoder_pressed": False}
+                 "button_a": False, "button_b": False, "encoder_pressed": False, **IMU_DEFAULTS}
 
 
 class GameError(ValueError):
@@ -151,8 +152,10 @@ def validate_input(value: object) -> dict:
     value = _keys(value, set(), set(DEFAULT_INPUT))
     result = dict(DEFAULT_INPUT)
     result.update(value)
-    for name in ("joystick_x", "joystick_y"):
+    for name in ("joystick_x", "joystick_y", "tilt_x", "tilt_y"):
         _number(result[name], -1, 1, name)
+    for name in ("imu_ax", "imu_ay", "imu_az", "imu_gx", "imu_gy", "imu_gz"):
+        _number(result[name], -40, 40, name)
     _integer(result["encoder_delta"], -100, 100, "encoder_delta")
     for name in ("button_a", "button_b", "encoder_pressed"):
         if type(result[name]) is not bool:
@@ -376,6 +379,10 @@ def verify(package: object) -> dict:
             samples = [{}, {"joystick_x": -1}, {"joystick_x": 1}, {"joystick_y": -1},
                        {"joystick_y": 1}, {"encoder_delta": -1}, {"encoder_delta": 1},
                        {"button_a": True}, {}, {"button_b": True}, {}, {"encoder_pressed": True}]
+            if "imu" in normalized["controls"]:
+                samples += [{"tilt_x": -1, "imu_ax": -9.8}, {"tilt_x": 1, "imu_ax": 9.8},
+                            {"tilt_y": -1, "imu_ay": -9.8}, {"tilt_y": 1, "imu_ay": 9.8},
+                            {"imu_gz": -2}, {"imu_gz": 2}, {}]
             for sample in samples:
                 for _ in range(4):
                     started = time.monotonic()
@@ -387,7 +394,7 @@ def verify(package: object) -> dict:
                             "distinct_states": len({_json(frame["state"]) for frame in frames}),
                             "step_median_ms": round(statistics.median(times), 3),
                             "step_max_ms": round(max(times), 3)})
-            check("representative_inputs", True, "48 updates covering joystick, encoder and button inputs")
+            check("representative_inputs", True, str(len(samples) * 4) + " updates covering declared input types")
             check("sprite_output", sprite_seen, "A supplied sprite appears in the sampled draw commands")
     except (GameError, OSError) as error:
         check("execution", False, str(error)[:600])

@@ -59,7 +59,7 @@ class HardwareTests(unittest.TestCase):
         self.now = 1000.0
         self.session, self.boot = uuid.uuid4().hex, str(uuid.uuid4())
         self.factories = [patch("modulate.controls." + name, side_effect=OSError("missing"))
-                          for name in ("_open_encoder", "_open_joystick", "_open_external_buttons")]
+                          for name in ("_open_encoder", "_open_joystick", "_open_external_buttons", "open_imu")]
         self.mocks = [p.start() for p in self.factories]
         for p in self.factories:
             self.addCleanup(p.stop)

@@ -28,7 +28,7 @@ from .deployment import CONNECT_URL
 
 _SESSION = re.compile(r"[0-9a-f]{32}\Z")
 _REVISION = re.compile(r"[0-9a-f]{64}\Z")
-_CONTROLS = {"joystick", "encoder", "button_a", "button_b", "encoder_pressed"}
+_CONTROLS = {"joystick", "encoder", "button_a", "button_b", "encoder_pressed", "imu"}
 _FOLLOWUP_SECONDS = 120
 _MAX_QUESTIONS = 4
 _PHASES = {"queued", "planning", "coding", "checking", "previewing", "activating", "ready", "error", "cancelled"}
@@ -84,6 +84,8 @@ class Product(AssistantIO):
         self.memory_error = None
         self.speaker_volume = SpeakerVolume()
         self.hardware = HardwareDebug(self.directory / "hardware-repair.json")
+        from .adaptation import ControlAdaptation
+        self.control_adaptation = ControlAdaptation(self.directory)
         self.event_id = 0
         self.provider = provider
         self.ledger = Ledger(self.directory / "budget.json", budget)
@@ -529,7 +531,7 @@ class Product(AssistantIO):
                 return ("I couldn't finish this request within one attempt. This isn't a daily request allowance; your current app is still available.", None)
         return ("An unexpected error stopped this request. Your active app is still available. Check Studio and describe what happened before starting a new request.", None)
 
-    def request(self, text, source="website", followup_id=None, *, _library_entry=None):
+    def request(self, text, source="website", followup_id=None, *, _library_entry=None, _adapt_controls=False):
         if source == "microphone":
             self.require_permission("voice")
         if not isinstance(text, str) or not 1 <= len(text.strip()) <= 4000:
@@ -541,7 +543,7 @@ class Product(AssistantIO):
                 raise AgentError("The physical controller is not connected")
             if self.device_revision != self.revision:
                 raise AgentError("Wait for the controller and host to finish synchronizing")
-            followup = self._followup(followup_id) if _library_entry is None else None
+            followup = self._followup(followup_id) if _library_entry is None and not _adapt_controls else None
             job_sequence = self.progress["job_sequence"] + 1
             if job_sequence >= 2**53:
                 raise AgentError("Request sequence limit reached")
@@ -627,13 +629,14 @@ class Product(AssistantIO):
                 elif followup and followup.get("kind") == "library_purge":
                     result = self.app_library.human_reply(followup["library_confirmation"], raw_human_reply)
                 else:
-                    result = (self.agent.run(request_text, private=True) if followup and followup.get("private")
+                    result = (self.agent.run(request_text, adapt_controls=True) if _adapt_controls else
+                              self.agent.run(request_text, private=True) if followup and followup.get("private")
                               else self.agent.run(request_text))
                 summary = result if isinstance(result, str) else "Request finished."
             except Exception as error:
                 summary, question = self._failure_guidance(error)
                 with self.lock:
-                    if (question and self.conversation and not self.agent.cancelled.is_set()
+                    if (question and not _adapt_controls and self.conversation and not self.agent.cancelled.is_set()
                             and self.conversation["recoveries"] < 1
                             and self.conversation["questions"] < _MAX_QUESTIONS):
                         self._question(question, kind="recovery")
@@ -853,6 +856,29 @@ class Product(AssistantIO):
                 pending.update(phase="abort", error="Host could not commit activation")
         self.changed.notify_all()
 
+    def _adapt_changed_controls(self):
+        from .adaptation import ADAPT_REQUEST
+        runtime = self.telemetry.get("app", {})
+        voice = self.telemetry.get("voice", {})
+        listening = type(voice) is dict and voice.get("state") in {"listening", "transcribing"}
+        workflow = self.hardware.inspect().get("workflow")
+        hardware_busy = (type(workflow) is dict and workflow.get("phase") not in
+                         {"complete", "completed", "cancelled", "failed"})
+        eligible = (self.connected() and self.device_revision == self.revision
+                    and not self.running and not self.clarification and not self.voice_draft
+                    and not self.speech_pending and not hardware_busy and not listening
+                    and not self.app_library.view["open"]
+                    and not (self.pending and self.pending["phase"] not in {"confirmed", "abort"}))
+        if self.control_adaptation.consider(
+                self.active["package"] if self.active else None, self.revision,
+                self.device["controls"], suspended=type(runtime) is dict and runtime.get("suspended") is True,
+                eligible=eligible, now=time.monotonic()):
+            try:
+                self.request(ADAPT_REQUEST, source="hardware", _adapt_controls=True)
+                self.progress["title"] = "Adapting to connected controls"
+            except AgentError:
+                pass  # A concurrent state change must not create an automatic retry.
+
     def heartbeat(self, packet):
         """Called only after device bearer authentication on the pinned TLS listener."""
         with self.changed:
@@ -941,6 +967,7 @@ class Product(AssistantIO):
             self._acknowledge(packet.get("ack"))
             if failure is None:
                 self._restore_host_program()
+            self._adapt_changed_controls()
             if isinstance(packet.get("audio_stopped"), str):
                 self.stop_computer_audio(packet["audio_stopped"])
             self._sync_camera()

@@ -10,6 +10,8 @@ The new behavior comes from generated code and mappings. Physical controls and g
 
 ## Status
 
+**Controls follow connected hardware.** A saved game that depended on the unplugged joystick now adapts through the live Meta agent; the user confirmed the generated knob version works. A second live Meta edit used the detected LSM6DS3TR-C IMU; the user confirmed tilt steering. [Evidence and current limits](context/adaptive-controls.md).
+
 Planning began October 27, 2026 for the Meta Global AI Developer Hackathon. The user renamed Cruise to **Modulate** and set this voice-first direction on October 28. **The first voice-to-number prototype runs on the physical Pi:** USB microphone → local Whisper transcription → local Meta Llama 3.2 generation → fixed code checks → PiTFT activation. A spoken trial displayed 1008 in blue from a newly generated program.
 
 **Live generated games now run on the Pi.** The first typed Meta request produced **Pixel Kart Sprint**, with code and three original sprites, in about 49 seconds; the user confirmed steering and both large buttons. A later spoken “Make yourself” request produced **MODULATE: Self Assembly**, with four generated sprites, in about 38 seconds. Observed device rates were about 13 fps, not a sustained guarantee. See [exact revisions, costs, setup and limits](context/product-runtime.md#first-live-generated-game--october-28).

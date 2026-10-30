@@ -151,7 +151,7 @@ class SetupScreen:
         if (host.get("setup_status") or {}).get("ai_host") == "pi":
             status = host.get("setup_status") or {}
             endpoint = status.get("mac_helper") or {}
-            if fresh and endpoint and not status.get("paired_mac") and (status.get("browser_count") or self.page == 1):
+            if fresh and endpoint and not status.get("paired_mac") and self.page == 1:
                 fingerprint = str(endpoint.get("fingerprint", ""))
                 return {"kind": "guide", "title": "Optional Mac setup",
                         "lines": [str(endpoint.get("address", "")) + ":8790", "Identity (compare on Mac):",

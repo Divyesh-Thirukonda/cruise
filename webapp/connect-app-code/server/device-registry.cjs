@@ -23,21 +23,29 @@ async function read() {
   const value = JSON.parse((await boundedBytes(new Response(result.stream), 2048)).toString());
   return { value, etag: result.blob.etag };
 }
+async function stage(name, operation) {
+  try { return await operation(); }
+  catch (error) {
+    // Never log request headers, credentials, URLs or provider error bodies.
+    console.error('Device discovery stage failed:', name, error?.constructor?.name);
+    throw error;
+  }
+}
 async function register(body, signature, secret) {
   const origin = tunnelOrigin(body.origin);
   if (!Number.isSafeInteger(body.timestamp) || Math.abs(Date.now() / 1000 - body.timestamp) > 120) throw new HttpError(401, 'Expired device registration.');
   const expected = createHmac('sha256', secret).update(`${body.timestamp}\n${origin}`).digest('hex');
   if (!secureEqual(signature, expected)) throw new HttpError(401, 'Device authentication required.');
   // Prove possession before sending any gateway credential to a new hostname.
-  await prove(origin, secret);
-  const current = await read();
+  await stage('identity', () => prove(origin, secret));
+  const current = await stage('read', read);
   if (current && current.value.timestamp > body.timestamp) throw new HttpError(409, 'A newer device registration exists.');
   if (current?.value.origin !== origin) {
     const { put } = require('@vercel/blob');
-    await put(PATH, JSON.stringify({ origin, timestamp: body.timestamp }), {
+    await stage('save', () => put(PATH, JSON.stringify({ origin, timestamp: body.timestamp }), {
       access: 'private', addRandomSuffix: false, allowOverwrite: Boolean(current),
       contentType: 'application/json', ...(current ? { ifMatch: current.etag } : {}),
-    });
+    }));
   }
   cached = { origin, until: Date.now() + 30000 };
   return { registered: true };

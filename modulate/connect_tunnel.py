@@ -8,6 +8,7 @@ import hashlib
 import hmac
 import json
 import os
+from pathlib import Path
 import re
 import signal
 import subprocess
@@ -15,7 +16,7 @@ import threading
 import time
 import urllib.request
 
-from .device_transport import NoRedirect
+from .device_transport import NoRedirect, save_private
 from .studio import load_credentials
 
 DISCOVERY_URL = "https://modulate-connect.vercel.app/api/modulate-discovery"
@@ -39,6 +40,7 @@ def main():
     parser.add_argument("--cloudflared", required=True)
     args = parser.parse_args()
     load_credentials(args.env_file)
+    status_path = Path(args.env_file).parent / "connect-tunnel.json"
     secret = os.environ["MODULATE_REMOTE_SECRET"]
     process = subprocess.Popen([args.cloudflared, "tunnel", "--no-autoupdate", "--protocol", "http2",
                                 "--url", "http://127.0.0.1:8789"],
@@ -50,9 +52,11 @@ def main():
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
     def publish(origin):
+        save_private(status_path, {"origin": origin, "registered": False, "started_at": time.time()})
         while not stopped.is_set() and process.poll() is None:
             try:
                 register(origin, secret)
+                save_private(status_path, {"origin": origin, "registered": True, "registered_at": time.time()})
                 print("Website discovery registered the current device tunnel", flush=True)
                 delay = 3600  # Writes happen only when the hostname changes.
             except Exception:

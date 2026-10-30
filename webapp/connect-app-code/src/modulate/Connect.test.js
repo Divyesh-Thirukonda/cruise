@@ -264,6 +264,8 @@ test('an initial connection failure is visible and links to setup without leakin
   expect(screen.queryByText('Browser connected')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Get connection help' }));
   expect(useRouter().push).toHaveBeenCalledWith('/connect/setup');
+  expect(screen.getByRole('heading', { name: /Just Modulate and Wi-Fi/ })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Copy Mac setup prompt' })).toBeInTheDocument();
   expect(connectApi.mock.calls.every(([, payload]) => payload === undefined)).toBe(true);
 });
 

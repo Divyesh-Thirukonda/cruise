@@ -113,6 +113,90 @@ class RemoteAccessTests(unittest.TestCase):
                     self.remote.speaker_command(token, data)
                 control.assert_not_called()
 
+    def test_connector_reservation_storage_failure_blocks_model_dispatch(self):
+        token = self.claim()
+        with patch.object(self.remote.connector_requests, "save", side_effect=OSError("disk full")), patch.object(self.remote, "request") as request:
+            with self.assertRaises(OSError):
+                self.remote.connector_request(token, {"request_id": "a"*32, "text": "Make a game"})
+            request.assert_not_called()
+            self.assertEqual(self.remote.connector_requests.records, {})
+
+    def test_connector_corrupt_history_fails_closed_instead_of_resetting_identities(self):
+        (self.directory / "connector-requests.json").write_text('{"bad": "corrupt"}')
+        with self.assertRaisesRegex(ValueError, "refusing to replay"):
+            RemoteAccess(self.product, self.directory, clock=lambda: self.now)
+
+    def test_connector_request_replay_and_restart_do_not_duplicate_dispatch(self):
+        token = self.claim()
+        payload = {"request_id": "a"*32, "text": "Make a game"}
+        def dispatch(*args):
+            self.product.progress.update(job_id="b"*32, phase="queued")
+            self.product.running = True
+            return {"job_id": "b"*32, "accepted": True}
+        with patch.object(self.remote, "request", side_effect=dispatch) as request:
+            first = self.remote.connector_request(token, payload)
+            self.assertEqual(first["job_id"], "b"*32)
+            self.assertEqual(self.remote.connector_request(token, payload), first)
+            request.assert_called_once()
+        self.product.running = False
+        reloaded = RemoteAccess(self.product, self.directory, clock=lambda: self.now)
+        with patch.object(reloaded, "request") as request:
+            self.assertEqual(reloaded.connector_request(token, payload)["job_id"], "b"*32)
+            request.assert_not_called()
+        with self.assertRaisesRegex(ValueError, "different text"):
+            reloaded.connector_request(token, {**payload, "text": "Do a different task"})
+        journal = (self.directory / "connector-requests.json").read_text()
+        self.assertNotIn(token, journal)
+        self.assertNotIn("Make a game", journal)
+        self.assertEqual((self.directory / "connector-requests.json").stat().st_mode & 0o777, 0o600)
+
+    def test_connector_unknown_dispatch_is_retained_instead_of_replayed(self):
+        token = self.claim()
+        payload = {"request_id": "a"*32, "text": "Make a game"}
+        with patch.object(self.remote, "request", side_effect=RuntimeError("uncertain dispatch")) as request:
+            with self.assertRaises(RuntimeError):
+                self.remote.connector_request(token, payload)
+            self.assertEqual(self.remote.connector_request(token, payload)["status"], "unknown")
+            request.assert_called_once()
+
+    def test_connector_status_and_cancel_are_owned_and_never_expose_other_jobs(self):
+        token, other = self.claim(), self.claim()
+        self.remote.connector_requests.reserve(hashlib.sha256(token.encode()).hexdigest(), "a"*32,
+            {"text": "A request"}, self.now+100, self.now)[0]["job_id"] = "b"*32
+        self.product.progress.update(job_id="b"*32, phase="ready")
+        self.product.summary = "Done"
+        self.product.response = {"id": "c"*32, "text": "This job result", "expires_at": time.time()+100}
+        result = self.remote.connector_status(token, "a"*32)
+        self.assertEqual(result["response"], "This job result")
+        self.assertNotIn("events", result)
+        with self.assertRaises(RemoteAccessError):
+            self.remote.connector_status(other, "a"*32)
+        with patch.object(self.product, "cancel", return_value={"cancelled": True}) as cancel:
+            self.assertTrue(self.remote.connector_cancel(token, "a"*32)["cancelled"])
+            cancel.assert_called_once_with("b"*32)
+        self.product.progress["job_id"] = "d"*32
+        self.product.response["text"] = "Other session private result"
+        result = self.remote.connector_status(token, "a"*32)
+        self.assertEqual(result["status"], "superseded")
+        self.assertNotIn("private", json.dumps(result))
+        with patch.object(self.product, "cancel") as cancel:
+            with self.assertRaises(RemoteAccessError):
+                self.remote.connector_cancel(token, "a"*32)
+            cancel.assert_not_called()
+        self.remote.revoke(token)
+        with self.assertRaises(RemoteAccessError):
+            self.remote.connector_status(token, "a"*32)
+
+    def test_connector_http_only_accepts_typed_requests_and_owns_status(self):
+        token = self.claim()
+        self.start_http()
+        for payload in ({"text": "Hi"}, {"request_id": "a"*32, "text": "Hi", "shell": "bad"},
+                        {"request_id": "a"*32, "text": "Hi", "followup_id": "bad"}):
+            self.assertEqual(self.http("/connector-request", "POST", payload, token)[0], 400)
+        self.assertEqual(self.http("/connector-request?request_id="+"a"*32, token=token)[0], 404)
+        self.assertEqual(self.http("/connector-request?request_id="+"a"*32+"&request_id="+"b"*32, token=token)[0], 400)
+        self.assertEqual(self.http("/connector-request?request_id="+"a"*32)[0], 401)
+
     def test_pair_code_one_use_and_only_token_hash_is_saved(self):
         result = self.remote.create_pairing()
         token = self.remote.claim(result["code"], "My phone")["token"]

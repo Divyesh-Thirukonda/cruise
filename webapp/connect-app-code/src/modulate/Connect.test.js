@@ -386,16 +386,16 @@ test('detected unknown boards are listed separately from ready runtime controls'
   expect(command).not.toHaveBeenCalled();
 });
 
-test('Muse credentials stay masked, speaker scoped and can be hidden without issuing commands', async () => {
+test('Muse credentials stay masked, device scoped and can be hidden without issuing commands', async () => {
   usePathname.mockReturnValue('/connect/device');
-  connectApi.mockImplementation(async action => action === 'session' ? { ...connectedSession, permissions: { speaker: true } } : action === 'speaker-link' ? { token: 'synthetic-speaker-only-token', expires_at: Date.now()/1000 + 600 } : initialState);
+  connectApi.mockImplementation(async action => action === 'session' ? { ...connectedSession, permissions: { speaker: true } } : action === 'muse-link' ? { token: 'synthetic-speaker-only-token', expires_at: Date.now()/1000 + 600 } : initialState);
   render(<Connect />);
   fireEvent.click(await screen.findByRole('button', { name: 'Connect Muse' }));
-  const token = await screen.findByLabelText('Speaker connector token');
+  const token = await screen.findByLabelText('Modulate connector token');
   expect(token).toHaveAttribute('type', 'password');
-  expect(screen.getByText(/No Mac, app, email, microphone or camera access/)).toBeInTheDocument();
-  expect(connectApi).toHaveBeenCalledWith('speaker-link', {});
+  expect(screen.getByText(/Existing device permissions, spending limits, Mac pairing and action approvals still apply/)).toBeInTheDocument();
+  expect(connectApi).toHaveBeenCalledWith('muse-link', {});
   expect(command).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Hide token' }));
-  expect(screen.queryByLabelText('Speaker connector token')).not.toBeInTheDocument();
+  expect(screen.queryByLabelText('Modulate connector token')).not.toBeInTheDocument();
 });

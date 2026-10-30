@@ -23,7 +23,7 @@ module.exports=async function handler(req,res) {
   if(req.method==='GET'&&req.query?.action==='schema')return res.status(200).json(schema);
   if(!['GET','POST'].includes(req.method))throw new HttpError(405,'Method not allowed.');
   const auth=req.headers.authorization||'';
-  const session=grant.verify(auth.startsWith('Bearer ')?auth.slice(7):'').session;
+  const session=grant.verify(auth.startsWith('Bearer ')?auth.slice(7):'',Date.now()/1000,['speaker','device']).session;
   if(req.query?.action!==undefined)throw new HttpError(400,'Unknown action.');
   let volume;
   if(req.method==='POST'){
@@ -34,3 +34,5 @@ module.exports=async function handler(req,res) {
   return res.status(200).json(await speaker(session,volume));
  }catch(error){if(error.status===401)res.setHeader('WWW-Authenticate','Bearer realm="Modulate Speaker"');return fail(res,error,'Speaker request was not confirmed. Check current volume before retrying.');}
 };
+
+module.exports.schema=schema;

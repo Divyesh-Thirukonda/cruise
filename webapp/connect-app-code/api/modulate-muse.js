@@ -23,7 +23,7 @@ module.exports=async function handler(req,res) {
   if(req.method==='GET'&&req.query?.action==='schema')return res.status(200).json(schema);
   if(!['GET','POST'].includes(req.method))throw new HttpError(405,'Method not allowed.');
   const auth=req.headers.authorization||'';
-  const session=grant.verify(auth.startsWith('Bearer ')?auth.slice(7):'',Date.now()/1000,['speaker','device']).session;
+  const session=grant.verify(auth.startsWith('Bearer ')?auth.slice(7):'',Date.now()/1000,['speaker','device','device-week']).session;
   if(req.query?.action!==undefined)throw new HttpError(400,'Unknown action.');
   let volume;
   if(req.method==='POST'){

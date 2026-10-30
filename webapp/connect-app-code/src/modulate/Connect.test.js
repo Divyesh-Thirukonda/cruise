@@ -399,3 +399,22 @@ test('Muse credentials stay masked, device scoped and can be hidden without issu
   fireEvent.click(screen.getByRole('button', { name: 'Hide token' }));
   expect(screen.queryByLabelText('Modulate connector token')).not.toBeInTheDocument();
 });
+
+test('a seven-day Muse authorization has its own revocation without disconnecting the browser', async () => {
+  usePathname.mockReturnValue('/connect/device');
+  let revoked = false;
+  const id = 'd'.repeat(64);
+  connectApi.mockImplementation(async (action, payload) => {
+    if (action === 'muse-disconnect') { expect(payload).toEqual({ id }); revoked = true; return { revoked: true, id }; }
+    if (action === 'session') return { ...connectedSession, connectors: revoked ? [] : [{ id, name: 'Muse', expires_at: Date.now()/1000 + 604800 }] };
+    return initialState;
+  });
+  render(<Connect />);
+  expect(await screen.findByText('Muse authorization')).toBeInTheDocument();
+  expect(screen.getByText(/Set up once for seven days/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Revoke Muse access' }));
+  await waitFor(() => expect(screen.queryByText('Muse authorization')).not.toBeInTheDocument());
+  expect(screen.getByRole('button', { name: 'Disconnect browser' })).toBeInTheDocument();
+  expect(connectApi.mock.calls.some(([action]) => action === 'disconnect')).toBe(false);
+  expect(command).not.toHaveBeenCalled();
+});

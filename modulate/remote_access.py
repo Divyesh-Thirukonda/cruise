@@ -28,6 +28,7 @@ PERMISSIONS = {"computer": True, "system": True, "camera": True, "audio": True,
                "voice": True, "speaker": True, "hardware": True, "remote_preview": False}
 TOKEN = re.compile(r"[A-Za-z0-9_-]{43}\Z")
 SESSION_SECONDS = 8 * 60 * 60
+CONNECTOR_SECONDS = 7 * 24 * 60 * 60
 PAIR_SECONDS = 5 * 60
 
 
@@ -71,7 +72,8 @@ class RemoteAccess:
                 _permissions(value["permissions"])
                 for key, item in value["sessions"].items():
                     if (not re.fullmatch(r"[0-9a-f]{64}", key) or type(item) is not dict
-                            or set(item) != {"name", "expires_at"}
+                            or (set(item) != {"name", "expires_at"} and
+                                (set(item) != {"name", "expires_at", "kind"} or item.get("kind") != "connector"))
                             or type(item["name"]) is not str or not 1 <= len(item["name"]) <= 80
                             or type(item["expires_at"]) not in (int, float)
                             or not 0 < item["expires_at"] < 2**53):
@@ -110,7 +112,8 @@ class RemoteAccess:
                     "permissions": dict(self.state["permissions"]),
                     "browsers": [{"name": value["name"], "expires_at": value["expires_at"]}
                                  for value in self.state["sessions"].values()
-                                 if value["expires_at"] > self.clock()]}
+                                 if value["expires_at"] > self.clock() and value.get("kind") != "connector"],
+                    "connectors": self.connector_sessions()}
 
     def create_pairing(self):
         if not self.gateway_enabled:
@@ -164,14 +167,67 @@ class RemoteAccess:
                 raise RemoteAccessError("This browser connection expired or was revoked", 401)
             return copy.deepcopy(value)
 
+    def authenticate_browser(self, token):
+        value = self.authenticate(token)
+        if value.get("kind") == "connector":
+            raise RemoteAccessError("This connection is limited to Modulate connector tools", 403)
+        return value
+
+    def connector_sessions(self):
+        with self.lock:
+            return [{"id": key, "name": value["name"], "expires_at": value["expires_at"]}
+                    for key, value in self.state["sessions"].items()
+                    if value.get("kind") == "connector" and value["expires_at"] > self.clock()]
+
+    def create_connector(self, browser_token, data):
+        if type(data) is not dict or data:
+            raise RemoteAccessError("Unexpected connector fields")
+        with self.product.lock:
+            self.authenticate_browser(browser_token)
+            with self.lock:
+                retained = {key: value for key, value in self.state["sessions"].items()
+                            if value["expires_at"] > self.clock()}
+                if len(retained) >= 12:
+                    raise RemoteAccessError("Disconnect an unused connection before adding Muse", 409)
+                token = secrets.token_urlsafe(32)
+                value = {"kind": "connector", "name": "Muse", "expires_at": self.clock() + CONNECTOR_SECONDS}
+                before = self.state["sessions"]
+                self.state["sessions"] = {**retained, _hash(token): value}
+                try:
+                    self._save()
+                except Exception:
+                    self.state["sessions"] = before
+                    raise
+            return {"token": token, "id": _hash(token), **value}
+
+    def revoke_connector(self, browser_token, identifier):
+        if type(identifier) is not str or not re.fullmatch(r"[a-f0-9]{64}", identifier):
+            raise RemoteAccessError("Choose an existing Muse connection")
+        with self.product.lock:
+            self.authenticate_browser(browser_token)
+            with self.lock:
+                value = self.state["sessions"].get(identifier)
+                if not value or value.get("kind") != "connector":
+                    raise RemoteAccessError("That Muse connection was not found", 404)
+                self.state["sessions"].pop(identifier)
+                try:
+                    self._save()
+                except Exception:
+                    self.state["sessions"][identifier] = value
+                    raise
+            if self.job_owner == identifier and self.job_id == self.product.progress.get("job_id"):
+                self.product.cancel(self.job_id)
+                self.job_owner = self.job_id = None
+            return {"revoked": True, "id": identifier}
+
     def session(self, token):
         companion = {"name": "Modulate companion", "online": True, "platform": sys.platform}
         try:
-            value = self.authenticate(token)
+            value = self.authenticate_browser(token)
         except RemoteAccessError:
             return {"connected": False, "companion": companion, "permissions": {}, "expires_at": None}
         with self.lock:
-            return {"connected": True, "companion": companion, "permissions": dict(self.state["permissions"]), **value}
+            return {"connected": True, "companion": companion, "permissions": dict(self.state["permissions"]), "connectors": self.connector_sessions(), **value}
 
     def set_permissions(self, permissions):
         update = _permissions(permissions, partial=True)
@@ -314,7 +370,7 @@ class RemoteAccess:
                 "volume": actual.get("volume"), "muted": actual.get("muted")}
 
     def command(self, token, path, data):
-        self.authenticate(token)
+        self.authenticate_browser(token)
         if type(data) is not dict:
             raise RemoteAccessError("Expected an action payload")
         product = self.product
@@ -352,7 +408,7 @@ class RemoteAccess:
         # Recheck under the product lock immediately before dispatch; no
         # revoked session can wait in the queue and then perform an action.
         with product.lock:
-            self.authenticate(token)
+            self.authenticate_browser(token)
             result = routes[path]()
             if type(result) is dict and type(result.get("job_id")) is str:
                 self.job_owner, self.job_id = _hash(token), result["job_id"]
@@ -424,9 +480,17 @@ def handler_for(remote, server_secret):
                     if self.command == "POST":
                         return self.send(200, remote.claim(data.get("code"), data.get("name", "Connected browser"), data.get("permissions")))
                     if self.command == "DELETE":
-                        remote.authenticate(token)
+                        remote.authenticate_browser(token)
                         return self.send(200, remote.revoke(token))
                 remote.authenticate(token)
+                if path == "/connector-session":
+                    if self.command == "POST":
+                        return self.send(200, remote.create_connector(token, data))
+                    if self.command == "DELETE":
+                        ids = parse_qs(parsed.query).get("id", [])
+                        if len(ids) != 1:
+                            raise RemoteAccessError("Choose one Muse connection")
+                        return self.send(200, remote.revoke_connector(token, ids[0]))
                 if path == "/connector-request":
                     if self.command == "POST":
                         return self.send(200, remote.connector_request(token, data))
@@ -439,9 +503,10 @@ def handler_for(remote, server_secret):
                         return self.send(200, remote.connector_cancel(token, request_id[0]))
                 if self.command == "POST" and path == "/speaker-control":
                     return self.send(200, remote.speaker_command(token, data))
+                remote.authenticate_browser(token)
                 if self.command == "GET" and path == "/state":
                     with remote.product.lock:
-                        remote.authenticate(token)
+                        remote.authenticate_browser(token)
                         state = remote.product.state()
                         state["remote"] = remote.session(token)
                         # Only a claimed browser may see the comparison code.
@@ -451,7 +516,7 @@ def handler_for(remote, server_secret):
                 if self.command == "GET" and path == "/preview":
                     candidate = parse_qs(parsed.query).get("candidate") == ["1"]
                     with remote.product.lock:
-                        remote.authenticate(token)
+                        remote.authenticate_browser(token)
                         package = (remote.product.active or {}).get("package", {})
                         if not candidate and package.get("camera") and not remote.allowed("remote_preview"):
                             raise RemoteAccessError("Camera preview sharing is off in device permissions", 403)
@@ -461,7 +526,7 @@ def handler_for(remote, server_secret):
                         return self.send(200, frame, "image/png")
                 if self.command == "POST" and path == "/permissions":
                     with remote.product.lock:
-                        remote.authenticate(token)
+                        remote.authenticate_browser(token)
                         return self.send(200, remote.set_permissions(data.get("permissions")))
                 if self.command == "POST" and path == "/command":
                     return self.send(200, remote.command(token, data.get("path"), data.get("payload", {})))

@@ -13,7 +13,7 @@ const COMMANDS = new Set([
   '/api/computer/approval', '/api/response/dismiss', '/api/speaker', '/api/pairing',
   '/api/revoke', '/api/rollback', '/api/wake', '/api/library',
 ]);
-const METHODS = { session: ['GET', 'POST', 'DELETE'], state: ['GET'], command: ['POST'], preview: ['GET'], permissions: ['POST'], 'speaker-link': ['POST'], 'muse-link': ['POST'] };
+const METHODS = { session: ['GET', 'POST', 'DELETE'], state: ['GET'], command: ['POST'], preview: ['GET'], permissions: ['POST'], 'speaker-link': ['POST'], 'muse-link': ['POST'], 'muse-disconnect': ['POST'] };
 
 function cookies(req) {
   const result = {};
@@ -92,6 +92,7 @@ function publicSession(data) {
     permissions: data.permissions ? permissionShape(data.permissions) : {},
     expires_at: Number.isFinite(data.expires_at) ? data.expires_at : null,
     name: typeof data.name === 'string' ? data.name.slice(0, 80) : undefined,
+    connectors: Array.isArray(data.connectors) ? data.connectors.filter(item => item && /^[a-f0-9]{64}$/.test(item.id || '') && Number.isFinite(item.expires_at)).map(item => ({id:item.id, name:String(item.name || 'Muse').slice(0,80), expires_at:item.expires_at})) : [],
   };
 }
 
@@ -129,13 +130,29 @@ async function handler(req, res) {
       }
     }
     if (action === 'preview' && req.query.candidate === '1') path += '?candidate=1';
-    if (action === 'speaker-link' || action === 'muse-link') {
+    if (action === 'muse-link') {
+      if (Object.keys(body).length) throw new HttpError(400, 'Unexpected connection fields.');
+      const current = await forward('/connector-session', 'POST', {}, session);
+      let data; try { data = JSON.parse(current.bytes.toString()); } catch { throw new HttpError(502, 'Muse connection was not confirmed. Check Device before retrying.'); }
+      if (!current.response.ok) throw new HttpError([400,401,403,409,503].includes(current.response.status) ? current.response.status : 502, 'Muse connection was not confirmed. Check Device before retrying.');
+      if (!TOKEN.test(data.token || '') || data.kind !== 'connector' || !/^[a-f0-9]{64}$/.test(data.id || '')) throw new HttpError(502, 'Invalid Muse connection response.');
+      return res.status(200).json({ ...require('../server/speaker-grant.cjs').issue(data.token, Number(data.expires_at), Date.now()/1000, 'device-week'), id: data.id });
+    }
+    if (action === 'muse-disconnect') {
+      if (Object.keys(body).length !== 1 || typeof body.id !== 'string' || !/^[a-f0-9]{64}$/.test(body.id)) throw new HttpError(400, 'Choose a Muse connection.');
+      const result = await forward('/connector-session?id=' + body.id, 'DELETE', undefined, session);
+      if (!result.response.ok) throw new HttpError([401,403,404,503].includes(result.response.status) ? result.response.status : 502, 'Muse disconnection was not confirmed.');
+      const data = JSON.parse(result.bytes.toString());
+      if (data.revoked !== true || data.id !== body.id) throw new HttpError(502, 'Muse disconnection was not confirmed.');
+      return res.status(200).json({ revoked: true, id: data.id });
+    }
+    if (action === 'speaker-link') {
       if (Object.keys(body).length) throw new HttpError(400, 'Unexpected connection fields.');
       const current = await forward('/session', 'GET', undefined, session);
       const data = JSON.parse(current.bytes.toString());
       if (!current.response.ok || data.connected !== true) throw new HttpError(401, 'Reconnect this browser first.');
       if (action === 'speaker-link' && data.permissions?.speaker !== true) throw new HttpError(403, 'Enable speaker access before connecting Muse.');
-      return res.status(200).json(require('../server/speaker-grant.cjs').issue(session, Number(data.expires_at), Date.now()/1000, action === 'muse-link' ? 'device' : 'speaker'));
+      return res.status(200).json(require('../server/speaker-grant.cjs').issue(session, Number(data.expires_at), Date.now()/1000, 'speaker'));
     }
     const { response, bytes } = await forward(path, req.method, body, session);
     let data;

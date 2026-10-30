@@ -3,7 +3,7 @@
 > Current installation: the trusted agent now runs on the Pi. The Mac-hosted
 > procedures and trials below are historical/legacy mode. Use
 > [standalone setup and current limits](standalone.md) for this device. The user
-> approved a 10,000-character cumulative speech ceiling during this migration;
+> approved a 1,000,000-character cumulative speech ceiling on October 30;
 > the separate provider credit cap and $50 model ceiling are unchanged.
 
 

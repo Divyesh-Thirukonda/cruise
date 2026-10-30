@@ -837,3 +837,24 @@ approved 10,000-character ceiling, with all five uncertain requests retained.
 Remaining: stable dashboard routing across tunnel restarts and a separate native
 Mac bridge for the Pi agent. [Evidence](evidence/standalone-runtime.json) and
 [operating guide](standalone.md) distinguish tests, live trials and user reports.
+
+
+## 2026-10-30 — Speech allowance and confusing limit feedback
+
+Inspected the live Pi state: speech usage was 5,011 reserved / 4,793 settled /
+73 requests / 5 uncertain, below the then-10,000 local allowance. Model usage was
+595 calls / $11.390532 held or used under $50. No provider quota failure appeared
+in the collected trace. The matching recorded failure was the earlier speaker
+operation's bounded retry stop; no new instance matching the user's approximate
+quote was captured. Kept that uncertainty explicit rather than labeling it a
+provider rate limit.
+
+Applied the user's requested 1,000,000 cumulative speech-character ceiling,
+verified byte-identical ledger preservation, then loaded the deployed config to
+confirm the value. Agent/device services were active and Orbit Catch retained its
+exact revision. Revised retry feedback so a failed operation does not sound like
+a daily usage quota. 46 focused agent/standalone tests passed; deployed product.py
+SHA256 `91c5182953bafec30fecd896bc4b6d71f0c4faae945e7e0706686de58db41ddf`
+was verified before installation. No billable probe or provider-key change was
+needed. ElevenLabs official API-key documentation distinguishes key credit quotas
+from workspace quota; Meta documents rate limits per team, not per key.

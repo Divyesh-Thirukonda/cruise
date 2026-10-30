@@ -1,4 +1,5 @@
 'use strict';
+const { randomUUID } = require('node:crypto');
 const { HttpError, secureEqual, noStore, objectBody, boundedBytes, queryAction, fail } = require('../server/modulate-http.cjs');
 
 const META_FIELDS = new Set(['model', 'messages', 'tools', 'tool_choice', 'stream', 'max_completion_tokens', 'max_tokens', 'temperature', 'reasoning_effort']);
@@ -35,10 +36,12 @@ function transcriptionRequest(body) {
   const wav = Buffer.from(body.wav, 'base64');
   // The trusted client writes exactly this canonical PCM WAV; no metadata.
   if (wav.length < 46 || wav.length > 800044 || wav.toString('ascii',0,4) !== 'RIFF' || wav.readUInt32LE(4) !== wav.length-8 || wav.toString('ascii',8,16) !== 'WAVEfmt ' || wav.readUInt32LE(16) !== 16 || wav.readUInt16LE(20) !== 1 || wav.readUInt16LE(22) !== 1 || wav.readUInt32LE(24) !== 16000 || wav.readUInt32LE(28) !== 32000 || wav.readUInt16LE(32) !== 2 || wav.readUInt16LE(34) !== 16 || wav.toString('ascii',36,40) !== 'data' || wav.readUInt32LE(40) !== wav.length-44 || (wav.length-44)%2) throw new HttpError(400, 'Expected at most 25 seconds of mono 16 kHz PCM WAV.');
-  const form = new FormData();
-  form.append('request', new Blob([JSON.stringify({model:'muse-voice-transcribe-1.0',mode:'PUSH_TO_TALK',audioEncoding:'WAV',languageBias:['English'],keywords:['Modulate','Meta']})], {type:'application/json'}));
-  form.append('audio', new Blob([wav], {type:'audio/wav'}), 'command.wav');
-  return {form, durationMs:(wav.length-44)/32};
+  const boundary = `modulate-${randomUUID()}`;
+  const settings = JSON.stringify({model:'muse-voice-transcribe-1.0',mode:'PUSH_TO_TALK',audioEncoding:'WAV',languageBias:['English'],keywords:['Modulate','Meta']});
+  // Meta expects a JSON form part without a filename, matching its official
+  // recipe. FormData+Blob would silently add filename="blob" to that part.
+  const prefix = `--${boundary}\r\nContent-Disposition: form-data; name="request"\r\nContent-Type: application/json\r\n\r\n${settings}\r\n--${boundary}\r\nContent-Disposition: form-data; name="audio"; filename="command.wav"\r\nContent-Type: audio/wav\r\n\r\n`;
+  return {body:Buffer.concat([Buffer.from(prefix),wav,Buffer.from(`\r\n--${boundary}--\r\n`)]),contentType:`multipart/form-data; boundary=${boundary}`,durationMs:(wav.length-44)/32};
 }
 
 async function handler(req, res) {
@@ -74,8 +77,8 @@ async function handler(req, res) {
       headers = { 'xi-api-key': process.env.MODULATE_ELEVENLABS_API_KEY, Accept: 'audio/pcm' };
     }
     const response = await fetch(url, {
-      method: 'POST', headers: audio ? headers : { ...headers, 'Content-Type': 'application/json' },
-      body: audio ? audio.form : JSON.stringify(payload), redirect: 'error', signal: AbortSignal.timeout(audio ? 10000 : 240000),
+      method: 'POST', headers: audio ? {...headers,'Content-Type':audio.contentType} : { ...headers, 'Content-Type': 'application/json' },
+      body: audio ? audio.body : JSON.stringify(payload), redirect: 'error', signal: AbortSignal.timeout(audio ? 10000 : 240000),
     });
     if (!response.ok) {
       await response.body?.cancel();

@@ -26,6 +26,13 @@ Later spoken requests created and refined Metro Dash, then generated **Star Dash
 
 ## Run the development studio
 
+The current prototype uses the Mac companion as its AI host. New app generation,
+voice replies and library management need that service online; a current local
+game can continue on the Pi without it. Native Mac-control pairing is separate
+and only needed for computer capabilities. Fully standalone AI is not yet
+implemented. Later/Cancel leave connection setup without forcing the user back
+into it; hold small screen A for one second to reopen setup.
+
 ```sh
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements-product-host.txt

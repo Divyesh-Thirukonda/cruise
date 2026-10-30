@@ -259,17 +259,120 @@ class SetupControllerTests(unittest.TestCase):
         self.controller._handle_buttons(neutral_input(), 14)
         self.assertEqual(self.controller.setup_actions.get_nowait(), "start_pairing")
 
-    def test_setup_b_is_local_dismissal_and_wake_resurfaces_without_queueing(self):
+    def test_setup_b_stays_dismissed_during_an_ordinary_voice_request(self):
         self.show_unpaired()
         self.controller._handle_buttons(neutral_input(), 10)
         self.buttons[1].current = False
         self.controller._handle_buttons(neutral_input(), 11)
         self.assertIsNone(self.controller._setup_card())
         self.controller.voice_status({"state": "listening", "message": "Wake phrase heard; speak your request"})
-        self.assertIsNotNone(self.controller._setup_card())
+        self.assertIsNone(self.controller._setup_card())
         self.assertTrue(self.controller.actions.empty())
         self.assertTrue(self.controller.requests.empty())
         self.assertTrue(self.controller.setup_actions.empty())
+
+    def test_declining_native_pairing_also_dismisses_underlying_setup(self):
+        self.show_unpaired()
+        self.controller.host["pairing"] = {"code": "12345678", "expires_at": time.time() + 120}
+        self.controller._handle_buttons(neutral_input(), 10)
+        self.buttons[1].current = False
+        self.controller._handle_buttons(neutral_input(), 11)
+        self.assertIsNone(self.controller._offer())
+        self.assertIsNone(self.controller._setup_card())
+        self.assertTrue(self.controller.actions.empty())
+        self.assertTrue(self.controller.setup_actions.empty())
+
+    def test_late_pairing_offer_cannot_undo_later(self):
+        self.show_unpaired()
+        self.controller._handle_buttons(neutral_input(), 10)
+        self.buttons[1].current = False
+        self.controller._handle_buttons(neutral_input(), 11)
+        self.controller.host["pairing"] = {"code": "87654321", "expires_at": time.time() + 120}
+        self.controller.host["setup"] = {"id": "a"*32, "kind": "guide", "title": "Connect",
+            "lines": [], "connect_url": CONNECT_URL, "expires_at": time.time() + 120}
+        self.assertIsNone(self.controller._offer())
+        self.assertIsNone(self.controller._setup_card())
+        self.controller.setup_screen.wake()  # Explicit setup action can resume.
+        self.assertEqual(self.controller._offer()["code"], "87654321")
+
+    def test_offline_voice_explains_current_ai_dependency_without_reopening_setup(self):
+        self.show_unpaired()
+        self.controller.setup_screen.dismiss()
+        self.controller.last_response = 0
+        self.controller.voice_status({"state": "listening", "message": "Wake phrase heard; speak your request"})
+        self.assertFalse(self.controller.request("Make a game"))
+        self.assertEqual(self.controller.feedback["title"], "AI service offline")
+        self.assertIsNone(self.controller._setup_card())
+        self.assertTrue(self.controller.requests.empty())
+        self.assertIsNone(self.controller.build)
+
+    def test_explicit_voice_setup_works_locally_without_queueing_an_agent_request(self):
+        for phrase in ("help me connect", "show setup", "Please connect my Mac."):
+            with self.subTest(phrase=phrase):
+                self.show_unpaired()
+                self.controller.setup_screen.dismiss()
+                self.controller.last_response = 0
+                self.controller.dismissed_pairing = "12345678"
+                self.assertTrue(self.controller.request(phrase))
+                self.assertIsNotNone(self.controller._setup_card())
+                self.assertIsNone(self.controller.dismissed_pairing)
+                self.assertTrue(self.controller.requests.empty())
+                self.assertTrue(self.controller.setup_actions.empty())
+                self.assertIsNone(self.controller.build)
+        self.assertFalse(SetupScreen.requested("Make a game about connecting blocks"))
+        self.assertFalse(SetupScreen.requested("Do not connect my Mac"))
+
+    def test_later_discards_unsent_setup_actions(self):
+        self.show_unpaired()
+        self.controller._handle_buttons(neutral_input(), 10)
+        self.buttons[0].current = False
+        self.controller._handle_buttons(neutral_input(), 11)
+        self.assertFalse(self.controller.setup_actions.empty())
+        self.buttons[0].current = True
+        self.controller._handle_buttons(neutral_input(), 12)
+        self.buttons[1].current = False
+        self.controller._handle_buttons(neutral_input(), 13)
+        self.assertTrue(self.controller.setup_actions.empty())
+        self.assertFalse(self.controller.setup_in_flight)
+        self.Companion.post.assert_not_called()
+
+    def run_one_frame(self):
+        self.Controls.poll.return_value = neutral_input()
+        self.controller.computer_audio = Mock()
+        self.controller.computer_audio.snapshot.return_value = {"enabled": False}
+        self.controller.hardware_debugger = Mock()
+        self.controller.speaker_volume = Mock()
+        with patch("modulate.device.threading.Thread"), \
+                patch.object(self.controller.stop, "wait", side_effect=lambda _: self.controller.stop.set()):
+            self.controller.run()
+
+    def test_later_on_fresh_device_reaches_idle_without_raw_enrollment_error(self):
+        self.controller.companion = PendingCompanion(self.directory / "absent.json")
+        self.controller.last_response = 0
+        self.controller.host = {}
+        self.controller.link_state = "Device enrollment needed; follow setup"
+        self.controller.draw_setup(self.controller._setup_card())
+        self.controller._handle_buttons(neutral_input(), 10)
+        self.buttons[1].current = False
+        self.controller._handle_buttons(neutral_input(), 11)
+        self.buttons[1].current = True
+        self.DeviceActivation.tick.return_value = None
+        self.run_one_frame()
+        self.assertEqual(self.controller.display_state["title"], "Modulate")
+        self.assertNotEqual(self.controller.display_state["kind"], "setup")
+        self.assertIsNone(self.controller._setup_card())
+
+    def test_dismissed_offline_setup_returns_to_existing_game(self):
+        self.show_unpaired()
+        self.controller.setup_screen.dismiss()
+        self.controller.last_response = 0
+        self.DeviceActivation.snapshot.return_value = {
+            "revision": "a"*64, "kind": "game", "title": "Saved game", "ack": None}
+        self.DeviceActivation.tick.return_value = {"commands": []}
+        self.run_one_frame()
+        self.DeviceActivation.tick.assert_called_once()
+        self.DeviceActivation.process.assert_not_called()
+        self.assertEqual(self.controller.display_state, {"kind": "game", "title": "Saved game"})
 
     def test_held_setup_a_cannot_accept_the_next_native_pair_offer(self):
         self.controller.host = {"paired": False, "setup_status": {"remote_enabled": False}}

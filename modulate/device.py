@@ -168,8 +168,6 @@ class Controller:
         with self.lock:
             self.voice_state = status
             self.voice_history.append({"at": time.time(), **status})
-            if status.get("state") == "listening" and status.get("message", "").startswith("Wake phrase heard"):
-                self.setup_screen.wake()
             if status.get("state") == "idle" and status.get("message", "").startswith("Please say a complete"):
                 self._feedback("Say a little more", 'Say "Hey Meta"\nthen the full request')
 
@@ -308,9 +306,14 @@ class Controller:
             if self._busy():
                 self._feedback("Working", "Please wait for this build")
                 return False
+            if followup_id is None and not _unclear and SetupScreen.requested(text):
+                self._reopen_setup()
+                self.feedback = None
+                return True
             if time.monotonic() - self.last_response > 4:
-                self.setup_screen.wake()
-                self._feedback("Not connected", "Check the Mac connection\nRequest was not queued")
+                # The current prototype hosts AI on the companion. Explain that
+                # limitation without turning an ordinary request into setup.
+                self._feedback("AI service offline", "New requests run on the\nMac companion in this build.\nNothing was sent.")
                 return False
             try:
                 self.requests.put_nowait({"text": text, "followup_id": followup_id, "unclear": _unclear}
@@ -603,6 +606,8 @@ class Controller:
             self.stop.wait(max(0.01, 0.25 - (time.monotonic() - started)))
 
     def _offer(self):
+        if self.setup_screen.dismissed:
+            return None
         offer = self.host.get("pairing")
         if (time.monotonic() - self.last_response < 4
                 and type(offer) is dict and type(offer.get("code")) is str
@@ -628,6 +633,21 @@ class Controller:
                 fresh=time.monotonic() - self.last_response < 4, host=self.host,
                 now=time.monotonic(), wall=time.time(),
                 enrollment_setup=self.enrollment_setup.snapshot() if self.enrollment_setup else None)
+
+    def _reopen_setup(self):
+        self.setup_screen.wake()
+        self.setup_screen.force = True
+        self.dismissed_pairing = None
+        self.pair_offer, self.pair_buttons_released = None, False
+
+    def _dismiss_setup(self, offer_id=None):
+        self.setup_screen.dismiss(offer_id)
+        try:
+            self.setup_actions.get_nowait()
+        except queue.Empty:
+            pass  # An in-flight attempt may finish, but its offer stays hidden.
+        else:
+            self.setup_in_flight = False
 
     def _library_card(self):
         with self.lock:
@@ -669,6 +689,8 @@ class Controller:
                 self.pair_buttons_released = True
             elif self.pair_buttons_released and b:
                 self.dismissed_pairing = offer["code"]
+                setup_offer = self.host.get("setup")
+                self._dismiss_setup(setup_offer.get("id") if type(setup_offer) is dict else None)
             elif self.pair_buttons_released and a and not self.pairing_in_flight:
                 try:
                     self.actions.put_nowait(offer["code"])
@@ -697,8 +719,10 @@ class Controller:
             elif self.enrollment_setup and action == "confirm_enrollment":
                 if not self.enrollment_setup.confirm(card["id"]):
                     self._feedback("Setup not confirmed", "Request expired or changed.\nStart setup again on your Mac.")
-            elif self.enrollment_setup and action == "dismiss":
-                self.enrollment_setup.close_window()
+            elif action == "dismiss":
+                self._dismiss_setup(card.get("id"))
+                if self.enrollment_setup:
+                    self.enrollment_setup.close_window()
             elif action in {"create_browser_code", "start_pairing"} and not self.setup_in_flight:
                 try:
                     self.setup_actions.put_nowait(action)
@@ -714,7 +738,7 @@ class Controller:
             if self.setup_reopen_start is None:
                 self.setup_reopen_start = started
             if started - self.setup_reopen_start >= 1:
-                self.setup_screen.wake()
+                self._reopen_setup()
         else:
             self.setup_reopen_start = None
         library_open = self._library_card()
@@ -1107,9 +1131,13 @@ class Controller:
                     self.status_key = None  # tick() already presented the real game.
                 else:
                     connected = time.monotonic() - self.last_response < 4
-                    self.status("Ready to become" if connected else "Connecting to Mac",
-                                'Say "Hey Meta..."\nHold both screen buttons\nfor push-to-talk' if connected else self.link_state,
-                                mode="idle" if connected else "thinking")
+                    if connected:
+                        self.status("Ready to become", 'Say "Hey Meta..."\nHold both screen buttons\nfor push-to-talk', mode="idle")
+                    else:
+                        # Leaving setup returns to a real idle screen, never a
+                        # second connection prompt or raw enrollment error.
+                        self.status("Modulate", "No app open.\nHold A for setup.", mode="idle",
+                                    footer="Connect whenever you want")
                 frames += int(frame is not None)
                 if started - measure_start >= 1:
                     self.fps = frames / (started - measure_start)

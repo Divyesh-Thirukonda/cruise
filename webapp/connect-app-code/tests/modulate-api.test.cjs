@@ -295,8 +295,11 @@ test('Muse ASR forwards only canonical bounded audio to the fixed authenticated 
   assert.equal(result.statusCode,200);assert.deepEqual(result.body,{model:'muse-voice-transcribe-1.0',transcript:'Make a game.',audioDurationMs:1000});
   assert.equal(calls[0][0],'https://api.meta.ai/v1/asr/transcribe');
   assert.equal(calls[0][1].headers.Authorization,'Bearer meta-test-only');
-  assert.equal(calls[0][1].headers['Content-Type'],undefined);
-  const settings=JSON.parse(await calls[0][1].body.get('request').text());
+  assert.ok(calls[0][1].headers['Content-Type'].startsWith('multipart/form-data; boundary=modulate-'));
+  const wire=calls[0][1].body.toString('utf8');
+  assert.ok(wire.includes('name="request"\r\nContent-Type: application/json\r\n\r\n'));
+  assert.ok(!wire.includes('filename="blob"'));
+  const settings=JSON.parse(wire.split('Content-Type: application/json\r\n\r\n')[1].split('\r\n')[0]);
   assert.equal(settings.mode,'PUSH_TO_TALK');assert.deepEqual(settings.keywords,['Modulate','Meta']);
 });
 test('Muse ASR rejects malformed, oversized and injected uploads before provider dispatch',async()=>{

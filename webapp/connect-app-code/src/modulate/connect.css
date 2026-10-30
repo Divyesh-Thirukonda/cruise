@@ -653,3 +653,6 @@
 .mc-library-confirm-actions { display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap; margin-top: 25px; }
 @media (max-width: 1200px) { .mc-library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .mc-library-intro { flex-wrap: wrap; } .mc-library-intro > div:nth-child(2) { flex: 1; min-width: 230px; } }
 @media (max-width: 600px) { .mc-library-grid { grid-template-columns: 1fr; } .mc-library-intro { padding: 22px; gap: 15px; } .mc-library-intro > div:nth-child(2) { min-width: 160px; } .mc-library-intro > .mc-button { margin: 0; width: 100%; } .mc-library-symbol { display: none; } .mc-library-toolbar > span { display: none; } .mc-library-toolbar .mc-segmented { width: 100%; justify-content: space-between; } }
+
+.mc-muse-grant { display: grid; gap: 12px; margin-top: 20px; }
+.mc-muse-grant input { width: 100%; min-width: 0; padding: 12px; color: var(--mc-text); background: var(--mc-bg); border: 1px solid var(--mc-line); border-radius: 10px; font: inherit; }

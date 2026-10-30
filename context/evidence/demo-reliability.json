@@ -1,0 +1,87 @@
+{
+  "date": "2026-10-30",
+  "input_mode": "typed_authenticated_tunnel",
+  "physical_controls_or_audibility_verified": false,
+  "agent_commit": "8d046a2c40e7952a90d1e63daf32fb0b70336956",
+  "tunnel_commit": "8e260a4fcfa680288422ed21eeec7e381f3951d8",
+  "tests": {
+    "generate": {
+      "seconds": 36.3,
+      "model_calls": 8,
+      "cost_or_holds_dollars": 0.173574,
+      "status": "completed",
+      "active_revision": "dd9e5e1951355c2090dbf06d624947c4b7abfe54ae46dbbe0214dadcc3716219"
+    },
+    "refine": {
+      "seconds": 21.2,
+      "model_calls": 6,
+      "cost_or_holds_dollars": 0.115982,
+      "status": "completed",
+      "active_revision": "a9ef456ef494e9e1180cdd0f5bc27a5d618f425e271638c3176b842c72658f95"
+    },
+    "mac-read": {
+      "seconds": 5.1,
+      "model_calls": 3,
+      "cost_or_holds_dollars": 0.038433,
+      "status": "completed",
+      "active_revision": "a9ef456ef494e9e1180cdd0f5bc27a5d618f425e271638c3176b842c72658f95"
+    },
+    "mac-roundtrip": {
+      "seconds": 10.9,
+      "model_calls": 6,
+      "cost_or_holds_dollars": 0.078144,
+      "status": "completed",
+      "active_revision": "a9ef456ef494e9e1180cdd0f5bc27a5d618f425e271638c3176b842c72658f95"
+    },
+    "cancel": {
+      "seconds": 2.6,
+      "status": "cancelled",
+      "revision_preserved": true,
+      "calls": 1,
+      "budget": {
+        "limit_dollars": 50.0,
+        "charged_or_reserved_dollars": 12.446491,
+        "calls": 670,
+        "halted": false
+      }
+    },
+    "restore": {
+      "rollback_seconds": 1.6,
+      "library_restore_seconds": 2.82,
+      "original_revision_restored": true,
+      "model_calls": 0,
+      "device_connected": true
+    },
+    "brightness": {
+      "readbacks_percent": [
+        38,
+        39,
+        38
+      ],
+      "restored": true
+    },
+    "speech": {
+      "backend": "meta_mms/paplay",
+      "telemetry_delivery": true,
+      "volume_percent": 0,
+      "physical_audibility_verified": false
+    },
+    "tunnel_first_rotation": {
+      "registration_seconds": 65.3,
+      "existing_browser_session_preserved": true
+    },
+    "tunnel_second_rotation": {
+      "last_success_seconds": 24.11,
+      "first_failure_seconds": 26.28,
+      "recovered_seconds": 97.49,
+      "existing_browser_session_preserved": true,
+      "note": "Backoff change did not demonstrate faster wall-clock recovery; DNS/registration remained dependencies."
+    },
+    "automated": {
+      "python_tests": 1120,
+      "python_skipped": 13,
+      "pi_focused_agent_tests": 142,
+      "pi_focused_tunnel_tests": 2
+    }
+  }
+}

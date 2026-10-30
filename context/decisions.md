@@ -370,3 +370,10 @@ Meta chooses whether installation serves the request and chooses app mappings af
 The UI review keeps the existing information architecture and product behavior. Setup cards have explicit spacing, quiet actions retain padding without acquiring a hover border, Device action rows align at the bottom, and the Studio preview must shrink within its card. Route changes reset the workspace scroll container.
 
 A network-address change can reconnect the installed Mac helper within an existing valid grant after independently matching the Pi certificate to its saved pin. Change the address only; preserve token, sequence, OS permissions, expiry and revocation. This session's reconnection used that path. It did not implement automatic Mac address discovery or remove the physical check for a fresh/expired pairing.
+
+
+## 2026-10-30 — Bound demo recovery and replace quota-exhausted discovery
+
+- Use a shared 32-call agent budget with parent completion reserve, partial specialist handoffs and at most two cancellable transient inference retries. The million-character historical speech allowance is unrelated to agent turns. Do not remove spending or effect-replay protections.
+- Replace the single-address Vercel Blob discovery record with Cloudflare Workers Free plus a SQLite Durable Object. Store only hostname/timestamp; derive a registry-only HMAC credential from the existing gateway secret. Preserve independent Pi identity proofs and expiring sessions. Deployment is pending explicit Wrangler authorization; do not label the migration live until verified.
+- During the Blob quota outage, use the already-supported direct, identity-verified tunnel configuration as a temporary website recovery. Re-enable dynamic discovery after Cloudflare registration and session continuity are tested. No paid plan, new model provider or device-agent relocation is needed.

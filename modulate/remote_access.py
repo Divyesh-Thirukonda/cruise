@@ -231,6 +231,28 @@ class RemoteAccess:
                 if not value or value["expires_at"] <= self.clock():
                     raise AgentError("The browser that started this request disconnected; start again from a connected browser")
 
+    def speaker_command(self, token, data):
+        self.authenticate(token)
+        if (type(data) is not dict or data.get("action") not in {"get", "set"}
+                or set(data) != ({"action"} if data.get("action") == "get" else {"action", "value"})
+                or data.get("action") == "set" and (type(data.get("value")) is not int or not 0 <= data["value"] <= 100)):
+            raise RemoteAccessError("Use get or set with an integer volume from 0 to 100")
+        self.product.require_permission("speaker")
+        if not self.product.connected():
+            raise RemoteAccessError("The Pi speaker is offline", 503)
+        def allowed():
+            try:
+                self.authenticate(token)
+                return self.allowed("speaker")
+            except RemoteAccessError:
+                return False
+        # Wait for the physical readback outside Product.lock so heartbeats can
+        # deliver the command/ack. Revocation is rechecked before offer and wait.
+        result = self.product.speaker_volume.control(data["action"], data.get("value"), allowed=allowed)
+        actual = result.get("after") or result
+        return {"verified": result.get("verified") is True,
+                "volume": actual.get("volume"), "muted": actual.get("muted")}
+
     def command(self, token, path, data):
         self.authenticate(token)
         if type(data) is not dict:
@@ -345,6 +367,8 @@ def handler_for(remote, server_secret):
                         remote.authenticate(token)
                         return self.send(200, remote.revoke(token))
                 remote.authenticate(token)
+                if self.command == "POST" and path == "/speaker-control":
+                    return self.send(200, remote.speaker_command(token, data))
                 if self.command == "GET" and path == "/state":
                     with remote.product.lock:
                         remote.authenticate(token)

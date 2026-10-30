@@ -71,6 +71,48 @@ class RemoteAccessTests(unittest.TestCase):
         finally:
             connection.close()
 
+    def test_speaker_connector_requires_live_browser_and_speaker_access(self):
+        token = self.claim()
+        self.start_http()
+        with patch.object(self.product.speaker_volume, "control") as control:
+            self.assertEqual(self.http("/speaker-control", "POST", {"action": "get"})[0], 401)
+            self.remote.set_permissions({"speaker": False})
+            self.assertNotEqual(self.http("/speaker-control", "POST", {"action": "get"}, token)[0], 200)
+            control.assert_not_called()
+            self.remote.set_permissions({"speaker": True})
+            self.remote.revoke(token)
+            self.assertEqual(self.http("/speaker-control", "POST", {"action": "get"}, token)[0], 401)
+            control.assert_not_called()
+
+    def test_speaker_connector_is_bounded_independent_of_mac_and_rechecks_revocation(self):
+        token = self.claim()
+        self.assertFalse(self.product.state()["paired"])
+        self.product.agent.cancelled.set()
+        def apply(action, value, *, allowed):
+            self.assertTrue(allowed())
+            # Heartbeats must be able to acquire Product.lock during readback.
+            acquired = []
+            def probe():
+                with self.product.lock:
+                    acquired.append(True)
+            thread = threading.Thread(target=probe)
+            thread.start(); thread.join(.5)
+            self.assertEqual(acquired, [True])
+            self.remote.revoke(token)
+            self.assertFalse(allowed())
+            return {"verified": True, "after": {"volume": 80, "muted": False}, "private": "hidden"}
+        with patch.object(self.product.speaker_volume, "control", side_effect=apply):
+            self.assertEqual(self.remote.speaker_command(token, {"action": "set", "value": 80}),
+                             {"verified": True, "volume": 80, "muted": False})
+        token = self.claim()
+        for data in ({"action": "mute", "value": True}, {"action": "set", "value": True},
+                     {"action": "set", "value": 101}, {"action": "get", "value": 0},
+                     {"action": "set", "value": 80, "path": "/api/request"}):
+            with self.subTest(data=data), patch.object(self.product.speaker_volume, "control") as control:
+                with self.assertRaises(RemoteAccessError):
+                    self.remote.speaker_command(token, data)
+                control.assert_not_called()
+
     def test_pair_code_one_use_and_only_token_hash_is_saved(self):
         result = self.remote.create_pairing()
         token = self.remote.claim(result["code"], "My phone")["token"]

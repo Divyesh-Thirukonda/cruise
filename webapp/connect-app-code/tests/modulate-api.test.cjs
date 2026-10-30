@@ -260,3 +260,23 @@ test('speech rejects HTML, empty audio and odd PCM byte counts', async () => {
     assert.equal(result.statusCode, 502);
   }
 });
+
+test('speaker link uses authenticated CSRF issuance and remains speaker scoped', async () => {
+  const grant = require('../server/speaker-grant.cjs');
+  const expiry = Math.floor(Date.now()/1000 + 600);
+  global.fetch = async (...args) => { calls.push(args); return response({ connected: true, expires_at: expiry, permissions: { speaker: true } }); };
+  const result = await run(gateway, req('speaker-link', 'POST', {}));
+  assert.equal(result.statusCode, 200);
+  assert.equal(grant.verify(result.body.token).scope, 'speaker');
+  assert.equal(result.body.expires_at, expiry);
+  assert.ok(!result.body.token.includes(SESSION));
+  assert.equal(calls[0][0], 'https://companion.example/session');
+  calls = [];
+  assert.equal((await run(gateway, req('speaker-link', 'POST', {}, false))).statusCode, 401);
+  const noCsrf = req('speaker-link', 'POST', {}); delete noCsrf.headers['x-modulate-csrf'];
+  assert.equal((await run(gateway, noCsrf)).statusCode, 403);
+  assert.equal((await run(gateway, req('speaker-link', 'POST', { permissions: { speaker: true } }))).statusCode, 400);
+  assert.equal(calls.length, 0);
+  global.fetch = async () => response({ connected: true, expires_at: expiry, permissions: { speaker: false } });
+  assert.equal((await run(gateway, req('speaker-link', 'POST', {}))).statusCode, 403);
+});

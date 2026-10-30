@@ -13,7 +13,7 @@ const COMMANDS = new Set([
   '/api/computer/approval', '/api/response/dismiss', '/api/speaker', '/api/pairing',
   '/api/revoke', '/api/rollback', '/api/wake', '/api/library',
 ]);
-const METHODS = { session: ['GET', 'POST', 'DELETE'], state: ['GET'], command: ['POST'], preview: ['GET'], permissions: ['POST'] };
+const METHODS = { session: ['GET', 'POST', 'DELETE'], state: ['GET'], command: ['POST'], preview: ['GET'], permissions: ['POST'], 'speaker-link': ['POST'] };
 
 function cookies(req) {
   const result = {};
@@ -129,6 +129,14 @@ async function handler(req, res) {
       }
     }
     if (action === 'preview' && req.query.candidate === '1') path += '?candidate=1';
+    if (action === 'speaker-link') {
+      if (Object.keys(body).length) throw new HttpError(400, 'Unexpected connection fields.');
+      const current = await forward('/session', 'GET', undefined, session);
+      const data = JSON.parse(current.bytes.toString());
+      if (!current.response.ok || data.connected !== true) throw new HttpError(401, 'Reconnect this browser first.');
+      if (data.permissions?.speaker !== true) throw new HttpError(403, 'Enable speaker access before connecting Muse.');
+      return res.status(200).json(require('../server/speaker-grant.cjs').issue(session, Number(data.expires_at)));
+    }
     const { response, bytes } = await forward(path, req.method, body, session);
     let data;
     if (action !== 'preview' || !response.ok) {
@@ -170,3 +178,4 @@ async function handler(req, res) {
   }
 }
 module.exports = handler;
+module.exports.forward = forward;

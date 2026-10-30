@@ -6,7 +6,7 @@
   "files": [
     {
       "path": "src/modulate/Connect.js",
-      "sha256": "6bb8832d8cb88802c64ba71c6f59ceae486d43c36a56ce08a42d54efed4f82a5",
+      "sha256": "f9495aaa6bea865816cc2d9a21c41929571f71990889e5bf8e4c51c3c784ddc2",
       "source_sha256": "1ad805892fde6366bc642f0bec239f4fc26ec096500cd7d2169a27d663675e67"
     },
     {
@@ -21,12 +21,12 @@
     },
     {
       "path": "src/modulate/connect.css",
-      "sha256": "87246be931298a6fc34b38c2814d6afc9af7edc3aa05e7c5c834dbefa499697e",
+      "sha256": "f5a23a25a3c9b4376e953153b6d09f1d8a20eb4a48c6d64b62a2b1cfc49d36fb",
       "source_sha256": "b96e8303ebbf1fbd0317c3efbc0fa53e03e7fb7bbee4b9d44825b6cc13db0de1"
     },
     {
       "path": "src/modulate/Connect.test.js",
-      "sha256": "ae3eb24843638f8cd74758c01b383ba01a0c2133306d644b594829ec7bba9455",
+      "sha256": "9bb5ee37d7d5e24bffcd5aa35eaaea40bf1a7a603ed0badc7be940837ca518aa",
       "source_sha256": "e8f902d09c5a2abd122030af6a2c0c0a0665e96ec0b6dd5c10afd446c3c7c598"
     },
     {
@@ -41,7 +41,7 @@
     },
     {
       "path": "api/modulate.js",
-      "sha256": "fd10956cb539f6fcb91a6f095aa5b311d5f8684d0bdcee8e968ee28eca7a0a67",
+      "sha256": "7c2e894b4ce6f0d6f0c6a200b2a8591505a486be76de041d07559b4c274e58d7",
       "source_sha256": "c2848958c2d8c6a8e01e1b42c5634b222e650f9f5792573578b2f4e82d4f0924"
     },
     {
@@ -56,7 +56,7 @@
     },
     {
       "path": "tests/modulate-api.test.cjs",
-      "sha256": "bff3cdd74d21a3283c02c88786ec909896d6dc5520e1667193ccbaab9b45abcd",
+      "sha256": "dc1472244445be2d7b8542d7f2b5737ff2f1aa099c9d9dce110f54ea82fbab03",
       "source_sha256": "f5aef417faa673c62ba6150a1f4043d6c317aba48a9150a72b0abb6e6d6f4243"
     }
   ],

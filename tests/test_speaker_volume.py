@@ -81,6 +81,28 @@ class VolumeProtocolTests(unittest.TestCase):
         self.assertEqual(len(result), 1)
         return result[0]
 
+    def test_revoked_access_never_offers_a_queued_change(self):
+        access = threading.Event()
+        access.set()
+        result = []
+        def run():
+            try:
+                result.append(self.host.control("set", 80, .5, allowed=access.is_set))
+            except SpeakerVolumeError as error:
+                result.append(error)
+        thread = threading.Thread(target=run)
+        thread.start()
+        wait_for(lambda: self.host.status()["pending"])
+        access.clear()
+        self.assertIsNone(self.host.offer(SESSION))
+        thread.join(1)
+        self.assertIsInstance(result[0], SpeakerVolumeError)
+        self.assertFalse(self.host.status()["pending"])
+        self.assertEqual(self.backend.writes, [])
+        with self.assertRaises(SpeakerVolumeError):
+            self.host.control("set", 80, allowed=access.is_set)
+        self.assertIsNone(self.host.offer(SESSION))
+
     def test_initial_level_is_read_only_and_delta_is_applied_once_with_actual_readback(self):
         self.assertEqual(self.backend.writes, [])
         thread, result, command = self.begin("delta", 10)

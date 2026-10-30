@@ -58,6 +58,7 @@ class SpeakerVolume:
         self._revision = 0
         self._session = self._actual = self._pending = self._result = None
         self._last_seen = 0
+        self._access = None
 
     def observe(self, telemetry, device_session):
         with self._condition:
@@ -121,6 +122,10 @@ class SpeakerVolume:
             if (not self._pending or device_session != self._pending["device_session"]
                     or self.wall_clock() >= self._pending["expires_at"] or self._result is not None):
                 return None
+            if self._access is not None and not self._access():
+                self._result = SpeakerVolumeError("Speaker access expired or was revoked; check current state")
+                self._condition.notify_all()
+                return None
             return dict(self._pending)
 
     def disconnect(self):
@@ -130,7 +135,7 @@ class SpeakerVolume:
                 self._result = SpeakerVolumeError(_OFFLINE)
             self._condition.notify_all()
 
-    def control(self, action, value=None, timeout=5):
+    def control(self, action, value=None, timeout=5, *, allowed=None):
         _action(action, value)
         if type(timeout) not in (int, float) or not math.isfinite(timeout) or not 0 < timeout <= 8:
             raise SpeakerVolumeError("Speaker control timeout must be within eight seconds")
@@ -139,6 +144,9 @@ class SpeakerVolume:
             raise SpeakerVolumeError("Another Pi speaker change is still pending")
         try:
             with self._condition:
+                self._access = allowed
+                if allowed is not None and not allowed():
+                    raise SpeakerVolumeError("Speaker access expired or was revoked")
                 if not self.status()["available"]:
                     raise SpeakerVolumeError(_OFFLINE)
                 self._revision += 1
@@ -147,6 +155,8 @@ class SpeakerVolume:
                     "value": value, "expires_at": self.wall_clock() + max(0, deadline - time.monotonic())}
                 self._result = None
                 while self._result is None:
+                    if allowed is not None and not allowed():
+                        raise SpeakerVolumeError("Speaker access expired or was revoked; outcome may be unknown")
                     remaining = deadline - time.monotonic()
                     if remaining <= 0:
                         raise SpeakerVolumeError("Pi speaker did not acknowledge the change; its outcome is unknown")
@@ -158,7 +168,7 @@ class SpeakerVolume:
                 return copy.deepcopy(self._result)
         finally:
             with self._condition:
-                self._pending = self._result = None
+                self._pending = self._result = self._access = None
             self._operation.release()
 
 

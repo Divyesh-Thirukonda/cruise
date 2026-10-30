@@ -311,9 +311,10 @@ class Controller:
                 self.feedback = None
                 return True
             if time.monotonic() - self.last_response > 4:
-                # The current prototype hosts AI on the companion. Explain that
-                # limitation without turning an ordinary request into setup.
-                self._feedback("AI service offline", "New requests run on the\nMac companion in this build.\nNothing was sent.")
+                local = getattr(self, "standalone", False) or (self.host.get("setup_status") or {}).get("ai_host") == "pi"
+                self._feedback("AI service restarting" if local else "Mac companion offline",
+                               "Retrying the local agent.\nYour saved app is retained." if local else
+                               "The Mac companion is offline.\nNothing was sent.")
                 return False
             try:
                 self.requests.put_nowait({"text": text, "followup_id": followup_id, "unclear": _unclear}
@@ -494,7 +495,8 @@ class Controller:
                         pass
             with self.lock:
                 self.last_response = time.monotonic()
-                self.link_state = "Connected to Mac"
+                self.link_state = ("On-device AI ready" if (response.get("setup_status") or {}).get("ai_host") == "pi"
+                                   else "Connected to Mac")
             try:
                 text = self.requests.get_nowait()
             except queue.Empty:
@@ -800,7 +802,9 @@ class Controller:
             self._update_build(response)
             self._update_speech(response)
             if hasattr(self, "speaker_volume"):
-                if response.get("paired") is True:
+                local_agent = (getattr(self, "standalone", False)
+                               and (response.get("setup_status") or {}).get("ai_host") == "pi")
+                if response.get("paired") is True or local_agent:
                     self.speaker_volume.offer(response.get("speaker_volume"))
                 else:
                     self.speaker_volume.disconnect()
@@ -1161,6 +1165,7 @@ def main():
     parser.add_argument("--state-dir", default="/home/pi/modulate-product/state")
     parser.add_argument("--enrollment", help="Private enrollment file; defaults to the device state directory")
     parser.add_argument("--microphone", type=int)
+    parser.add_argument("--standalone", action="store_true", help="Connect to the Pi's local agent; Mac setup is optional")
     parser.add_argument("--pair-code", help="Pair with the one-time code shown by the Mac studio, then exit")
     args = parser.parse_args()
     os.umask(0o077)
@@ -1177,9 +1182,10 @@ def main():
     enrollment_setup = None
     try:
         controller = Controller(directory, args.enrollment, microphone=args.microphone)
+        controller.standalone = args.standalone
         # An unreadable or invalid existing file needs repair; it is not an
         # invitation to replace an enrollment, including a dangling symlink.
-        if not os.path.lexists(args.enrollment):
+        if not args.standalone and not os.path.lexists(args.enrollment):
             from .device_enrollment import EnrollmentServer
             enrollment_setup = EnrollmentServer(directory / "setup", args.enrollment)
             enrollment_setup.start()

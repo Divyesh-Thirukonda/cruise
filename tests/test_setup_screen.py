@@ -301,7 +301,7 @@ class SetupControllerTests(unittest.TestCase):
         self.controller.last_response = 0
         self.controller.voice_status({"state": "listening", "message": "Wake phrase heard; speak your request"})
         self.assertFalse(self.controller.request("Make a game"))
-        self.assertEqual(self.controller.feedback["title"], "AI service offline")
+        self.assertEqual(self.controller.feedback["title"], "Mac companion offline")
         self.assertIsNone(self.controller._setup_card())
         self.assertTrue(self.controller.requests.empty())
         self.assertIsNone(self.controller.build)

@@ -230,7 +230,7 @@ export default function Connect() {
   const packageData = active?.package;
   const controls = Array.isArray(state?.device?.capabilities?.controls) ? state.device.capabilities.controls : [];
   const connectionStatus = loading ? 'Connecting' : !authenticated ? 'Not connected' : !online ? 'Companion offline' : !deviceConnected ? 'Device offline' : 'Connected';
-  const connectionHint = loading ? 'Checking your connection…' : !authenticated ? 'Enter a code to link this browser.' : !online ? 'Ask your setup agent to reconnect your Mac.' : !deviceConnected ? 'Companion is online. Check your Pi.' : `${controls.length} ${controls.length === 1 ? 'control' : 'controls'} ready to use.`;
+  const connectionHint = loading ? 'Checking your connection…' : !authenticated ? 'Enter a code to link this browser.' : !online ? 'Check your device’s Wi-Fi and power.' : !deviceConnected ? 'AI service is online. Reconnecting to the controls.' : `${controls.length} ${controls.length === 1 ? 'control' : 'controls'} ready to use.`;
   const response = state?.response;
   const responseVisible = response?.text && response.id !== dismissedResponse && dateMs(response.expires_at) > now;
   const draft = state?.voice_draft;
@@ -282,8 +282,8 @@ export default function Connect() {
 
   const urgentControls = authenticated && (agentRunning || approval || draft || state?.clarification || computer?.active || cameraRunning || audioRunning) ? <div className="mf-urgent" role="status"><strong>{approval ? 'An action needs your approval' : draft ? 'Review your spoken request' : state?.clarification ? 'Modulate has a question' : agentRunning ? state?.agent?.title || 'Working on your request' : 'Your device is using a live connection'}</strong><div><Button quiet onClick={() => navigate('studio')}>Return to Studio</Button>{(agentRunning || draft || state?.clarification) && <Button danger disabled={genericDisabled} onClick={() => act('cancel', '/api/cancel', {})}>Cancel request</Button>}{computer?.active && <Button danger disabled={genericDisabled} onClick={() => act('computer', '/api/computer', { action: 'revoke' })}>Pause access</Button>}{cameraRunning && <Button quiet disabled={genericDisabled} onClick={() => act('camera', '/api/camera/stop', {})}>Stop camera</Button>}{audioRunning && <Button quiet disabled={genericDisabled} onClick={() => act('audio', '/api/audio/stop', {})}>Stop computer audio</Button>}</div></div> : null;
   const entryProps = { loading, busy, notice, connectionUnavailable, urgentControls, onDismissNotice: () => setNotice(null), navigate };
-  if (view === 'setup') return <SetupScreen {...entryProps} connected={authenticated} />;
-  if (!authenticated || view === 'connect') return <ConnectionLanding {...entryProps} code={code} setCode={setCode} onConnect={pairBrowser} />;
+  if (view === 'setup') return <SetupScreen {...entryProps} standalone={session?.companion?.platform === 'linux'} connected={authenticated} />;
+  if (!authenticated || view === 'connect') return <ConnectionLanding {...entryProps} standalone={session?.companion?.platform === 'linux'} code={code} setCode={setCode} onConnect={pairBrowser} />;
   if (view === 'access') return <AccessStep {...entryProps} permissions={permissions} choices={PERMISSIONS} online={online} onSave={async choices => {
     const result = await run('access', () => connectApi('permissions', { permissions: choices }));
     if (result) navigate('studio');

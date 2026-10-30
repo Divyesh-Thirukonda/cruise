@@ -49,7 +49,7 @@ export default function AppLibrary({ library, disabled, running, deviceConnected
     {library?.error && <p className="mc-notice mc-notice-error" role="status">{String(library.error)}</p>}
     <section className="mc-card mc-library-intro">
       <div className="mc-library-symbol"><Library size={25} /></div>
-      <div><h2>Your ideas, ready to return to.</h2><p>Say “Hey Meta, open my app library.” Open, favorite or delete by voice. Connected controls can navigate the menu too.</p><span>Saved on your companion · moving an app to Trash keeps its running version on the device.</span></div>
+      <div><h2>Your ideas, ready to return to.</h2><p>Say “Hey Meta, open my app library.” Open, favorite or delete by voice. Connected controls can navigate the menu too.</p><span>Saved by Modulate · moving an app to Trash keeps its running version on the device.</span></div>
       <button className="mc-button" disabled={disabled || !deviceConnected || (!menuOpen && changingDisabled)} onClick={() => perform(menuOpen ? 'close' : 'open', null, { tab })}><Monitor size={16} />{menuOpen ? 'Return to app' : 'Show on device'}<ArrowRight size={15} /></button>
     </section>
     <div className="mc-library-toolbar"><div className="mc-segmented" role="group" aria-label="Library filter">{[['all', 'All apps'], ['favorites', 'Favorites'], ['trash', 'Trash']].map(([key, label]) => <button key={key} aria-pressed={tab === key} className={tab === key ? 'is-selected' : ''} onClick={() => setTab(key)}>{label}<span>{entries.filter(entry => key === 'trash' ? entry.trashed : !entry.trashed && (key !== 'favorites' || entry.favorite)).length}</span></button>)}</div><span>{visible.length} {visible.length === 1 ? 'app' : 'apps'}</span></div>

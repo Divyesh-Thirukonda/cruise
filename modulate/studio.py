@@ -56,7 +56,7 @@ def load_credentials(path):
     if path.stat().st_mode & 0o077:
         raise ValueError("Credential file must have mode600")
     allowed = {"MODEL_API_KEY", "FIREWORKS_API_KEY", "ELEVENLABS_API_KEY",
-               "ELEVENLABS_VOICE_ID", "ELEVENLABS_MODEL_ID", "MODULATE_TTS_PROVIDER",
+               "ELEVENLABS_VOICE_ID", "ELEVENLABS_MODEL_ID", "MODULATE_TTS_PROVIDER", "MODULATE_TTS_CHARACTER_LIMIT",
                "MODULATE_REMOTE_SECRET", "MODULATE_CLOUD_KEY", "MODULATE_CLOUD_URL"}
     for line in path.read_text().splitlines():
         name, separator, value = line.partition("=")
@@ -76,12 +76,12 @@ def customer_setup_status(product):
         status = product.connection_setup("status")
         result = {key: status.get(key) for key in (
             "device_connected", "paired_mac", "pairing_saved", "local_ready",
-            "remote_enabled", "browser_count", "pairing_expires_at", "native_permissions")}
+            "remote_enabled", "browser_count", "pairing_expires_at", "native_permissions", "ai_host")}
         result["website_url"] = CONNECT_URL
         result["browser_pairing"] = None
         offer = product.setup_offer
         remote = product.remote_access
-        if (result["device_connected"] is True and result["paired_mac"] is True
+        if (result["device_connected"] is True and (result["paired_mac"] is True or getattr(product, "standalone", False))
                 and result["local_ready"] is True and result["remote_enabled"] is True
                 and remote is not None and type(offer) is dict and offer.get("kind") == "browser_code"
                 and remote.pairing_active(offer.get("code"), offer.get("expires_at"))):
@@ -262,7 +262,7 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
                                 pending = product.local_pairing() or product.create_pairing()
                                 result = {"pending": {**pending, "host_url": host_url}, "already_paired": False}
                         else:
-                            if current["local_ready"] is not True or current["paired_mac"] is not True:
+                            if current["local_ready"] is not True or not (current["paired_mac"] is True or getattr(product, "standalone", False)):
                                 raise ValueError("Confirm Mac access on the gadget before connecting the website.")
                             if current["remote_enabled"] is not True:
                                 raise ValueError("Your setup agent still needs to finish this Mac's website connection.")
@@ -329,7 +329,7 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
     return Handler
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description="Modulate companion studio")
     parser.add_argument("--state-dir", default="context/private/product")
     parser.add_argument("--provider", choices=["meta", "ollama", "fireworks"], default="meta")
@@ -340,19 +340,29 @@ def main():
     parser.add_argument("--budget", type=float, default=0, help="Explicit approved dollar ceiling; defaults to no cloud calls")
     parser.add_argument("--port", type=int, default=8787)
     parser.add_argument("--device-port", type=int, default=8788)
-    parser.add_argument("--host-address", required=True, help="This computer's LAN IPv4/IPv6 address")
-    parser.add_argument("--device-address", required=True, help="Only this peer may access the TLS device endpoint")
-    args = parser.parse_args()
+    parser.add_argument("--host-address", help="This computer's LAN IPv4/IPv6 address")
+    parser.add_argument("--device-address", help="Only this peer may access the TLS device endpoint")
+    parser.add_argument("--standalone", action="store_true", help="Run the trusted agent on the Pi; device TLS stays on loopback")
+    args = parser.parse_args(argv)
+    if args.standalone:
+        if args.host_address not in (None, "127.0.0.1") or args.device_address not in (None, "127.0.0.1"):
+            parser.error("Standalone device transport must use loopback")
+        args.host_address = args.device_address = "127.0.0.1"
+    elif not args.host_address or not args.device_address:
+        parser.error("Mac companion mode requires --host-address and --device-address")
     os.umask(0o077)
     load_credentials(args.connect_env_file)
     load_credentials(args.env_file)
     directory = Path(args.state_dir).resolve()
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if args.standalone:
+        from .standalone import validate_provisioning
+        validate_provisioning(directory)
     lock = (directory / "studio.lock").open("w")
     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     provider = AgentProvider({"provider": args.provider, "model": args.model, "max_tokens": 8192,
                               "reasoning_effort": "low" if args.provider == "meta" else None})
-    product = Product(directory, provider, budget=args.budget)
+    product = Product(directory, provider, budget=args.budget, standalone=args.standalone)
     remote_server = None
     if os.environ.get("MODULATE_REMOTE_SECRET"):
         from .remote_access import RemoteAccess, handler_for as remote_handler
@@ -380,11 +390,16 @@ def main():
     threading.Thread(target=device_server.serve_forever, daemon=True).start()
     print(f"Modulate connection setup: http://127.0.0.1:{args.port}/setup", flush=True)
     print("Device endpoint uses pinned TLS, bearer authentication and an exact peer allowlist.", flush=True)
+    def stop(*_):
+        raise KeyboardInterrupt
+    for signum in (signal.SIGINT, signal.SIGTERM):
+        signal.signal(signum, stop)
     try:
         studio.serve_forever()
     except KeyboardInterrupt:
         product.cancel(shutdown=True)
     finally:
+        product.cancel(shutdown=True)
         product.stop_computer_audio()
         if product.camera:
             product.camera.stop()

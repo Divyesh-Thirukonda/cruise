@@ -4,6 +4,7 @@ __pycache__/
 .env*
 context/private/
 /state/
+/brain/
 .DS_Store
 node_modules/
 web3d/dist/

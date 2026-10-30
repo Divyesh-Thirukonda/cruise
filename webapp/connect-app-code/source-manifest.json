@@ -6,12 +6,12 @@
   "files": [
     {
       "path": "src/modulate/Connect.js",
-      "sha256": "84be8eccf47b148264a0d05312aaaf5478460c8184c2d110d56ce341e3e0fd1e",
+      "sha256": "347f2f2c02fc2d0f63b27bd5bcee67c0c47cc6e4422e64e301e2751ffc01106e",
       "source_sha256": "1ad805892fde6366bc642f0bec239f4fc26ec096500cd7d2169a27d663675e67"
     },
     {
       "path": "src/modulate/Library.js",
-      "sha256": "6020e8becc6219ff428fe8d656f477efcb62d4fccad853c533a9e671d0b1567e",
+      "sha256": "ac4e666654a444e232f7737ac100da2dd17ee3b1d8ff778c42f7ac88f6890b9c",
       "source_sha256": "6020e8becc6219ff428fe8d656f477efcb62d4fccad853c533a9e671d0b1567e"
     },
     {

@@ -31,7 +31,7 @@ test('speaker token cannot submit, read or cancel agent requests; device token i
 test('public Modulate schema includes task operations and the existing approved logo',async()=>{
  const response=await handler(request('GET',undefined,'speaker','?action=schema'));
  const data=await response.json();assert.equal(response.status,200);
- assert.equal(data.info.title,'Modulate');assert.match(data.info['x-logo'].url,/\/brand\/modulate-cube.svg$/);
+ assert.equal(data.info.title,'Modulate');assert.match(data.info['x-logo'].url,/\/brand\/modulate.png$/);
  assert.deepEqual(Object.keys(data.paths),['/api/modulate-agent','/api/modulate-muse']);assert.equal(calls.length,0);
 });
 test('request dispatch returns immediately and projects only owned job fields',async()=>{

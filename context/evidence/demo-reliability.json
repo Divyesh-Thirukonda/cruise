@@ -82,6 +82,18 @@
       "python_skipped": 13,
       "pi_focused_agent_tests": 142,
       "pi_focused_tunnel_tests": 2
+    },
+    "cloudflare_migration": {
+      "worker_version": "da6cff70-c8c1-48a5-83f5-1b3c1518a712",
+      "website_commit": "7eb41836dd423c9daad286b6ba03aed57a2679b2",
+      "plan": "Cloudflare Workers Free",
+      "automatic_registration_seconds": 64.1,
+      "watch_recovered_seconds": 58.93,
+      "watch_started_after_restart": true,
+      "same_browser_session_preserved": true,
+      "game_revision_preserved": "dd9e5e1951355c2090dbf06d624947c4b7abfe54ae46dbbe0214dadcc3716219",
+      "blob_dependency_removed": true,
+      "model_calls_required": 0
     }
   }
 }

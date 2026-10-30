@@ -37,17 +37,23 @@ def register(origin, secret):
 def publish(origin, secret, status_path, process, stopped):
     save_private(status_path, {"origin": origin, "registered": False, "started_at": time.time()})
     failures = 0
+    warmup_until = time.monotonic() + 90
+    registered_once = False
     while not stopped.is_set() and process.poll() is None:
         try:
             register(origin, secret)
             save_private(status_path, {"origin": origin, "registered": True, "registered_at": time.time()})
             print("Website discovery registered the current device tunnel", flush=True)
             failures = 0
+            registered_once = True
             delay = 3600  # Writes happen only when the hostname changes.
         except Exception:
             # New Quick Tunnel DNS/edge routing may not be ready at first. Do
             # not impose a 30-second penalty for each early registration miss.
-            delay = (2, 4, 8, 15, 30)[min(failures, 4)]
+            if not registered_once and time.monotonic() < warmup_until:
+                delay = (2, 3, 5)[min(failures, 2)]
+            else:
+                delay = (2, 4, 8, 15, 30)[min(failures, 4)]
             failures += 1
             save_private(status_path, {"origin": origin, "registered": False, "retry_at": time.time() + delay})
             print(f"Website discovery unavailable; retrying in {delay} seconds", flush=True)

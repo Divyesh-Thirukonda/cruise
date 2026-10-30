@@ -440,3 +440,14 @@ tasks and returned task results until 01:39 Eastern, plus a kart test. Requests
 use the same Meta agent/context/verification/activation path as Studio/voice.
 Durable request IDs prevent network retries from becoming duplicate builds.
 Use the approved existing Modulate logo in metadata. See `muse-connector.md`.
+
+
+## October 30 — independent seven-day Muse authorization
+
+The user requested a week without repeatedly entering a key. New full Muse
+authorizations use a separate persisted seven-day Pi session and sealed
+`device-week` credential, independent of browser expiry or revocation. Each grant
+is separately revocable from the authenticated Device screen; connector tokens
+cannot mint grants or administer permissions. Existing eight-hour credentials
+retain their old expiry. Native Mac pairing remains eight hours, and model
+ledger/OS/device permission boundaries remain unchanged. No new paid dependency.

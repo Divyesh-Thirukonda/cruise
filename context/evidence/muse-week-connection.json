@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-30",
+  "input_mode": "direct HTTPS API, temporary dedicated connector",
+  "lifetime_seconds": 604800,
+  "after_browser_revocation": {
+    "verified": true,
+    "volume": 80,
+    "muted": false
+  },
+  "after_agent_restart": {
+    "verified": true,
+    "volume": 80,
+    "muted": false
+  },
+  "tunnel_changed": true,
+  "after_tunnel_change": {
+    "verified": true,
+    "volume": 80,
+    "muted": false
+  },
+  "tunnel_recovery_seconds": 28.256,
+  "active_revision_preserved": true,
+  "revoked_status": 401,
+  "audio_played": false,
+  "model_requests_submitted": 0,
+  "full_pi_reboot_tested": false,
+  "earlier_trial": {
+    "result": "60-second registration observation window expired; tunnel registered automatically at about 64seconds; cleanup retried successfully before final trial"
+  },
+  "tests": {
+    "python": 1144,
+    "platform_skips": 13,
+    "focused_pi": 46,
+    "api": 60,
+    "ui": 42,
+    "production_build": "passed",
+    "tunnel_warmup_local_and_pi": 3
+  },
+  "week_elapsed": false,
+  "clock_advanced_expiry_tests": "valid at six days after browser expiry/reload, rejected at exact seven-day expiry; simulated clock, not a real week",
+  "muse_secure_store": {
+    "user_approved": true,
+    "existing_connector_reconnected": true,
+    "expires_at_display": "2026-11-06 17:54 America/New_York (EST)",
+    "fresh_muse_readback": {
+      "verified": true,
+      "volume": 80,
+      "muted": false
+    },
+    "muse_doc_helper_updated": true,
+    "token_in_chat": false
+  }
+}

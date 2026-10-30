@@ -1077,3 +1077,29 @@ in metadata, but Muse reported no native custom icon URL field; the default
 connector icon remained. This UI limitation is recorded, not presented as a
 successful native-icon change. Private final connection/preview screenshots are
 saved under context/private/demo-audit.
+
+
+## October 30 — week-long Muse connection
+
+Implemented and deployed independent seven-day Muse grants with per-grant revoke,
+persisted hashed Pi authorization, browser-only administration and old-token
+compatibility. Website deployment dpl_3R4gu6gUAjYdGWRzMzxBAk1oGVmC serves
+72e417a. Pi installed the same remote authorization code. Reused existing
+AES-GCM, discovery registry, remote gateway and connector request path.
+
+Validation: 1,144 Python tests (13 platform skips), 46 focused Pi checks, 60 API
+and 42 UI checks, production build. Three additional tunnel tests passed on Mac
+and Pi. The first controlled tunnel change exceeded a 60s observation window
+then registered automatically at about 64s. Tightened initial retries to 2/3/5s
+for 90s, retaining long-outage backoff and hourly steady-state refresh. Final
+live API trial survived browser revocation and agent restart; tunnel replacement
+recovered in 28.256s with the same token. Revocation returned 401; active game
+retained, no new model calls/audio. Not a full Pi reboot or week-long uptime
+trial. Temporary grants were revoked. Evidence: muse-week-connection.json.
+
+The user approved saving the seven-day token. Reconnected the existing Modulate
+entry through Muse's secure credential form, with expiry shown as November 6,
+2026 at 5:54 PM EST. Muse confirmed a fresh speaker GET returned verified volume 80,
+not muted, and updated its own connector doc/helper with the new expiry/revoke
+path. No token was pasted in chat, and the clipboard was replaced with the
+public website URL afterward. Native Mac pairing remains separate.

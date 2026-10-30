@@ -41,7 +41,7 @@ class ConnectionSetup:
                        and display.get("offer_id") == offer_id)
         if product.standalone:
             instructions = ["Modulate runs its agent on the Pi using Wi-Fi for Meta and spoken replies.",
-                            "Connect a browser to manage apps. Mac access is optional and requires its companion."]
+                            "Connect a browser to manage apps. Native Mac control is not connected in this standalone installation."]
         elif not product.connected():
             instructions = ["Keep Modulate powered and on the companion's network.",
                             "Keep the companion running on your Mac; continue in the connection setup page."]
@@ -68,7 +68,7 @@ class ConnectionSetup:
                 "display_status": {"offer_id": offer_id, "visible": visible},
                 "permissions": dict(remote.get("permissions", {})),
                 "instructions": instructions,
-                "limits": [("New AI requests require internet; saved apps run locally. Mac controls require an optional paired companion."
+                "limits": [("New AI requests require internet; saved apps run locally. A native Mac bridge is not connected in this standalone installation."
                             if product.standalone else "Meta runs on the companion; an offline Pi shows local setup guidance without AI."),
                            "A browser controls this configured Mac/Pi hub, not the phone's own operating system.",
                            "Your setup agent handles Mac software and browser steps; physical confirmation and required macOS permission dialogs need you."]}

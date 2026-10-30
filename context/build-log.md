@@ -802,3 +802,38 @@ new credentials or pairing were involved.
 The user physically confirmed: “Yes, Later and Cancel stay dismissed.” This
 confirms the dismissal paths on the mini screen; it does not demonstrate
 standalone AI or change the documented Mac-hosted orchestration limitation.
+
+
+## 2026-10-29 — Standalone Pi agent installed and demonstrated
+
+Implemented `--standalone`, local TLS transport, service startup, accounting
+validation, Pi-aware setup/browser copy and optional dashboard tunnel on the Pi.
+Migrated both cumulative ledgers securely without a reset; froze the stopped
+Mac's copies. Provider keys remain in Vercel. Reused the existing agent, isolated
+QuickJS runtime, Whisper, ElevenLabs gateway and UI; no preset game or new external
+art assets were substituted. Cloudflare's official ARM64 cloudflared 2026.10.6
+release was hash-verified. Preserved the pre-existing display/brand work.
+
+Live evidence: one typed Meta call produced “Modulate is running on its own,”
+which the user heard. An unrelated speaker-volume request exposed a stale Mac
+pairing gate; bounded retries failed and a concurrent typed game probe was
+rejected as busy. Fixed that gate with session/readback protections retained.
+A subsequent typed Orbit Catch generation repaired a malformed tool call, passed
+independent checks and activated in 13 Meta calls / about 37.37 seconds. After a
+full Pi reboot, all services restarted and the same revision returned with zero
+new model calls; the user confirmed the game and physical controls worked.
+A final three-call typed speaker readback verified 30% unchanged and completed
+speech. User also reported a spoken reply; no new matching request appeared in
+the final collected trace, so that confirmation is recorded separately.
+
+Validation: 1,056 host tests passed (13 skips), 196 staged Pi checks passed,
+13 final standalone/speaker checks passed, then 17 focused setup checks passed
+after guidance edits. Website source/API/UI checks and Next production build
+passed (29 UI tests). Production deployment `dpl_2t4qdN1FbxfLx8njCmoSPFspvSLE`
+reaches the online Linux agent and renders standalone setup. Snapshot: 595 calls /
+$11.390532 charged or held; speech 5,011 characters reserved under the explicitly
+approved 10,000-character ceiling, with all five uncertain requests retained.
+
+Remaining: stable dashboard routing across tunnel restarts and a separate native
+Mac bridge for the Pi agent. [Evidence](evidence/standalone-runtime.json) and
+[operating guide](standalone.md) distinguish tests, live trials and user reports.

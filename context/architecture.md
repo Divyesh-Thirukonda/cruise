@@ -8,21 +8,31 @@ The user's later scope replaces separate Chrome grants with connected paired-Mac
 
 ## Data and control flow
 
-### Current companion dependency
+### Pi-owned agent
 
-The Pi owns capture/Whisper, physical input, checks and the current game runtime.
-The trusted `Product` and `Orchestrator` services currently run on the Mac, along
-with conversation, the library catalogue and ElevenLabs synthesis. Reaching that
-enrolled AI host is distinct from granting native Mac control: game generation
-does not require native Mac pairing, but does require the AI service online.
+The installed standalone mode runs trusted `Product` and `Orchestrator`, the app
+library and speech coordinator on the Pi, alongside capture/Whisper and the
+isolated physical runtime. Device transport remains authenticated and TLS-pinned,
+now through loopback. `--standalone` pins Studio/device listeners to loopback;
+it does not expose an unauthenticated LAN Studio.
 
-Later/Cancel now leave setup and return to the retained app or an idle screen;
-ordinary voice requests do not reopen it. This UI behavior does not implement
-standalone AI. Making Mac access truly optional for new requests requires moving
-the trusted brain to the Pi or a cloud worker, keeping a separate optional Mac
-bridge, privately provisioning provider access, and preserving the cumulative
-model/speech ledgers. The Vercel provider gateway currently proxies model/speech
-calls; it is not a cloud orchestrator, library or activation service.
+Meta and ElevenLabs requests use the existing fixed Vercel provider gateway.
+Provider API keys stay in Vercel. The trusted Pi holds only gateway transport
+credentials, isolated from generated packages and browser code. This is cloud
+inference orchestrated by the Pi, not offline inference or a Vercel-hosted agent.
+
+Both cumulative spending ledgers moved intact from the stopped Mac agent.
+Standalone startup refuses missing, public, corrupt or previously migrated
+ledgers. Unknown-cost reservations remain held. The old Mac ledger is frozen to
+prevent independent spending from two copies. The approved speech input ceiling
+is now 10,000 characters; the model ceiling remains $50 total.
+
+No Mac pairing is needed for local apps, conversations, speaker volume or browser
+linking. Speaker commands retain session/sink/epoch/revision and readback checks.
+The legacy Mac-hosted path remains available in source; a network Mac bridge for
+the Pi-owned agent is not yet implemented. The diagram below includes those
+legacy computer features; they are not active in the standalone installation.
+See [deployment and evidence](standalone.md).
 
 ```mermaid
 flowchart LR
@@ -117,7 +127,7 @@ Hardware command delivery and withdrawal run on the network thread; cached capab
 
 The host's `connection_setup(status|show|start_pairing|create_browser_code)` tool is orchestrator-only and bundled in the `connection-setup` skill. It reads safe status or prepares an offer; it does not grant native access. `/device/setup` is a fixed enrolled-device endpoint for the same physical screen actions. The heartbeat carries safe `setup_status` plus an optional short-lived `setup` offer. Browser codes occur only in that enrolled-device offer; model/tool results and normal state omit them. Native pairing continues through its separate fresh-press confirmation. A code is invalidated when claimed/replaced/revoked/expired, and stale companion responses cannot keep a setup code visible offline.
 
-The model lives on the Mac companion. Without that connection the Pi provides deterministic guidance, not inference. OS/Wi-Fi bootstrap, a companion installer, enrollment provisioning and native macOS permission grants still require user setup; this feature does not imply autonomous installation.
+In standalone mode the agent runs on the Pi and uses cloud inference; a disconnected local agent shows a restarting message rather than a Mac setup demand. OS/Wi-Fi bootstrap and credential provisioning still require trusted setup. The legacy Mac-hosted mode still uses separate native macOS permission grants.
 
 ## Packages and verification
 

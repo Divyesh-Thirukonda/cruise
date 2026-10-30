@@ -1,5 +1,12 @@
 # Modulate product runtime
 
+> Current installation: the trusted agent now runs on the Pi. The Mac-hosted
+> procedures and trials below are historical/legacy mode. Use
+> [standalone setup and current limits](standalone.md) for this device. The user
+> approved a 10,000-character cumulative speech ceiling during this migration;
+> the separate provider credit cap and $50 model ceiling are unchanged.
+
+
 Implementation snapshot: October 28, 2026. A typed Meta request generated Pixel Kart Sprint on the Pi, with confirmed steering/buttons; a later spoken request generated MODULATE: Self Assembly. The same device controls native Mac volume; PTT/hands-free speech refined sensitivity, direction and step size. Two UI rollbacks restored mappings without model calls. This completes the main game/control/spoken-refinement prototype loop. Initial audio failures, limited wake evidence and performance constraints are recorded below. The earlier [number prototype](number-prototype.md) has separate evidence.
 
 The computer-task extension completed a typed live Meta local-form trial and, after an earlier failure, a spoken Gmail latest-email readout. Independent visible-browser inspection verified the subject and the user confirmed hearing the answer. Three separate subjects and general reliability were not established. Star Dash — Astronaut Runner remains retained. Setup and privacy boundaries are [separate from the demonstrated volume bridge](#computer-tasks-and-spoken-replies).

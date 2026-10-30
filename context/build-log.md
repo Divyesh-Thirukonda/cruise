@@ -975,3 +975,11 @@ The installed Mac helper retained an unexpired pairing but was targeting a stale
 - Full Python suite: 1120 tests, 13 skips; Pi focused checks: 142 agent tests and 2 tunnel tests. Website after registry changes: 45 API tests, 32 UI tests, production build pass. New Cloudflare Worker: 4 focused tests and Wrangler dry-run pass.
 - User reported Vercel Blob free operation exhaustion. Prepared a Cloudflare Workers Free SQLite Durable Object registry with HMAC registration, bounded input, authenticated lookup, ordered updates and a one-way derived credential. Concurrent website lookups share one in-flight request. Cloudflare deployment awaits the user's Wrangler access authorization; no paid plan selected. Existing Cloudflare/Wrangler runtime is reused infrastructure.
 - Temporarily configured the website's existing direct-tunnel mode against the identity-verified live Pi origin while the registry migration awaits authorization. This temporary configuration does not follow future tunnel changes.
+
+
+## 2026-10-30 — Saved-app reuse and timed demo sequence
+
+- Added a bounded metadata catalog of real saved apps to Meta's initial context, semantic reuse guidance, generic batching guidance for computer skills, and latest-revision library presentation with recoverable history. No demo keyword routing, prewritten racer, email-answer cache or synthetic thinking delay.
+- Installed `8f9e2e4` on Pi with backup/rollback and 57 focused tests passing. Host suite: 1121 tests, 13 skips. Website: 45 API tests, 33 UI tests, production build; deployed `dpl_Gaqs8aBF3SkBNfmTTV6viv64NdDC`, verified latest-version view in Chrome.
+- Seven typed live tunnel trials: repeat Orbit Catch 8.8 s; fresh original racer 42.7 s including repair; same request reused racer 6.6 s; library 4.1 s; contextual library knob reversal 5.3 s; red-coin edit 18.3 s; reuse of edited racer 9.1 s. Repeats preserved exact revisions without new saved duplicates. Five of seven trials under 15 s is an observed sample, not a reliability benchmark. See `context/demo-speed.md` and public metadata evidence.
+- Restored original Orbit Catch and forward library preference in 2.43 s with zero model calls. New live-generated racer revisions remain saved. Mac session expired and Pi audio remained 0%; no new computer-task, physical control or audibility claims.

@@ -45,7 +45,7 @@ class ComponentSetup:
             driver = next((c for c in catalog if type(c) is dict and c.get('id') == 'lsm6ds3trc'), None) if identifier == 'imu' else None
             if driver and type(driver.get('identity')) is dict:
                 values.append(driver['identity'].get('address'))
-            present = sorted(a for a in values if type(a) is int and a in addresses)
+            present = sorted({a for a in values if type(a) is int and a in addresses})
             known.update(present)
             ready = hardware.get('connected') is True and device.get('status') == 'ready'
             if not present and not ready:

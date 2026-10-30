@@ -1,0 +1,383 @@
+{
+  "date": "2026-10-30",
+  "implementation_commits": [
+    "64e4e3746ce8b3a6a57ee277d49091110b92f163",
+    "5e2f82c737a6f7f3521887a6d6b18a538d9da5e7"
+  ],
+  "input_mode": "typed live Pi Meta requests; separate product speaker test",
+  "wifi_connected": true,
+  "pi_services": [
+    "active",
+    "active",
+    "active"
+  ],
+  "mms": {
+    "provider": "meta_mms",
+    "model": "facebook/mms-tts-eng",
+    "model_revision": "c71de0fe7204c83f1c10820a7d696d0b450048ba",
+    "user_confirmation": "Yes, clear speech",
+    "cold_synthesis_seconds": 8.265,
+    "cold_audio_seconds": 3.6,
+    "warm_synthesis_seconds": 5.887,
+    "warm_audio_seconds": 5.92,
+    "credentials_excluded_worker_pcm_bytes": 47616,
+    "historical_elevenlabs_ledger_unchanged": true,
+    "cumulative_character_allowance": null,
+    "per_reply_character_bound": 1200,
+    "timing_note": "Two synthesis observations; not a benchmark or full voice latency."
+  },
+  "native_permissions": {
+    "screen_recording": true,
+    "accessibility": true
+  },
+  "gmail": {
+    "agent_seconds": 39.523,
+    "model_calls": 8,
+    "result": "Opened newest Primary-inbox message and produced spoken summary; independently inspected selected message",
+    "speech_delivery": "meta_mms/paplay delivered",
+    "recovery": "Initial URL typing focus miss recovered",
+    "privacy": "Email contents excluded"
+  },
+  "media": {
+    "agent_seconds": 18.827,
+    "model_calls": 10,
+    "camera_frames": 10,
+    "audio_packets": 30,
+    "final_camera_state": "stopped",
+    "final_audio_state": "stopped",
+    "limitation": "Capture and fresh telemetry verified; no renewed physical confirmation of Pi camera image or streamed audio in this trial",
+    "recovery": "A computer_audio action returned helper busy; subsequent status verified stopped and zero buffered audio"
+  },
+  "system": {
+    "agent_seconds": 18.821,
+    "model_calls": 10,
+    "brightness": [
+      47,
+      48,
+      47
+    ],
+    "volume": [
+      31,
+      32,
+      31
+    ],
+    "muted": false,
+    "independent_final_native_readback": true,
+    "physical_knob_mapping_trial": false
+  },
+  "native_tool_trace": [
+    {
+      "at": "2026-10-30T04:56:12.680655+00:00",
+      "tool": "camera_control",
+      "operation": "start",
+      "status": "passed",
+      "seconds": 0.402,
+      "detail": {
+        "supported": true,
+        "permission": "unknown",
+        "backend": "avfoundation",
+        "error": null,
+        "state": "starting",
+        "running": true,
+        "sequence": 0,
+        "frame_age_seconds": null,
+        "fps_limit": 5
+      }
+    },
+    {
+      "at": "2026-10-30T04:56:14.444491+00:00",
+      "tool": "camera_control",
+      "operation": "status",
+      "status": "passed",
+      "seconds": 0.133,
+      "detail": {
+        "supported": true,
+        "permission": "authorized",
+        "backend": "avfoundation",
+        "error": null,
+        "state": "starting",
+        "running": true,
+        "sequence": 0,
+        "frame_age_seconds": null,
+        "fps_limit": 5
+      }
+    },
+    {
+      "at": "2026-10-30T04:56:16.205188+00:00",
+      "tool": "camera_control",
+      "operation": "status",
+      "status": "passed",
+      "seconds": 0.101,
+      "detail": {
+        "supported": true,
+        "permission": "authorized",
+        "backend": "avfoundation",
+        "error": null,
+        "state": "running",
+        "running": true,
+        "sequence": 2,
+        "frame_age_seconds": 0.24,
+        "fps_limit": 5
+      }
+    },
+    {
+      "at": "2026-10-30T04:56:18.043679+00:00",
+      "tool": "camera_control",
+      "operation": "stop",
+      "status": "passed",
+      "seconds": 0.289,
+      "detail": {
+        "supported": true,
+        "permission": "authorized",
+        "backend": "avfoundation",
+        "error": null,
+        "state": "stopped",
+        "running": false,
+        "sequence": 10,
+        "frame_age_seconds": null,
+        "fps_limit": 5
+      }
+    },
+    {
+      "at": "2026-10-30T04:56:20.373912+00:00",
+      "tool": "computer_audio",
+      "operation": "start",
+      "status": "passed",
+      "seconds": 0.259,
+      "detail": {
+        "supported": true,
+        "permission": "unknown",
+        "backend": "screencapturekit",
+        "excludes_current_process": true,
+        "error": null,
+        "state": "starting",
+        "running": true,
+        "sequence": 0,
+        "format": "pcm_s16le_48000_stereo",
+        "mode": "mirror",
+        "sample_rate": 48000,
+        "channels": 2,
+        "buffered_ms": 0,
+        "audio_age_seconds": null
+      }
+    },
+    {
+      "at": "2026-10-30T04:56:21.745557+00:00",
+      "tool": "computer_audio",
+      "operation": "status",
+      "status": "passed",
+      "seconds": 0.0,
+      "detail": {
+        "supported": true,
+        "state": "running",
+        "running": true,
+        "format": "pcm_s16le_48000_stereo",
+        "error": null,
+        "permission": "authorized",
+        "backend": "screencapturekit",
+        "excludes_current_process": true,
+        "sequence": 9,
+        "mode": "mirror",
+        "sample_rate": 48000,
+        "channels": 2,
+        "buffered_ms": 500,
+        "audio_age_seconds": 0.081
+      }
+    },
+    {
+      "at": "2026-10-30T04:56:23.270200+00:00",
+      "tool": "computer_audio",
+      "status": "failed",
+      "seconds": 0.0,
+      "detail": {
+        "error": "The Mac helper is busy; no additional action was sent",
+        "type": "BackendError"
+      }
+    },
+    {
+      "at": "2026-10-30T04:56:25.643003+00:00",
+      "tool": "computer_audio",
+      "operation": "status",
+      "status": "passed",
+      "seconds": 0.0,
+      "detail": {
+        "supported": true,
+        "state": "stopped",
+        "running": false,
+        "format": "pcm_s16le_48000_stereo",
+        "error": null,
+        "permission": "authorized",
+        "backend": "screencapturekit",
+        "excludes_current_process": true,
+        "sequence": 30,
+        "mode": "mirror",
+        "sample_rate": 48000,
+        "channels": 2,
+        "buffered_ms": 0,
+        "audio_age_seconds": null
+      }
+    },
+    {
+      "at": "2026-10-30T04:58:47.114859+00:00",
+      "tool": "system_control",
+      "operation": "brightness.get",
+      "status": "passed",
+      "seconds": 0.506,
+      "detail": {
+        "brightness": 47,
+        "sequence": 8
+      }
+    },
+    {
+      "at": "2026-10-30T04:58:49.019607+00:00",
+      "tool": "system_control",
+      "operation": "volume.get",
+      "status": "passed",
+      "seconds": 0.403,
+      "detail": {
+        "volume": 31,
+        "muted": false,
+        "sequence": 9
+      }
+    },
+    {
+      "at": "2026-10-30T04:58:51.112485+00:00",
+      "tool": "system_control",
+      "operation": "brightness.delta",
+      "status": "passed",
+      "seconds": 1.271,
+      "detail": {
+        "brightness": 48,
+        "sequence": 11,
+        "before": {
+          "brightness": 47,
+          "sequence": 10
+        },
+        "after": {
+          "brightness": 48,
+          "sequence": 11
+        }
+      }
+    },
+    {
+      "at": "2026-10-30T04:58:54.389337+00:00",
+      "tool": "system_control",
+      "operation": "volume.delta",
+      "status": "passed",
+      "seconds": 1.609,
+      "detail": {
+        "volume": 32,
+        "muted": false,
+        "sequence": 13,
+        "before": {
+          "volume": 31,
+          "muted": false,
+          "sequence": 12
+        },
+        "after": {
+          "volume": 32,
+          "muted": false,
+          "sequence": 13
+        }
+      }
+    },
+    {
+      "at": "2026-10-30T04:58:56.181926+00:00",
+      "tool": "system_control",
+      "operation": "brightness.set",
+      "status": "passed",
+      "seconds": 0.956,
+      "detail": {
+        "brightness": 47,
+        "sequence": 15,
+        "before": {
+          "brightness": 48,
+          "sequence": 14
+        },
+        "after": {
+          "brightness": 47,
+          "sequence": 15
+        }
+      }
+    },
+    {
+      "at": "2026-10-30T04:58:58.468205+00:00",
+      "tool": "system_control",
+      "operation": "volume.set",
+      "status": "passed",
+      "seconds": 1.213,
+      "detail": {
+        "volume": 31,
+        "muted": false,
+        "sequence": 17,
+        "before": {
+          "volume": 32,
+          "muted": false,
+          "sequence": 16
+        },
+        "after": {
+          "volume": 31,
+          "muted": false,
+          "sequence": 17
+        }
+      }
+    },
+    {
+      "at": "2026-10-30T04:59:00.124289+00:00",
+      "tool": "system_control",
+      "operation": "brightness.get",
+      "status": "passed",
+      "seconds": 0.182,
+      "detail": {
+        "brightness": 47,
+        "sequence": 18
+      }
+    },
+    {
+      "at": "2026-10-30T04:59:01.393683+00:00",
+      "tool": "system_control",
+      "operation": "volume.get",
+      "status": "passed",
+      "seconds": 0.203,
+      "detail": {
+        "volume": 31,
+        "muted": false,
+        "sequence": 19
+      }
+    }
+  ],
+  "app_revision_unchanged": "491f6971e962eff1495c40374430d8d27004fdba49742c49e31787cfb10046b8",
+  "final_budget": {
+    "limit_dollars": 50.0,
+    "charged_or_reserved_dollars": 11.734172,
+    "calls": 629,
+    "halted": false
+  },
+  "final_agent": {
+    "running": false,
+    "phase": "ready",
+    "error": null
+  },
+  "website": {
+    "url": "https://modulate-connect.vercel.app/connect/setup",
+    "deployment": "dpl_FY1uvfHBoZcpFnFqXVyPrmouA1Hw",
+    "state": "READY",
+    "verified_ui": [
+      "Browser connected",
+      "Mac connected",
+      "Screen recording allowed",
+      "Keyboard & mouse allowed"
+    ],
+    "session_expiry_preserved": true
+  },
+  "validation": {
+    "host_skipped": 13,
+    "pi_focused_tests": 55,
+    "website_api_tests": 41,
+    "website_ui_tests": 31,
+    "production_build": "passed",
+    "after_worker_credential_hardening_focused_tests": 23,
+    "mms_tests_including_new_credential_test": 7,
+    "host_tests_total": 1069
+  }
+}

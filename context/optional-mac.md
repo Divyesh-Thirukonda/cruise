@@ -100,3 +100,25 @@ reported delivered. Email contents are excluded from published evidence.
 
 See [sanitized runtime evidence](evidence/optional-mac-runtime.json). Discovery is
 for the single configured demo Pi; multi-customer identity/routing is future work.
+
+
+## Final native and local-speech validation — October 30
+
+After the native grants, live typed Pi Meta requests captured fresh Mac camera
+frames and system-audio packets, then verified both streams stopped. One audio
+action returned a helper-busy result; a subsequent observation confirmed stopped
+with zero buffered audio. This trial verifies capture/transport telemetry, not a
+renewed human check of the camera image or audible system audio on the Pi.
+
+A second typed request changed brightness 47 → 48 → 47 and volume 31 → 32 → 31,
+preserving unmuted state. Independent native readback confirmed both final values.
+No physical knob mapping was activated in these tests. The existing game revision
+remained unchanged. The deployed website setup view showed Browser connected,
+Mac connected and both desktop permissions allowed, preserving the existing
+eight-hour expiry. The native app is configured to launch at login.
+
+The Pi remains on Wi-Fi, with agent/device/connect services active after the final
+agent restart. Local Meta MMS speech is active; the user confirmed clear speaker
+output and the old ElevenLabs ledger stayed unchanged. The total Meta ledger is
+$11.734172 charged/reserved of $50 after these trials. See
+[sanitized evidence](evidence/mms-native-runtime.json) and [MMS details](meta-mms.md).

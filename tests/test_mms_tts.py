@@ -4,6 +4,7 @@ import sys
 import threading
 import time
 import unittest
+from unittest.mock import patch
 
 from modulate.mms_tts import MMSTTS, MMSError
 from modulate.mms_worker import normalize
@@ -50,6 +51,11 @@ class MMSTests(unittest.TestCase):
         for text in (None, "", "a"*1201, "bad\0text"):
             with self.assertRaises(MMSError): value.synthesize(text, threading.Event())
             self.assertIsNone(value.process)
+
+    def test_local_worker_does_not_inherit_provider_credentials(self):
+        value = self.tts("import os,sys,struct\nsys.stdin.readline()\nb=b'safe' if 'MODEL_API_KEY' not in os.environ else b'leak'\nsys.stdout.buffer.write(struct.pack('!I',4)+b)")
+        with patch.dict("os.environ", {"MODEL_API_KEY": "synthetic-secret"}):
+            self.assertEqual(value.synthesize("Test", threading.Event()), b"safe")
 
     def test_numbers_are_not_silently_removed_by_english_vocabulary(self):
         self.assertEqual(normalize("Brightness 47%, cost 11.44"), "Brightness forty seven percent, cost eleven point four four")

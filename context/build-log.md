@@ -903,3 +903,40 @@ and evidence-receiver servers were stopped. Initial Pi archive extraction reject
 an unsupported filter argument; verified safe extraction recovered before service
 restart. TLS pin checking also rejected a mistyped fingerprint before credentials.
 See [sanitized evidence](evidence/optional-mac-runtime.json) and [operating guide](optional-mac.md).
+
+
+## 2026-10-30 — Meta MMS on Pi, native grants and website setup
+
+Implemented a persistent, bounded, cancellable offline MMS worker, verified pinned
+safetensors installation, isolated environment, number normalization and existing
+24 kHz PCM transport integration. Meta's MMS English checkpoint and Hugging Face
+VITS integration are reused dependencies, not project-trained models; the
+noncommercial model license is documented. The user confirmed clear Pi speech.
+Cold/warm synthesis observations were 8.265/5.887 seconds; these are not complete
+voice latency measurements. Historical ElevenLabs usage stayed unchanged.
+
+Built the native Modulate.app shell with user-triggered macOS grants, child-process
+restart and login launch. The user enabled all three native permissions. Added
+authenticated website comparison/status and accurate local-MMS privacy text;
+retained physical A, session expiry, revoke, and private pairing boundaries.
+Production deployment dpl_FY1uvfHBoZcpFnFqXVyPrmouA1Hw is READY. The actual linked
+website showed Browser connected, Mac connected and both desktop grants allowed.
+
+Typed live Pi Meta trials: newest Gmail Primary-inbox message opened and summarized
+(8 calls, 39.523 seconds to agent completion), camera/audio capture and stop
+(10 calls, 18.827 seconds), brightness and volume change/readback/restore
+(10 calls, 18.821 seconds). Gmail recovered an initial focus miss. One media action
+returned helper busy; fresh status confirmed stopped with no buffered audio.
+Camera frames and audio packets were observed; no new human playback/image check
+or physical knob trial is claimed. Independent native readback confirmed brightness
+47%, volume 31% unmuted. Orbit Catch retained its exact revision. No private email
+contents are included in public evidence.
+
+Validation: 1,069 host tests ran successfully (13 skipped); 55 focused Pi tests; website
+41 API tests, 31 UI tests and production build passed. Worker credential isolation
+then passed 23 focused checks and all 7 MMS tests, plus real Pi synthesis returning
+47,616 PCM bytes. Final agent/device/connect services were active, Pi Wi-Fi connected,
+Mac control enabled, MMS active and the $50 Meta ledger preserved ($11.734172).
+See [sanitized evidence](evidence/mms-native-runtime.json), [MMS](meta-mms.md) and
+[optional Mac operation](optional-mac.md).
+Temporary source-transfer and evidence-receiver servers were stopped after validation.

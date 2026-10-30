@@ -77,7 +77,9 @@ class MMSTTS:
                 command = self.command or [self.python, "-I", str(Path(__file__).with_name("mms_worker.py")), self.model_dir]
                 self.process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                                 stderr=subprocess.DEVNULL, bufsize=0,
-                                                env={**os.environ, "HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1"})
+                                                env={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8",
+                                                     "HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1",
+                                                     "TOKENIZERS_PARALLELISM": "false"})
             self.process.stdin.write((json.dumps({"text": text}, ensure_ascii=False) + "\n").encode())
             deadline = time.monotonic() + self.timeout
             size = struct.unpack("!I", self._read(4, cancel, deadline))[0]

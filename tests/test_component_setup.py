@@ -34,7 +34,9 @@ class ComponentSetupTests(unittest.TestCase):
         self.assertEqual(items[0]['driver'], 'lsm6ds3trc')
         self.assertTrue(items[0]['installable']); self.assertFalse(items[0]['ready'])
         ready = [{**DEVICES[0], 'status': 'ready', 'address': '0x6a'}]
-        self.assertEqual(self.manager.inventory(hardware(ready=True), ready)[0]['status'], 'ready')
+        item = self.manager.inventory(hardware(ready=True), ready)[0]
+        self.assertEqual(item['status'], 'ready')
+        self.assertEqual(item['addresses'], ['0x6a'])
         offline = hardware(); offline['connected'] = False
         self.assertEqual(self.manager.inventory(offline, ready), [])
 
@@ -63,6 +65,23 @@ class ComponentSetupTests(unittest.TestCase):
         with patch('modulate.component_setup.os.replace', side_effect=OSError()):
             self.assertFalse(self.manager.consider(hardware(), DEVICES, eligible=True, now=5))
         self.assertEqual(self.manager.attempts, [])
+
+    def test_product_gate_honors_hardware_permission_before_dispatch(self):
+        from modulate.product import Product
+        from tests.test_agent import ScriptedProvider
+        from tests.test_assistant_io import FakeComputer
+        from tests.test_product import FakeBackend
+        import time
+        with patch.dict('os.environ', {'MODULATE_TTS_PROVIDER': 'local'}):
+            product = Product(Path(self.root.name) / 'product', ScriptedProvider([]), backend=FakeBackend(), computer=FakeComputer())
+        self.addCleanup(product.cancel, shutdown=True)
+        product.last_seen = time.monotonic()
+        product.device['devices'] = DEVICES
+        with patch.object(product.hardware, 'inspect', return_value=hardware()), patch.object(product, 'permission_allowed', return_value=False), patch.object(product, 'request') as request:
+            product._setup_new_components()
+            request.assert_not_called()
+            self.assertFalse(product.component_setup.path.exists())
+
 
 
 class AutomaticSetupAgentTests(unittest.TestCase):

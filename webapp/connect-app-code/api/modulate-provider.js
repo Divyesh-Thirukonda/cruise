@@ -92,8 +92,7 @@ async function handler(req, res) {
       try { result = JSON.parse(bytes.toString('utf8')); } catch { throw new HttpError(502, 'Invalid transcription response.'); }
       if (!result || typeof result !== 'object') throw new HttpError(502,'Invalid transcription response.');
       if (typeof result.audioDurationMs === 'string' && /^\d{1,8}$/.test(result.audioDurationMs)) result.audioDurationMs=Number(result.audioDurationMs);
-      if (typeof result.transcript !== 'string' || result.transcript.length > 2000 || /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(result.transcript) || !Number.isInteger(result.audioDurationMs) || Math.abs(result.audioDurationMs-audio.durationMs)>1) {
-        res.setHeader('X-Modulate-ASR-Shape',JSON.stringify({transcriptType:typeof result.transcript,durationType:typeof result.audioDurationMs,durationMs:Number.isFinite(result.audioDurationMs)?result.audioDurationMs:null,expectedMs:audio.durationMs,hasTurns:Array.isArray(result.turns),hasText:typeof result.text==='string'}));
+      if (typeof result.transcript !== 'string' || result.transcript.length > 2000 || /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(result.transcript) || !Number.isInteger(result.audioDurationMs) || result.audioDurationMs<Math.floor(audio.durationMs) || result.audioDurationMs>audio.durationMs+80) {
         throw new HttpError(502,'Invalid transcription response.');
       }
       return res.status(200).json({model:'muse-voice-transcribe-1.0',transcript:result.transcript,audioDurationMs:result.audioDurationMs});

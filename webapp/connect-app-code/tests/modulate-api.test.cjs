@@ -290,9 +290,9 @@ function commandWav(samples=16000) {
   return wav;
 }
 test('Muse ASR forwards only canonical bounded audio to the fixed authenticated endpoint',async()=>{
-  global.fetch=async(...args)=>{calls.push(args);return response({transcript:'Make a game.',audioDurationMs:'1000',private:'omit me'});};
+  global.fetch=async(...args)=>{calls.push(args);return response({transcript:'Make a game.',audioDurationMs:'1040',private:'omit me'});};
   const result=await run(provider,cloud('transcribe',{wav:commandWav().toString('base64')}));
-  assert.equal(result.statusCode,200);assert.deepEqual(result.body,{model:'muse-voice-transcribe-1.0',transcript:'Make a game.',audioDurationMs:1000});
+  assert.equal(result.statusCode,200);assert.deepEqual(result.body,{model:'muse-voice-transcribe-1.0',transcript:'Make a game.',audioDurationMs:1040});
   assert.equal(calls[0][0],'https://api.meta.ai/v1/asr/transcribe');
   assert.equal(calls[0][1].headers.Authorization,'Bearer meta-test-only');
   assert.ok(calls[0][1].headers['Content-Type'].startsWith('multipart/form-data; boundary=modulate-'));
@@ -310,9 +310,9 @@ test('Muse ASR rejects malformed, oversized and injected uploads before provider
   assert.equal(calls.length,0);
 });
 test('Muse ASR discards malformed provider text and duration, without retry',async()=>{
-  for(const body of [{transcript:'x'.repeat(2001),audioDurationMs:1000},{transcript:'hello',audioDurationMs:0},{transcript:'hello',audioDurationMs:NaN}]) {
+  for(const body of [{transcript:'x'.repeat(2001),audioDurationMs:1000},{transcript:'hello',audioDurationMs:0},{transcript:'hello',audioDurationMs:NaN},{transcript:'hello',audioDurationMs:1081}]) {
     global.fetch=async(...args)=>{calls.push(args);return response(body);};
     assert.equal((await run(provider,cloud('transcribe',{wav:commandWav().toString('base64')}))).statusCode,502);
   }
-  assert.equal(calls.length,3);
+  assert.equal(calls.length,4);
 });

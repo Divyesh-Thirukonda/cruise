@@ -42,6 +42,14 @@ class TranscriptionTests(unittest.TestCase):
         self.assertTrue(base64.b64decode(json.loads(request.data)['wav']).startswith(b'RIFF'))
         self.assertEqual(self.ledger.data['calls'][0]['status'],'settled')
 
+    def test_actual_muse_frame_padding_is_accepted_without_under_reserving_cost(self):
+        self.asr.opener.open.return_value.__enter__.return_value.read.return_value=json.dumps(
+            {'model':MODEL,'transcript':'','audioDurationMs':1040}).encode()
+        result=self.asr.transcribe({'pcm':base64.b64encode(bytes(32000)).decode()},Mock())
+        self.assertEqual(result['audio_ms'],1000)
+        self.assertEqual(self.ledger.data['calls'][0]['charged'],50)
+        self.assertEqual(self.ledger.data['calls'][0]['status'],'settled')
+
     def test_failure_retains_hold_and_never_retries_or_logs_provider_body(self):
         self.asr.opener.open.side_effect = urllib.error.HTTPError('https://example',429,'secret',{},io.BytesIO(b'private'))
         with self.assertRaisesRegex(AgentError,'request discarded') as error:

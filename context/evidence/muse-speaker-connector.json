@@ -1,0 +1,18 @@
+{
+  "date": "2026-10-30",
+  "revision": "717b38a3e833867fd6f722842a903e0026eda477",
+  "deployment": "dpl_KZ8T8vXVsBAKEry1UdB7iK6vpnic",
+  "input_mode": "direct HTTPS connector API, not Muse chat",
+  "device": "physical Raspberry Pi 5",
+  "initial": {"verified": true, "volume": 0, "muted": false},
+  "set": {"verified": true, "volume": 80, "muted": false},
+  "fresh_read": {"verified": true, "volume": 80, "muted": false},
+  "restored": {"verified": true, "volume": 0, "muted": false},
+  "revoked_parent_status": 401,
+  "read_seconds": 0.778,
+  "set_seconds": 0.493,
+  "audio_played": false,
+  "mac_paired": false,
+  "modulate_model_calls": 0,
+  "limits": "One live trial. Latency excludes Muse interpretation, credential entry and approvals. Muse chat completion tracked separately."
+}

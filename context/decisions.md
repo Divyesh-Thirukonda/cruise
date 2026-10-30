@@ -417,3 +417,14 @@ adapter; universal internet driver discovery/creation and USB discovery are not
 implemented by this change. Preserve required physical isolation and power-cycle
 confirmations. Keep healthy setup idempotent and failed automatic work from
 repeating across restarts.
+
+
+## October 30 — private Muse speaker connector
+
+Use Muse's documented custom-connector flow with a small OpenAPI API for actual
+Pi speaker read/set, rather than publishing a directory integration. Issue a
+speaker-only sealed credential from an already authenticated browser; retain its
+eight-hour maximum and immediate parent-session/speaker-permission revocation.
+No native Mac or private content access is included. The user explicitly approved
+storing that credential in Muse's secure store and testing 80%. No token belongs
+in chat, URLs, source or evidence. See `muse-connector.md`.

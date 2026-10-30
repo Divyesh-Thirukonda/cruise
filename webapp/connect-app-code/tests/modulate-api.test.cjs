@@ -280,3 +280,36 @@ test('speaker link uses authenticated CSRF issuance and remains speaker scoped',
   global.fetch = async () => response({ connected: true, expires_at: expiry, permissions: { speaker: false } });
   assert.equal((await run(gateway, req('speaker-link', 'POST', {}))).statusCode, 403);
 });
+
+function commandWav(samples=16000) {
+  const wav=Buffer.alloc(44+samples*2);
+  wav.write('RIFF');wav.writeUInt32LE(wav.length-8,4);wav.write('WAVEfmt ',8);
+  wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);wav.writeUInt16LE(1,22);
+  wav.writeUInt32LE(16000,24);wav.writeUInt32LE(32000,28);wav.writeUInt16LE(2,32);
+  wav.writeUInt16LE(16,34);wav.write('data',36);wav.writeUInt32LE(samples*2,40);
+  return wav;
+}
+test('Muse ASR forwards only canonical bounded audio to the fixed authenticated endpoint',async()=>{
+  global.fetch=async(...args)=>{calls.push(args);return response({transcript:'Make a game.',audioDurationMs:1000,private:'omit me'});};
+  const result=await run(provider,cloud('transcribe',{wav:commandWav().toString('base64')}));
+  assert.equal(result.statusCode,200);assert.deepEqual(result.body,{model:'muse-voice-transcribe-1.0',transcript:'Make a game.',audioDurationMs:1000});
+  assert.equal(calls[0][0],'https://api.meta.ai/v1/asr/transcribe');
+  assert.equal(calls[0][1].headers.Authorization,'Bearer meta-test-only');
+  assert.equal(calls[0][1].headers['Content-Type'],undefined);
+  const settings=JSON.parse(await calls[0][1].body.get('request').text());
+  assert.equal(settings.mode,'PUSH_TO_TALK');assert.deepEqual(settings.keywords,['Modulate','Meta']);
+});
+test('Muse ASR rejects malformed, oversized and injected uploads before provider dispatch',async()=>{
+  const wrong=commandWav();wrong.writeUInt32LE(48000,24);
+  for(const body of [{wav:'***'},{wav:wrong.toString('base64')},{wav:commandWav(400001).toString('base64')},{wav:commandWav().toString('base64'),endpoint:'https://other'}]) {
+    assert.equal((await run(provider,cloud('transcribe',body))).statusCode,400);
+  }
+  assert.equal(calls.length,0);
+});
+test('Muse ASR discards malformed provider text and duration, without retry',async()=>{
+  for(const body of [{transcript:'x'.repeat(2001),audioDurationMs:1000},{transcript:'hello',audioDurationMs:0},{transcript:'hello',audioDurationMs:NaN}]) {
+    global.fetch=async(...args)=>{calls.push(args);return response(body);};
+    assert.equal((await run(provider,cloud('transcribe',{wav:commandWav().toString('base64')}))).statusCode,502);
+  }
+  assert.equal(calls.length,3);
+});

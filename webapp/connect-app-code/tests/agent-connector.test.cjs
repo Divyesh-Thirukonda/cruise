@@ -35,11 +35,11 @@ test('public Modulate schema includes task operations and the existing approved 
  assert.deepEqual(Object.keys(data.paths),['/api/modulate-agent','/api/modulate-muse']);assert.equal(calls.length,0);
 });
 test('request dispatch returns immediately and projects only owned job fields',async()=>{
- const result=await handler(request('POST',{request_id:id,text:'Make an original game'},'device',''));
+ const result=await handler(request('POST',{request_id:id,text:'Make an original game',followup_id:null},'device',''));
  const data=await result.json();assert.equal(result.status,200);assert.equal(data.running,true);assert.equal(data.job_id,job);assert.equal(data.private,undefined);assert.equal(data.events,undefined);
  assert.equal(calls[0][0],'https://synthetic.example/connector-request');
  assert.equal(calls[0][1].headers['X-Modulate-Session'],session);
- assert.deepEqual(JSON.parse(calls[0][1].body),{request_id:id,text:'Make an original game'});
+ assert.deepEqual(JSON.parse(calls[0][1].body),{request_id:id,text:'Make an original game',followup_id:null});
 });
 test('malformed requests cannot dispatch or choose arbitrary routes',async()=>{
  for(const body of [{request_id:id,text:'Hi',path:'/permissions'},{request_id:id,text:'Hi',followup_id:'bad'},{request_id:'bad',text:'Hi'},{request_id:id,text:''}])assert.equal((await handler(request('POST',body))).status,400);

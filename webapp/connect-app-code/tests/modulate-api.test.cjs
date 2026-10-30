@@ -33,6 +33,7 @@ beforeEach(() => {
   process.env.MODULATE_META_API_KEY = 'meta-test-only';
   process.env.MODULATE_ELEVENLABS_API_KEY = 'speech-test-only';
   delete process.env.VERCEL_URL;
+  delete process.env.MODULATE_DEVICE_DISCOVERY;
   calls = [];
   global.fetch = async (...args) => { calls.push(args); return response({ connected: false, permissions: {}, companion: { name: 'Modulate', online: true, platform: 'darwin' } }); };
 });
@@ -164,6 +165,42 @@ test('origin redirects are never followed and network errors disclose no URL', a
   global.fetch = async () => { throw new Error('secret https://companion.example failed'); };
   const result = await run(gateway, req('state'));
   assert.equal(result.statusCode, 502); assert.ok(!JSON.stringify(result.body).includes('companion.example'));
+});
+test('a stale tunnel read refreshes discovery once and retains the existing session', async () => {
+  const registry = require('../server/device-registry.cjs');
+  const saved = registry.resolve;
+  const resolutions = [];
+  process.env.MODULATE_DEVICE_DISCOVERY = '1';
+  registry.resolve = async (secret, force) => {
+    resolutions.push(Boolean(force));
+    return force ? 'https://new.trycloudflare.com' : 'https://old.trycloudflare.com';
+  };
+  global.fetch = async (url, options) => {
+    calls.push([url, options]);
+    return url.includes('old.') ? response('Unavailable', 530) : response({ device: { connected: true } });
+  };
+  try {
+    const result = await run(gateway, req('state'));
+    assert.equal(result.statusCode, 200);
+    assert.deepEqual(resolutions, [false, true]);
+    assert.equal(calls.length, 2);
+    assert.ok(calls.every(([, options]) => options.headers['X-Modulate-Session'] === SESSION));
+    assert.equal(calls[1][0], 'https://new.trycloudflare.com/state');
+  } finally { registry.resolve = saved; }
+});
+test('a timed-out command is never replayed after a tunnel change', async () => {
+  const registry = require('../server/device-registry.cjs');
+  const saved = registry.resolve;
+  const resolutions = [];
+  process.env.MODULATE_DEVICE_DISCOVERY = '1';
+  registry.resolve = async (secret, force) => { resolutions.push(Boolean(force)); return 'https://old.trycloudflare.com'; };
+  global.fetch = async (...args) => { calls.push(args); throw new Error('Unknown action outcome'); };
+  try {
+    const result = await run(gateway, req('command', 'POST', { path: '/api/request', payload: { text: 'Test' } }));
+    assert.equal(result.statusCode, 502);
+    assert.equal(calls.length, 1);
+    assert.deepEqual(resolutions, [false]);
+  } finally { registry.resolve = saved; }
 });
 test('request bodies have bounded size', async () => {
   const result = await run(gateway, req('command', 'POST', { path: '/api/request', payload: { text: 'a'.repeat(256 * 1024) } }));

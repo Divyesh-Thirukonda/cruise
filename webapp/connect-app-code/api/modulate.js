@@ -56,14 +56,31 @@ function config() {
 async function forward(path, method, body, session) {
   const secret = process.env.MODULATE_REMOTE_SECRET;
   const dynamic = process.env.MODULATE_DEVICE_DISCOVERY === '1';
-  const origin = dynamic ? await require('../server/device-registry.cjs').resolve(secret) : config().origin;
+  const registry = dynamic ? require('../server/device-registry.cjs') : null;
+  const origin = dynamic ? await registry.resolve(secret) : config().origin;
   const headers = { Authorization: `Bearer ${secret}`, Accept: path.startsWith('/preview') ? 'image/png' : 'application/json' };
   if (session) headers['X-Modulate-Session'] = session;
   if (body !== undefined) headers['Content-Type'] = 'application/json';
-  const response = await fetch(origin + path, {
+  const send = destination => fetch(destination + path, {
     method, headers, body: body === undefined ? undefined : JSON.stringify(body),
     redirect: 'error', signal: AbortSignal.timeout(20000),
   });
+  let response;
+  try {
+    response = await send(origin);
+  } catch (error) {
+    if (!dynamic || method !== 'GET') throw error;
+  }
+  // Only reads may recover against a replacement, identity-proven tunnel.
+  // A command timeout can mean the action already happened: never replay POST.
+  if (dynamic && method === 'GET' && (!response || [502, 503, 504, 530].includes(response.status))) {
+    const replacement = await registry.resolve(secret, true);
+    if (replacement !== origin) {
+      await response?.body?.cancel();
+      response = await send(replacement);
+    }
+  }
+  if (!response) throw new HttpError(503, 'Modulate is reconnecting. Keep it powered and on Wi-Fi.');
   const bytes = await boundedBytes(response, path.startsWith('/preview') ? 1024 * 1024 : 4 * 1024 * 1024);
   return { response, bytes };
 }

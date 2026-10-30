@@ -41,7 +41,7 @@
     },
     {
       "path": "api/modulate.js",
-      "sha256": "fdb8af4caf8d4afeefc7322493f9a4092e7e050b57ee56a42ef68eb97875a58b",
+      "sha256": "fd10956cb539f6fcb91a6f095aa5b311d5f8684d0bdcee8e968ee28eca7a0a67",
       "source_sha256": "c2848958c2d8c6a8e01e1b42c5634b222e650f9f5792573578b2f4e82d4f0924"
     },
     {
@@ -56,7 +56,7 @@
     },
     {
       "path": "tests/modulate-api.test.cjs",
-      "sha256": "e492500f68c9b83af81a2a12f6fec982d5161c152a7fa7f162752eb5d35d8872",
+      "sha256": "bff3cdd74d21a3283c02c88786ec909896d6dc5520e1667193ccbaab9b45abcd",
       "source_sha256": "f5aef417faa673c62ba6150a1f4043d6c317aba48a9150a72b0abb6e6d6f4243"
     }
   ],

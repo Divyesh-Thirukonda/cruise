@@ -28,11 +28,10 @@ export function ConnectionLanding({ loading, busy, notice, onDismissNotice, conn
     <div className="mf-intro"><span className="mf-kicker">A NEW IDEA. THE SAME DEVICE.</span><h1>What will yours<br />become?</h1><p>A game. A music controller. Something only you imagined.<br className="mf-desktop-break" /> Connect Modulate, then say what you want to make.</p><GadgetIllustration /></div>
     <section className="mf-connect-panel" aria-labelledby="mf-connect-title">
       <div className="mf-step-label">LET’S GET CONNECTED</div><h2 id="mf-connect-title">Your Modulate, right here.</h2>
-      <div className="mf-setup-link"><strong>First time? Set up your Mac first.</strong><span>Your agent prepares the connection, then brings you back here.</span><Link href="/connect/setup" onClick={event => { event.preventDefault(); navigate('setup'); }}>Set up your Mac<ArrowRight size={15} /></Link></div>
+      <div className="mf-setup-link"><span>First time?</span> <Link href="/connect/setup" onClick={event => { event.preventDefault(); navigate('setup'); }}>Set up your Mac</Link></div>
       <form onSubmit={onConnect}>
         <label htmlFor="mc-connect-code">Back from setup? Enter your connection code</label>
-        <div className="mf-code-field"><KeyRound size={20} /><input id="mc-connect-code" autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{8}" placeholder="00000000" value={code} maxLength={8} onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 8))} aria-describedby="mf-code-hint" disabled={loading || Boolean(busy)} required /></div>
-        <span id="mf-code-hint" className="mf-field-hint">Use the 8-digit browser connection code shown at the end of setup.</span>
+        <div className="mf-code-field"><KeyRound size={20} /><input id="mc-connect-code" autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{8}" placeholder="00000000" value={code} maxLength={8} onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 8))} disabled={loading || Boolean(busy)} required /></div>
         {connectionUnavailable && !notice && <ConnectionUnavailable onSetup={() => navigate('setup')} />}
         <Notice notice={notice} onDismissNotice={onDismissNotice} onSetup={() => navigate('setup')} />
         <Button primary type="submit" disabled={loading || code.length !== 8 || Boolean(busy)} icon={loading || busy === 'connect' ? Loader2 : undefined}>{loading ? 'Connecting' : busy === 'connect' ? 'Connecting…' : 'Connect to Modulate'}{!loading && busy !== 'connect' && <ArrowRight size={17} />}</Button>

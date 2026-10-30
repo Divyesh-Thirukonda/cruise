@@ -155,7 +155,7 @@ export default function Connect() {
     if (!voiceDraftEditing || voiceDraftId !== draftIdRef.current) setDraftText(voiceDraftText);
     draftIdRef.current = voiceDraftId;
   }, [voiceDraftId, voiceDraftText, voiceDraftEditing]);
-  useEffect(() => { setPreviewError(false); }, [state?.active?.revision, state?.preview_version, permissions.remote_preview]);
+  useEffect(() => { setPreviewError(false); }, [state?.active?.revision, state?.preview_version, permissions.remote_preview, deviceConnected]);
   useEffect(() => { if (state?.paired && pairing) setPairing(null); }, [state?.paired, pairing]);
   useEffect(() => {
     if (!pairing) return;

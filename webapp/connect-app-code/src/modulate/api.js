@@ -2,6 +2,7 @@ const BASE = '/api/modulate';
 let csrfToken = null;
 
 export async function connectApi(action, payload, { signal } = {}) {
+  if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
   const mutating = payload !== undefined;
   if (mutating && !csrfToken) await connectApi('session');
   const controller = new AbortController();
@@ -30,7 +31,13 @@ export async function connectApi(action, payload, { signal } = {}) {
   if (data.csrfToken) csrfToken = data.csrfToken;
   return data;
   } catch (error) {
-    if (error.name === 'AbortError') throw new Error('The companion did not respond in time. Please try again.');
+    if (signal?.aborted) throw error;
+    if (action === 'command' && (!error.status || error.status >= 500)) {
+      const uncertain = new Error('The connection dropped before confirmation. The action may already have run. Check activity and device state before sending it again.');
+      uncertain.status = error.status;
+      throw uncertain;
+    }
+    if (error.name === 'AbortError') throw new Error('Modulate did not respond in time. The dashboard will keep checking the connection.');
     throw error;
   } finally {
     clearTimeout(timer);

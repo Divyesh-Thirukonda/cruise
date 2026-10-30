@@ -400,3 +400,20 @@ A network-address change can reconnect the installed Mac helper within an existi
 
 - Let Meta choose semantically suitable saved apps and recognize edits already satisfied by current source. Preserve actual verification, capability checks and acknowledgement. Log model/tool duration to locate latency; no artificial processing pause or prewritten current-email answer.
 - Repeat/local timing trials meet the 15-second target in this small sample; fresh generation/editing and Mac tasks need separate timing. Do not call this a measured 75% reliability result. Physical pairing remains required before native Mac tests.
+
+
+## 2026-10-30 — Readiness-aware component setup
+
+The user requested autonomous setup when a new component appears or a requested
+component is unusable. Discover I²C responders in the background, distinguish
+identity from presence, and expose only read-backed runtime capabilities as ready.
+A bounded, persisted automatic Meta attempt may diagnose, reinitialize or install
+an identity-verified catalog pack. Discovery never grants app replacement, native
+computer actions or address writes. Explicit app requests resume with verified
+capabilities; Meta chooses mappings without fixed component roles.
+
+Unknown boards still need identifying information and a trusted driver/input
+adapter; universal internet driver discovery/creation and USB discovery are not
+implemented by this change. Preserve required physical isolation and power-cycle
+confirmations. Keep healthy setup idempotent and failed automatic work from
+repeating across restarts.

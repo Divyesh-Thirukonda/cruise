@@ -269,3 +269,15 @@ fixed; a missing gateway is a visible incomplete step, not a successful web link
 The current speech provider is local Meta MMS English VITS in an isolated, persistent CPU worker. The existing in-memory 24 kHz PCM contract, delivery digest, mic pause, cancellation and physical stop remain. Provider identity is carried separately from the exact audio descriptor and appears as `meta_mms/paplay` in device telemetry. Historical ElevenLabs ledger state is retained but MMS does not reserve characters. See [pinned weights, license, bounds and live timings](meta-mms.md).
 
 An authenticated browser state response adds only the currently pending Mac comparison code. Public session metadata and model/tool context never contain it. Reading the code cannot approve native access; the Pi small-A action remains the only authorization path. The normal comparison UI is the Vercel setup page. The native AppKit Modulate app owns the optional helper and presents human-operated OS permission controls; its child helper retains the pinned LAN link, eight-hour pairing, sequence consumption and lease watchdog.
+
+
+## Background component setup
+
+The trusted Pi hardware worker refreshes the observed I²C inventory about every
+15 seconds. A readiness-aware component list enters Meta context and capabilities;
+unknown addresses never add runtime control IDs. A persistent, debounced host
+scheduler may start one setup attempt for a new unready component, gated by hardware
+permission and idle state. The restricted component-setup agent has at most eight
+model calls and only inspection, verified catalog installation, reinitialization
+and necessary human questions. No app replacement, native actions or address writes
+are authorized by discovery. See [scope and live trial](component-setup.md).

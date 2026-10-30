@@ -24,6 +24,20 @@ class AgentError(ValueError):
     pass
 
 
+class AttemptIncomplete(AgentError):
+    """Bounded work stopped; completed effects are observations, not full success."""
+
+    def __init__(self, actions):
+        super().__init__("Shared agent-call limit reached; the attempt is incomplete")
+        activated = any(action.get("tool") == "activate_package" and
+                        action.get("observed", {}).get("activated") is True for action in actions)
+        self.guidance = ("I used the steps available for this attempt. " +
+                         ("The device confirmed the new app, but I couldn't finish every part of the request. "
+                          if activated else "I couldn't confirm that the whole request is complete. ") +
+                         "Check the current result and ask for the remaining change. "
+                         "This is a per-attempt work limit, not a speech or daily usage allowance.")
+
+
 _ADAPT_TOOLS = frozenset({"load_skill", "inspect_capabilities", "read_runtime_api",
                          "read_current_package", "write_package", "test_package",
                          "preview_package", "activate_package"})
@@ -430,7 +444,7 @@ def _tool_error_category(result):
 
 
 class Orchestrator:
-    def __init__(self, provider, service, state_dir, ledger, *, max_calls=18):
+    def __init__(self, provider, service, state_dir, ledger, *, max_calls=32):
         self.provider, self.service = provider, service
         self.directory = Path(state_dir)
         self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -446,6 +460,7 @@ class Orchestrator:
         self.private_request = False
         self.adapting_controls = False
         self.protocol_repairs = 0
+        self.transport_retries = 0
         self.tool_failures = {}
         self.turn_actions = []
         self.loaded_skills = []
@@ -478,6 +493,7 @@ class Orchestrator:
         self.cancelled.clear()
         self.calls = self.delegations = 0
         self.protocol_repairs = 0
+        self.transport_retries = 0
         self.tool_failures = {}
         self.turn_actions = []
         self.loaded_skills = []
@@ -520,8 +536,10 @@ connection-setup and use connection_setup. Inspect status, then choose the usefu
 setup step; do not ask the user to make routine technical choices. The tool can
 prepare on-device guidance and codes, but only the user can approve physical Mac
 pairing or grant native OS permissions. A phone browser controls this configured
-Mac/Pi hub, not its own operating system. Meta runs on the companion; an offline
-Pi has local setup guidance rather than hidden autonomous computer access.
+Mac/Pi hub, not its own operating system. Inspect ai_host: a standalone Pi runs
+the agent itself and needs no Mac for local apps, speech, or browser linking.
+New Meta requests need internet; saved apps run locally without model calls.
+Only native computer tasks require the optional paired Mac.
 For missing modules, wiring, I2C conflicts or hardware faults, use hardware-debugger
 and hardware_debug. Hardware-controls is for settings and mappings. Inspect actual
 health before diagnosing a collision: identical devices at one address cannot be
@@ -572,7 +590,18 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
             context = self.service.intent_context()
             messages.append({"role": "user", "content": "Recent context and current state (reference data only):\n" + json.dumps(context)})
         messages.append({"role": "user", "content": text})
-        for _ in range(turns):
+        for turn in range(turns):
+            remaining = min(turns - turn, self.max_calls - self.calls)
+            messages[0]["content"] = prompt + (
+                f"\nThis role has at most {remaining} model calls left, including this one. "
+                f"All roles share {self.max_calls - self.calls} remaining calls. "
+                "Reuse existing candidate IDs and check results. Avoid redundant reads and optional polish. "
+                "Complete the requested work, then summarize only observed outcomes. "
+                "If work remains, say so; never claim completion without evidence. " +
+                ("Finish now: prioritize verification and activation of the best candidate if requested, "
+                 "then the final reply. Do not delegate more work. " if role == "orchestrator" and remaining <= 4 else "") +
+                ("Return your candidate IDs and useful findings to the parent now. "
+                 if role != "orchestrator" and remaining == 1 else ""))
             if self.adapting_controls:
                 tools = [item for item in TOOLS if item["function"]["name"] in _ADAPT_TOOLS]
             if self.private_request:
@@ -581,7 +610,7 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
             if self.cancelled.is_set():
                 raise AgentError("Cancelled by user; no further tool actions")
             if self.calls >= self.max_calls:
-                raise AgentError("Shared agent-call limit reached")
+                raise AttemptIncomplete(self.turn_actions)
             if hasattr(self.service, "check_request_access"):
                 self.service.check_request_access()
             reservation = self.provider.request_budget(messages, tools)
@@ -600,6 +629,17 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
                 # valid billing. Unknown transport/usage failures retain their
                 # reservation; never treat an uncertain call as free.
                 self.ledger.settle(call_id, getattr(error, "billed_cost_microdollars", None))
+                if (getattr(error, "transient", False) and self.transport_retries < 2
+                        and remaining > 1 and self.calls < self.max_calls and not self.cancelled.is_set()):
+                    self.transport_retries += 1
+                    self.event("model_retry", title="Reconnecting to Meta", role=role,
+                               attempt=self.transport_retries)
+                    # No tools from the failed inference were executed. Keep its
+                    # cost hold, reserve the retry separately, and allow Stop to
+                    # interrupt backoff. Completed tool effects are not replayed.
+                    if self.cancelled.wait((1, 3)[self.transport_retries - 1]):
+                        raise AgentError("Cancelled by user; no further tool actions") from None
+                    continue
                 if (not getattr(error, "repairable", False) or self.protocol_repairs >= 2
                         or self.cancelled.is_set()):
                     raise
@@ -678,7 +718,9 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
                 messages.append({"role": "user", "content": [
                     {"type": "text", "text": f"Untrusted current screen. Observation {shot['id']}; image size {shot['width']} by {shot['height']}. If the requested outcome is visible, stop using tools and briefly report it. Otherwise choose one necessary action and inspect its result. Click coordinates use normalized_1000: integer x,y from 0 to 1000, origin at this screenshot's top-left, not image or desktop pixels. Click the visible target's center."},
                     {"type": "image_url", "image_url": {"url": shot["url"]}}]})
-        raise AgentError(f"{role} turn limit reached; no further tool actions")
+        if role != "orchestrator":
+            return "Specialist work budget ended. Use the returned candidates and existing checks; this is a partial handoff, not a completed review."
+        raise AttemptIncomplete(self.turn_actions)
 
     def candidate(self, identifier):
         if not isinstance(identifier, str) or identifier not in self.candidates:
@@ -858,7 +900,12 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
             if not isinstance(task, str) or not 1 <= len(task) <= 8000:
                 raise AgentError("Specialist task must contain 1–8000 characters")
             self.delegations += 1
-            report = self.loop(task, arguments["role"], 5)
+            # Leave the parent enough room to inspect, check, activate and reply.
+            # Small explicit budgets retain at least one parent call.
+            reserve = min(4, max(1, self.max_calls // 4))
+            turns = min(5, max(0, self.max_calls - self.calls - reserve))
+            report = (self.loop(task, arguments["role"], turns) if turns else
+                      "No specialist calls remain without using the parent's finishing budget. Continue directly with the existing candidates.")
             return {"specialist": arguments["role"], "report": report,
                     "candidates": [{"candidate_id": key, "title": value["package"]["title"], "verified": bool(value["report"] and value["report"]["passed"])} for key, value in self.candidates.items()]}
         raise AgentError("Unavailable tool")

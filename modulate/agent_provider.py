@@ -71,10 +71,13 @@ class AgentProviderError(RuntimeError):
     authorizes executing that output or automatically retrying a request.
     """
 
-    def __init__(self, message, *, billed_cost_microdollars=None, repairable=False):
+    def __init__(self, message, *, billed_cost_microdollars=None, repairable=False, transient=False):
         super().__init__(message)
         self.billed_cost_microdollars = billed_cost_microdollars
         self.repairable = repairable
+        # Only inference transport may be retried. This never permits replaying
+        # an already dispatched tool, or releasing an unknown-cost reservation.
+        self.transient = transient
 
 
 ProviderError = AgentProviderError
@@ -453,9 +456,12 @@ class AgentProvider:
         except urllib.error.HTTPError as error:
             status = error.code if type(error.code) is int else "unknown"
             error.close()
-            raise AgentProviderError(f"Provider request failed (HTTP {status}).") from None
-        except (urllib.error.URLError, OSError, ValueError):
-            raise AgentProviderError("Provider request failed or timed out.") from None
+            raise AgentProviderError(f"Provider request failed (HTTP {status}).",
+                                     transient=status in {429, 502, 503, 504}) from None
+        except (urllib.error.URLError, OSError):
+            raise AgentProviderError("Provider request failed or timed out.", transient=True) from None
+        except ValueError:
+            raise AgentProviderError("Provider request configuration is invalid.") from None
         if len(body) > MAX_RESPONSE_BYTES:
             raise AgentProviderError("Provider response exceeds the size limit.")
         result = _loads(body, "provider response")

@@ -196,7 +196,7 @@ class HardwareDevice:
         except Exception:
             pass
         while True:
-            self._wake.wait()
+            signalled = self._wake.wait(5)
             with self._lock:
                 self._wake.clear()
                 if self._closed:
@@ -204,6 +204,13 @@ class HardwareDevice:
                 pending, self._pending = self._pending, None
             if pending is not None:
                 self._execute(*pending)
+            elif not signalled:
+                try:
+                    # Only known, identity-checking drivers are reopened; no
+                    # EEPROM/address writes or model calls. Outside frame loop.
+                    self.controls.hardware_reinitialize(refresh_missing=True)
+                except Exception:
+                    pass
 
     def _execute(self, command, generation):
         report = {}

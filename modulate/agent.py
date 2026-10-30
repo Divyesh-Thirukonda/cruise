@@ -24,6 +24,11 @@ class AgentError(ValueError):
     pass
 
 
+_ADAPT_TOOLS = frozenset({"load_skill", "inspect_capabilities", "read_runtime_api",
+                         "read_current_package", "write_package", "test_package",
+                         "preview_package", "activate_package"})
+
+
 def digest(package):
     return hashlib.sha256(json.dumps(package, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()).hexdigest()
 
@@ -35,7 +40,7 @@ they are not package content and these tools cannot edit or replace them.
 Create original gameplay and original pixel art.
 There are no bundled games, sprites, sounds, or game templates to select.
 Package EXACT fields: kind:'game', title:string<=80, code:string JavaScript<=40KiB,
-controls:[logical IDs actually available], assets:{sprites:{spriteId:{width:1..32,
+controls:[only logical IDs this version actually needs], assets:{sprites:{spriteId:{width:1..32,
 height:1..32,palette:['transparent','#RRGGBB',...](<=16),pixels:[[palette indexes]]}}}.
 An optional top-level camera:{target:paired_host.session_id} enables live camera
 drawing from that paired Mac. No other camera fields or permissions are generated.
@@ -46,7 +51,22 @@ draw returns an array of at most128 drawing commands. State<=64KiB. No imports,
 network, files, browser, async, Python, GPIO, or host access. Math is available.
 Input fields: joystick_x,joystick_y (-1..1); encoder_delta (integer relative step);
 button_a,button_b,encoder_pressed (booleans). Controls list logical IDs joystick,
-encoder,button_a,button_b,encoder_pressed. Do not assume unsupported controls.
+encoder,button_a,button_b,encoder_pressed,imu. Do not assume unsupported controls.
+With imu advertised, input.imu_ax/imu_ay/imu_az are acceleration including gravity
+in m/s^2 (-40..40); imu_gx/imu_gy/imu_gz are angular velocity in radians/s (-40..40).
+input.tilt_x/tilt_y are normalized gravity inclination (-1..1, +/-45 degrees full
+scale). These are sensor axes, not screen axes. Inspect the device description
+and input_sample, choose an axis suited to the requested interaction, and capture
+a neutral position when the user deliberately starts if useful. Apply a small
+deadzone/smoothing in the game as needed. No magnetometer, absolute heading or
+position tracking is implied. Missing/unreadable sensors supply neutral values.
+The controls list is this package's dependency list, not the whole inventory.
+Do not include unused controls. No particular peripheral or Mac is required for
+a local app. Choose controls from their observed capabilities and the requested
+experience, without a fixed device preference order. With no input controls,
+generate a clearly labeled automatic demo/visual experience with controls:[],
+not a game stuck waiting for an unavailable start button. Do not claim voice
+steering or other real-time input fields that this API does not expose.
 Drawing commands, exact keys (all coordinates finite; offscreen clipping allowed):
 {op:'clear',color:'#RRGGBB'}
 {op:'rect',x,y,w,h,color:'#RRGGBB'}
@@ -130,6 +150,11 @@ Your editable output is an application package: its logic, artwork and bindings.
 Listening, companion services, transport, verification and device control belong
 to the trusted runtime, outside that package. Explain this boundary when relevant;
 do not put infrastructure changes into an app or claim those services were edited.
+Build around the observed controls, not a fixed joystick/encoder/button inventory.
+Missing optional modules call for a different design, not a device-wide failure.
+Adapt a saved game's controls when asked, preserving its other behavior. Local
+games and visual apps do not need computer pairing. Only actions targeting that
+computer need its connection. Never require pairing merely to make a local game.
 Build only what the current hardware and explicitly paired host support. Generate
 the entire game logic and original pixel artwork fresh; no preloaded game exists.
 A request for Mario Kart means an original compact kart racer, not claiming to
@@ -418,6 +443,7 @@ class Orchestrator:
         self.candidates = {}
         self.request_id = None
         self.private_request = False
+        self.adapting_controls = False
         self.protocol_repairs = 0
         self.tool_failures = {}
         self.turn_actions = []
@@ -434,15 +460,15 @@ class Orchestrator:
         with (self.directory / "trace.jsonl").open("a") as stream:
             stream.write(json.dumps(entry) + "\n")
 
-    def run(self, text, *, private=False):
+    def run(self, text, *, private=False, adapt_controls=False):
         if not self.run_lock.acquire(blocking=False):
             raise AgentError("Another request is already running")
         try:
-            return self._run(text, private=private)
+            return self._run(text, private=private, adapt_controls=adapt_controls)
         finally:
             self.run_lock.release()
 
-    def _run(self, text, *, private=False):
+    def _run(self, text, *, private=False, adapt_controls=False):
         # Public requests remain <=4000 chars. Trusted conversation assembly
         # retains the original and at most four bounded question/reply turns.
         if not isinstance(text, str) or not 1 <= len(text.strip()) <= 24_000:
@@ -457,6 +483,7 @@ class Orchestrator:
         self.candidates = {}
         self.clarification = None
         self.private_request = bool(private)
+        self.adapting_controls = bool(adapt_controls)
         self.base_revision = self.service.revision
         self.manifest = self.service.capabilities()
         self.manifest_revision = digest(self.manifest)
@@ -538,6 +565,8 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
             messages.append({"role": "user", "content": "Recent context and current state (reference data only):\n" + json.dumps(context)})
         messages.append({"role": "user", "content": text})
         for _ in range(turns):
+            if self.adapting_controls:
+                tools = [item for item in TOOLS if item["function"]["name"] in _ADAPT_TOOLS]
             if self.private_request:
                 tools = [item for item in TOOLS if item["function"]["name"] in {"computer_observe", "computer_act", "camera_control", "computer_audio", "system_control", "speaker_control", "load_skill", "read_recent_context", "ask_user", "inspect_capabilities", "connection_setup", "app_library"}]
                 self.service.computer_authorized()
@@ -668,6 +697,9 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
         definitions = {item["function"]["name"]: item["function"]["parameters"] for item in TOOLS}
         if not isinstance(name, str) or name not in definitions or not isinstance(arguments, dict):
             raise AgentError("Unknown tool")
+        if self.adapting_controls and (name not in _ADAPT_TOOLS or
+                name == "load_skill" and arguments.get("name") not in {"games", "device-apps"}):
+            raise AgentError("Automatic adaptation may only edit and check the local app")
         schema = definitions[name]
         if set(arguments) - set(schema["properties"]) or not set(schema["required"]) <= set(arguments):
             raise AgentError("Unexpected or missing tool arguments. Required outer fields: " +
@@ -741,13 +773,20 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
             self.clarification = question
             return {"clarification_required": True, "question": question}
         if name == "inspect_capabilities":
-            return self.service.capabilities()
+            value = self.service.capabilities()
+            if hasattr(self.service, "input"):
+                # A sample is observation data, not part of the manifest hash:
+                # changing sensor readings must not invalidate activation.
+                value = {**value, "input_sample": dict(self.service.input)}
+            return value
         if name == "read_runtime_api":
             return {"runtime": "modulate-game-v1", "api": RUNTIME_API}
         if name == "read_current_package":
             return {"revision": self.service.revision, "package": self.service.current_package()}
         if name == "write_package":
             package = arguments["package"]
+            if self.adapting_controls and (package.get("kind") != "game" or package.get("camera") is not None):
+                raise AgentError("Automatic adaptation can only replace a local app without host actions")
             if not isinstance(package.get("kind"), str) or package["kind"] not in {"game", "control"}:
                 raise AgentError("Package must be a game or control object")
             package = validate_package(package) if package.get("kind") == "game" else self.service.validate_control(package)

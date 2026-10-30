@@ -424,7 +424,7 @@ class HardwareDebugTests(unittest.TestCase):
         self.pi.close()
         bus = Bus()
         factories = [patch("modulate.controls." + name, side_effect=OSError("synthetic missing driver"))
-                     for name in ("_open_encoder", "_open_joystick", "_open_external_buttons")]
+                     for name in ("_open_encoder", "_open_joystick", "_open_external_buttons", "open_imu")]
         for factory in factories:
             factory.start()
             self.addCleanup(factory.stop)

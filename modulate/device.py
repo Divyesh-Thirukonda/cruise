@@ -468,6 +468,8 @@ class Controller:
                                                        **{key: (self.build or {}).get(key) for key in
                                                           ("job_id", "job_sequence", "phase", "title")}},
                                         "display": dict(self.display_state),
+                                        "app": {key: self.state.get(key) for key in
+                                                ("suspended", "missing_controls", "suspension_reason")},
                                         "runtime": "physical", "error": self.state.get("error")}}
                 if self.state.get("failure"):
                     packet["failure"] = self.state["failure"]
@@ -1123,8 +1125,8 @@ class Controller:
                     self.status("Mac speaker", detail + "\nB: stop · Both buttons: talk")
                     self._displayed("computer_audio", "Mac speaker")
                 elif suspended:
-                    self.status("App saved", "A required control is missing\nSay Hey Meta:\nCheck my hardware", mode="error")
-                    self._displayed("hardware_missing", "App saved")
+                    self.status("Controls changed", "Your app is saved.\nSay Hey Meta:\nAdapt this app", mode="instructions")
+                    self._displayed("hardware_missing", "Controls changed")
                 elif self.host.get("agent_running") and not current.get("kind"):
                     self.status("Reinventing...", "Meta is building and testing\nFollow progress in Studio", mode="building")
                 elif success:

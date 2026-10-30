@@ -352,3 +352,9 @@ The earlier unverified camera/audio note above is superseded by fresh capture an
 stop telemetry in [the new evidence](evidence/mms-native-runtime.json). That trial
 does not establish physical camera-display/audio-playback quality or broad desktop
 reliability. No physical brightness-knob trial was performed in this session.
+
+## October 30 — capabilities determine app controls
+
+The user's product intent is standalone operation that adapts to connected hardware. A package's controls are its dependencies, not a fixed product inventory. Preserve a disconnected app while permitting an independently checked replacement. A suspended local game may trigger one debounced Meta adaptation per revision/control set, persisted before dispatch, with no privileged tools and existing ledger limits. A user request can always explicitly refine the interaction.
+
+Trusted drivers identify supported modules and expose bounded signals/units; Meta chooses the game's mapping from current capabilities and intent. No fixed joystick/encoder/IMU preference order. New module discovery makes capabilities available without silently redesigning a healthy app. LSM6DS3TR-C now exposes acceleration, angular velocity and gravity tilt; live samples remain outside manifest hashes. Unidentified hardware still needs a trusted driver/contract, and no absolute position/heading is implied. [Implementation and physical evidence](adaptive-controls.md).

@@ -940,3 +940,11 @@ Mac control enabled, MMS active and the $50 Meta ledger preserved ($11.734172).
 See [sanitized evidence](evidence/mms-native-runtime.json), [MMS](meta-mms.md) and
 [optional Mac operation](optional-mac.md).
 Temporary source-transfer and evidence-receiver servers were stopped after validation.
+
+## October 30 — connected controls, automatic adaptation and live IMU steering
+
+Fixed saved Orbit Catch's disconnected-joystick lockout: verified replacements can stage over a suspended app, with suspended-state rollback and preserved durable pointers. Added five-second stable-control adaptation with persisted attempt history, user/voice priority and local-package-only model tools. A live automatic Meta request preserved artwork and changed joystick + A to encoder + A (14.316 s, 7 calls, $0.099571); user confirmed physical knob play and an agent restart made no extra calls.
+
+Identified the connected LSM6DS3TR-C (`0x6A`, WHO_AM_I `0x6A`); the driver/input contract was missing. Reused MIT Adafruit LSM6DS 4.6.3 and Register 1.13.0. Added bounded acceleration/gyro/gravity-tilt input, read-backed availability, background supported-driver rediscovery and live sensor context for Meta. A typed live request generated IMU + A steering, calibrated on start, with dead zone/smoothing (20.487 s, 6 calls, $0.115248). User confirmed tilt controls the ship. No fixed device preference or preset mapping was used.
+
+Host: 1,089 tests, 13 skipped; Pi: 208 focused tests passed. Final game revision `15ec238a3ac61c887db52a9a5a4466475c6227c83d4a5836bc9a7a8f6083ee29`; no missing controls/error; agent/device/connect active; MMS delivered. Physical IMU unplug/replug remains untested; synthetic discovery checks are separate evidence. [Details, dependency attribution and trace](adaptive-controls.md).

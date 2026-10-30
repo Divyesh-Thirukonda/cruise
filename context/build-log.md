@@ -1012,3 +1012,19 @@ The installed Mac helper retained an unexpired pairing but was targeting a stale
 - Live controlled missing-driver trial: disabled the managed IMU import pointer, restarted services and submitted no repair request. The Pi detected missing IMU input, invoked Meta and restored verified motion readings in 18.34 s including startup, five model calls / $0.067437 charged/reserved. The cached pinned pack was reused. Baseline app state was already empty and stayed empty. This was not a physical hot-plug or a new network-download trial.
 - Restart retained readiness with zero extra model calls during 20 seconds. Host: 1130 tests, 13 skips; Pi: 232 broad focused tests, then 38 final focused checks. Website: 45 API tests, 40 UI tests and build; deployed detected-board/readiness view and verified it against the live Pi. Existing unrelated Muse work preserved.
 - Runtime c400c7b plus f5cd377 address-list cleanup; website 3c9c2c9. Detailed scope/evidence: context/component-setup.md and context/evidence/component-setup.json. Reused the existing pinned MIT Adafruit driver pack, trusted diagnostic worker and Meta API; no new third-party driver or asset added.
+
+
+## October 30 — Muse speaker connector
+
+Built and deployed a bounded speaker API, OpenAPI description and Device-page
+Connect Muse control. Added sealed, expiring speaker-only credentials and
+authorization checks before command delivery and while awaiting physical ack.
+Reused existing website discovery, authenticated Pi gateway and Pulse readback;
+no new paid dependency. Revision 717b38a: 1,133 Python checks (13 platform skips),
+35 focused Pi checks, 52 API checks, 41 UI checks and production build passed.
+Live HTTPS through the real tunnel verified 0 → 80 → 0, a fresh read of 80, and
+401 after temporary-parent revocation; one write took 0.493s, excluding Muse.
+No audio played, Mac pairing remained absent and the prior empty active app was
+retained. Muse created the custom connector and opened its secure API-key form;
+the user approved secure credential storage and a live Muse 80% trial. See
+`muse-connector.md` and `evidence/muse-speaker-connector.json` for scope/evidence.

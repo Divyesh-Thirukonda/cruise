@@ -23,7 +23,7 @@ export function GadgetIllustration() {
     <div className="mc-art-wire mc-art-wire-one" /><div className="mc-art-wire mc-art-wire-two" />
     <div className="mc-art-knob"><div /><span /></div>
     <div className="mc-art-device"><div className="mc-art-device-top"><span>MODULATE</span><span>01</span></div><div className="mc-art-screen"><AudioLines size={48} strokeWidth={1.3} /><span>Hey Meta.</span></div><div className="mc-art-device-bottom"><i /><span /><span /></div></div>
-    <div className="mc-art-button"><i /></div><div className="mc-art-caption"><span className="mc-dot" />One device. Your next idea.</div>
+    <div className="mc-art-button"><i /></div>
   </div>;
 }
 

@@ -789,3 +789,16 @@ All 93 focused setup/controller/presentation/connection tests passed locally, in
 new checks for late offers, native cancellation, idle fallback, continued local
 play and unavailable voice requests. This does not implement standalone AI:
 the current companion still runs orchestration, library and speech synthesis.
+
+
+Physical installation: staged the two runtime files and setup regression tests
+from commit `e4c84c0` onto the existing Pi base software. All 92 tests in that
+installed baseline passed before replacement (the local working tree has 93).
+Verified the service active/running with zero restarts and byte-identical
+protected enrollment/pairing/active-package state. Kept a source backup and
+closed the developer remote-shell session after maintenance. No model calls,
+new credentials or pairing were involved.
+
+The user physically confirmed: “Yes, Later and Cancel stay dismissed.” This
+confirms the dismissal paths on the mini screen; it does not demonstrate
+standalone AI or change the documented Mac-hosted orchestration limitation.

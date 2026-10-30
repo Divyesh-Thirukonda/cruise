@@ -30,9 +30,13 @@
 .mf-heading { margin-bottom: 34px; }
 .mf-heading h1 { font-size: clamp(36px, 4.2vw, 52px); }
 .mf-prompt-card { background: #1a202a; border: 1px solid #3a475c; border-radius: 16px; padding: 27px; }
+.mf-setup .mf-main > .mf-prompt-card + .mf-prompt-card,
+.mf-setup .mf-main > .mc-button + .mf-prompt-card { margin-top: 18px; }
 .mf-card-label { display: flex; gap: 12px; align-items: center; }
 .mf-mini-mark { width: 32px; height: 32px; display: grid; place-items: center; color: var(--mc-blue-text); background: var(--mc-blue-soft); border: 1px solid #2b5367; border-radius: 7px; font-size: 20px; }
 .mf-prompt-card > p { color: #b3c0d2; font-size: 15px; line-height: 1.8; margin: 20px 0 22px; max-width: 575px; }
+.mf-prompt-card > p:last-child { margin-bottom: 0; }
+.mf-prompt-card > .mf-comparison-code { font-size: clamp(24px, 6vw, 38px); letter-spacing: .2em; font-variant-numeric: tabular-nums; }
 .mf-prompt-card > .mc-button { min-height: 44px; font-size: 12px !important; }
 .mf-copy-hint { display: block; color: #8a9ab0; font-size: 10px; margin-top: 10px; }
 .mf-prompt-card details { margin-top: 22px; border-top: 1px solid #303b4d; padding-top: 16px; }

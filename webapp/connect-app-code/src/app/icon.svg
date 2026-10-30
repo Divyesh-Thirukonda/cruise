@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <rect width="256" height="256" rx="40" fill="#101113"/>
+  <title>Modulate</title>
+  <desc>Three identical solid modules with broad inward ends and equal seams. Each complete piece is rotated by exactly 120 degrees.</desc>
+  <defs><path id="module" d="M 98.00000 119.70171 L 98.00000 49.32051 Q 98.00000 49.32051 98.00000 49.32051 L 117.60770 38.00000 Q 128.00000 32.00000 138.39230 38.00000 L 200.74613 74.00000 Q 211.13844 80.00000 211.13844 92.00000 L 211.13844 130.96668 Q 211.13844 130.96668 211.13844 130.96668 L 131.46410 84.96668 Q 128.00000 82.96668 124.53590 84.96668 L 122.59808 86.08548 Q 120.00000 87.58548 120.00000 90.58548 L 120.00000 107.00000 Q 120.00000 111.00000 116.53590 113.00000 L 101.46410 121.70171 Q 98.00000 123.70171 98.00000 119.70171 Z"/></defs>
+  <g fill="white">
+    <use href="#module"/>
+    <use href="#module" transform="rotate(120 128 128)"/>
+    <use href="#module" transform="rotate(240 128 128)"/>
+  </g>
+</svg>

@@ -45,7 +45,7 @@
 .mc-brand-link { display: block; margin: 0 14px 31px; }
 .mc-brand { display: inline-flex; align-items: center; gap: 10px; font-size: 26px; font-weight: 650; letter-spacing: -.065em; }
 .mc-brand-period { color: var(--mc-blue); margin-left: -9px; }
-.mc-mark { display: block; width: 44px; height: 44px; flex: 0 0 44px; object-fit: contain; mix-blend-mode: screen; margin: -6px -3px -6px -6px; }
+.mc-mark { display: block; width: 44px; height: 44px; flex: 0 0 44px; object-fit: contain; margin: -6px -3px -6px -6px; }
 .mc-workspace { display: flex; align-items: center; gap: 9px; border: 1px solid #303237; background: #1b1c1f; border-radius: 8px; padding: 11px 9px; margin-bottom: 31px; }
 .mc-workspace-icon { display: grid; place-items: center; width: 33px; height: 34px; border-radius: 5px; color: #a5caff; background: #263347; }
 .mc-workspace > div { min-width: 0; flex: 1; }

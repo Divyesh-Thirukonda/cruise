@@ -384,3 +384,8 @@ A network-address change can reconnect the installed Mac helper within an existi
 - Meta decides semantic reuse from bounded saved-app metadata before generation; a saved launch retains trusted verification, capability checks and activation acknowledgement. Explicit new versions generate; edits refine. Report reuse honestly rather than fresh generation.
 - Present the latest saved revision per title by default while retaining all source, favorites, Trash and rollback history. Expose older versions explicitly on the website; do not destructively merge same-title packages.
 - Optimize computer-task round trips generically, retaining fresh observations and current access. Do not cache private answers or hardcode the demo script. The under-15-second target applies to measured runs, not a blanket performance claim.
+
+
+### Cloudflare activation
+
+- Wrangler authorization and live rotation succeeded. Dynamic Cloudflare discovery is active; the temporary direct-address mode is no longer used. Remove the legacy Blob dependency/fallback to prevent accidental future quota use. Temporary tunnel changes still take roughly a minute to recover in this trial.

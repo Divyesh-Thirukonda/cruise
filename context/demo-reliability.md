@@ -74,3 +74,19 @@ screen output, cabling during movement, or feel of steering. Internet/provider
 outages and temporary-tunnel DNS propagation remain external dependencies. Keep
 Orbit Catch available in App library as an honestly labeled saved-app fallback;
 restoring it does not require another model call.
+
+## Blob quota migration completed
+
+After the user reported paused Vercel Blob access and authorized Wrangler,
+deployed the address registry to Cloudflare Workers Free with a SQLite Durable
+Object. Vercel still hosts the website/provider gateway; the Pi owns the agent.
+Cloudflare stores only a tunnel origin/timestamp and uses a derived credential
+that cannot authenticate to the Pi. Removed the Blob dependency and fallback.
+
+A deliberate tunnel restart automatically registered the replacement after
+64.1 seconds. Website polling recovered after 58.93 seconds from its later watch
+start, retaining the same browser session and current Demo Circuit revision.
+This verifies automatic recovery, not uninterrupted service. No model call was
+needed. At the migration check the Mac session was expired; it needs physical
+confirmation before native computer actions. Physical voice/control checks were
+not repeated.

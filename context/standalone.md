@@ -41,11 +41,15 @@ existing TLS certificate before transfer. No SSH key was added. Provider API
 keys remain in Vercel; generated packages and browser code receive none.
 
 The total model ceiling stays **$50**. The user explicitly approved increasing
-the local speech ceiling from 5,000 to **10,000 input characters** after reaching
-4,984 reserved characters. `MODULATE_TTS_CHARACTER_LIMIT=10000` is loaded from the
+the local speech ceiling from 5,000 to 10,000, then explicitly requested
+**1,000,000 cumulative input characters** on October 30.
+`MODULATE_TTS_CHARACTER_LIMIT=1000000` is loaded from the
 private service env file; old reservations remain. The separately configured
 provider key's 5,000-credit cap and expiry are unchanged. Characters and provider
-credits are different accounting units. Never reset or raise either limit to
+credits are different accounting units. The local allowance is per persistent
+installation ledger across all replies and restarts, not per request or API key;
+it has no automatic monthly reset. Changing keys does not reset it. Individual
+spoken replies retain a separate 1,200-character input bound. Never reset or raise either limit to
 work around a failure.
 
 Before another migration, stop the sole current owner, preserve both ledgers,

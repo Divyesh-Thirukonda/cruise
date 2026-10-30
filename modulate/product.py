@@ -515,8 +515,10 @@ class Product(AssistantIO):
                         "After checking the connection and current result, should I try the original request once more?")
             if "question limit" in message:
                 return ("I still need a clearer goal. Please start a new request that says what should happen and which app or device to use.", None)
-            if "limit" in message or "same operation failed" in message:
-                return ("I tried to repair the request but reached the attempt limit. Your current app is still available; the details are in Studio.", None)
+            if "same operation failed" in message:
+                return ("That action kept failing, so I stopped retrying. This is an operation error, not a usage quota. Your current app is still available.", None)
+            if "limit" in message:
+                return ("I couldn't finish this request within one attempt. This isn't a daily request allowance; your current app is still available.", None)
         return ("An unexpected error stopped this request. Your active app is still available. Check Studio and describe what happened before starting a new request.", None)
 
     def request(self, text, source="website", followup_id=None, *, _library_entry=None):

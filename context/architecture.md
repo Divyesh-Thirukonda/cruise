@@ -25,7 +25,7 @@ Both cumulative spending ledgers moved intact from the stopped Mac agent.
 Standalone startup refuses missing, public, corrupt or previously migrated
 ledgers. Unknown-cost reservations remain held. The old Mac ledger is frozen to
 prevent independent spending from two copies. The approved speech input ceiling
-is now 10,000 characters; the model ceiling remains $50 total.
+is now 1,000,000 characters (explicitly raised October 30); the model ceiling remains $50 total.
 
 No Mac pairing is needed for local apps, conversations, speaker volume or browser
 linking. Speaker commands retain session/sink/epoch/revision and readback checks.

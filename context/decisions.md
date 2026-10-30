@@ -297,3 +297,14 @@ Mac pairing. A separate native Mac bridge is not yet connected. The dashboard
 still uses a development Quick Tunnel with a hostname that changes on restart;
 direct Pi AI is independent of it. Do not claim either limitation is solved.
 [Deployment, trials and safeguards](standalone.md).
+
+
+## 2026-10-30 — Increase cumulative speech allowance to one million
+
+The user explicitly requested 1,000,000 speech characters. Applied
+`MODULATE_TTS_CHARACTER_LIMIT=1000000` to the Pi's private service configuration,
+retaining the existing 5,011 reserved characters and all five uncertain requests.
+This is a persistent installation-wide allowance across replies/restarts, not a
+per-request or API-key quota. Provider key/account limits and the $50 model
+ceiling were not changed. Repeated-operation failure feedback now distinguishes
+an unsuccessful attempt from a usage quota; bounded repair loops remain intact.

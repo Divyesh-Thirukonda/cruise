@@ -758,3 +758,19 @@ repeated at 120-degree intervals. Its standard-library Python drawing script,
 preview page and browser screenshot are in `assets/brand/`. Inspected the mark
 with the wordmark and at 24/32/48 px; parsed the SVG successfully. No image model,
 website deployment, device changes or API calls were used for this study.
+
+## October 29 — Approved integrated logo on the websites
+
+The user approved the three-module cube from review #16. Replaced the public
+Connect and local Studio/setup raster headers with byte-identical copies of
+the programmatic SVG, and made matching dark-tile favicons. Removed the old
+blend-mode workaround. Kept the existing palette, page layout and connection
+behavior. Canonical geometry and its standard-library generator are in
+`assets/brand/`; historical generated-draft attribution remains in `branding.md`.
+
+Validation passed: source manifest, 39 API tests, 29 React tests, Next production
+build and 61 local Studio/enrollment tests. Browser review covered the public
+connection/setup pages plus static local Studio/setup rendering; the latter did
+not start a companion or alter the intentionally empty customer state. Public
+release target is the existing `modulate-connect` Vercel project from this repo's
+`main`, with no portfolio deployment or environment-variable changes.

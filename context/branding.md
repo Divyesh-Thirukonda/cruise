@@ -1,7 +1,7 @@
 # Website identity — October 29, 2026
 
-The user's latest direction keeps a rounded isometric cube around a Penrose
-impossible-triangle core. The mark is monochrome; the red/blue/yellow palette is
+The user's approved revision 16 uses three matching interlocking cube modules,
+each with a broad inward end. The mark is monochrome; the red/blue/yellow palette is
 for websites only, including the local companion and the public Connect app.
 This does not recolor generated games, Pi screens, Muse animation, or hardware.
 
@@ -15,24 +15,42 @@ This does not recolor generated games, Pi screens, Muse animation, or hardware.
 
 ## Logo asset and attribution
 
-The original PNG was generated with OpenAI's built-in image-generation tool on
+The user approved the programmatic integrated cube (gallery revision 16) on
+October 29. `assets/brand/draw_logo_legs.py` builds one rounded filled module and
+two exact 120° rotations, with equal seams. No image-generation model was used
+for this approved revision. The canonical transparent SVG is
+`assets/brand/modulate-loop-cube-legs.svg`.
+
+The exact SVG is copied to:
+
+- `modulate/web/logo.svg` — local Studio and focused setup
+- `webapp/connect-app-code/public/brand/modulate-cube.svg` — public web wordmark
+
+`webapp/connect-app-code/src/app/icon.svg` adds a dark tile behind that geometry
+for the browser favicon. `modulate/web/logo.png` is its raster equivalent for
+local browser icons. Transparent marks need no CSS blend-mode workaround. The
+website palette and separate Meta attribution mark remain unchanged. This is
+Modulate's custom mark, not an official Runpod or Meta asset.
+
+## Historical generated draft
+
+The earlier PNG was generated with OpenAI's built-in image-generation tool on
 October 29, 2026. The user supplied Runpod as a rounded geometric style reference
 and an impossible-triangle photograph as a subject reference. Neither reference
 image is shipped in the repository. The generated logo is not an official Runpod
 or Meta asset. The Meta attribution mark retains its separate identity.
 
-The final selected output is copied unchanged into:
+That earlier output was previously used at:
 
 - `modulate/web/logo.png` — local web pages
 - `webapp/connect-app-code/public/brand/modulate-cube.png` — public header/wordmark
 - `webapp/connect-app-code/src/app/icon.png` — browser icon
 
-The raster has a black background; website logo images use CSS `mix-blend-mode:
-screen` to display cleanly on dark surfaces. The favicon keeps its black tile.
-It is a raster asset, not a vector export. The first transparent drafts had
-visible artifacts and were not selected or shipped.
+It had a black background and used CSS `mix-blend-mode: screen`. It has been
+replaced by the approved vector above. The original generation prompt below is
+retained as historical provenance, not the construction of the current logo.
 
-## Final generation prompt
+### Earlier draft generation prompt
 
 > Create one pristine flat logo: a rounded white isometric CUBE OUTLINE enclosing
 > a smaller complete white PENROSE IMPOSSIBLE TRIANGLE. Solid pure BLACK #000000

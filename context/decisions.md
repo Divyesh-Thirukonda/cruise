@@ -262,3 +262,11 @@ failure, and keep genuine physical/OS confirmation requirements visible.
 The user requested simple programmatic logo construction instead of further image
 generation. Use editable SVG geometry with identical repeated sections. The new
 `assets/brand/` study is a draft; the deployed identity remains unchanged.
+
+## Approved production logo — October 29, 2026
+
+The user selected programmatic revision 16 as Modulate's logo. Use its exact
+three identical filled cube modules on the public website and local web
+surfaces. Prefer the transparent SVG for wordmarks and a dark tile behind the
+same geometry for favicons. This supersedes the earlier generated logo choice;
+the website-only red/blue/yellow palette remains unchanged.

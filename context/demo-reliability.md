@@ -101,6 +101,9 @@ may already have run and direct the user to inspect activity/state before
 resending. No automatic command replay was added. Already-cancelled transport
 requests do not fetch or submit commands.
 
-Validation: 45 API tests, 38 UI/transport tests and production build passed.
+Validation: 45 API tests, 39 UI/transport tests and production build passed.
 The reconnect preview test retains the exact app revision; transport tests
 verify no duplicate dispatch for network/gateway failures and timeout.
+
+Cancellation while loading session credentials is also checked before command
+dispatch (175e559). The test verifies that only the session read is sent.

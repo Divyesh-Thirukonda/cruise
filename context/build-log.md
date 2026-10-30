@@ -995,3 +995,5 @@ The installed Mac helper retained an unexpired pairing but was targeting a stale
 
 - Fixed preview retry after a temporary disconnect with the same active revision, and replaced command timeout/retry advice with an explicit uncertain-outcome message. Already-aborted requests cannot dispatch. No automatic mutation replay.
 - Validation: 45 API tests, 38 UI/transport tests and production build passed. Changes in ef8f999; existing unrelated Muse/UI assets preserved.
+
+- Final cancellation check (175e559) prevents command dispatch if cancellation occurs during the session lookup. Final validation: 45 API tests, 39 UI/transport tests and production build passed.

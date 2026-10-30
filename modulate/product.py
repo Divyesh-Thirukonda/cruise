@@ -90,6 +90,8 @@ class Product(AssistantIO):
         self.event_id = 0
         self.provider = provider
         self.ledger = Ledger(self.directory / "budget.json", budget)
+        from .transcription import MuseTranscriber
+        self.transcription = MuseTranscriber(self.ledger)
         self.bridge = BridgeStore(self.directory / "bridge", backend)
         self.agent = Orchestrator(provider, self, self.directory / "requests", self.ledger)
         self.running = False
@@ -174,6 +176,9 @@ class Product(AssistantIO):
     def require_permission(self, name):
         if not self.permission_allowed(name):
             raise AgentError(f"{name.replace('_', ' ').capitalize()} access is off in device permissions")
+
+    def transcribe_command(self, data):
+        return self.transcription.transcribe(data, lambda: self.require_permission("voice"))
 
     def check_request_access(self):
         remote = getattr(self, "remote_access", None)
@@ -1048,6 +1053,7 @@ class Product(AssistantIO):
                     "speaker_volume": self.speaker_volume.offer(session_id),
                     "camera_frame": self._camera_packet(), "computer_audio": self.audio_offer(),
                     "activation": pending, "active_revision": self.revision, "wake": self.wake and self.permission_allowed("voice"),
+                    "transcription_provider": self.transcription.provider,
                     "agent_running": self.running, "agent_state": self.agent_state(),
                     "clarification": self._clarification_state(),
                     "setup_status": self.connection_guide.brief(),

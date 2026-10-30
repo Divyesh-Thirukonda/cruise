@@ -3,7 +3,7 @@
 This changes transport only. The companion's existing durable model and speech
 ledgers still reserve before dispatch, including uncertain-call reservations.
 An incomplete cloud configuration fails closed instead of falling back to a key
-held locally. The server gateway accepts only these two provider operations.
+held locally. The server gateway accepts only the fixed model, speech and transcription operations.
 """
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ class CloudProvider:
         return bool(self._url and self._key)
 
     def request(self, action, payload):
-        if not self.enabled or action not in {"meta", "speech"}:
+        if not self.enabled or action not in {"meta", "speech", "transcribe"}:
             raise CloudConfigurationError("Modulate cloud provider action is unavailable")
         return (self._url + "?action=" + action,
                 {"Authorization": "Bearer " + self._key,

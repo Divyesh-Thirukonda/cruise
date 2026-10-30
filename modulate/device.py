@@ -117,7 +117,8 @@ class Controller:
         self.state = self.runtime.snapshot()
         self.encoder_revision = self.state.get("revision")
         self.voice = VoiceListener(self.request, self.voice_status, device=microphone,
-                                   on_cancel=self.cancel_request, on_unclear=self.unclear)
+                                   on_cancel=self.cancel_request, on_unclear=self.unclear,
+                                   command_transcribe=self.companion.transcribe_audio)
         self.speaker = Speaker(self.speaker_status, audio_fetch=self.companion.speech_audio)
         self.speaker_state = self.speaker.snapshot()
         self.speaker_volume = SpeakerVolumeDevice(self.speaker.snapshot, self.session)
@@ -196,6 +197,7 @@ class Controller:
         return active
 
     def _sync_voice(self):
+        self.voice.set_transcription_provider(self.host.get("transcription_provider", "local"))
         self.voice.set_busy(bool(self._busy()))
         self.voice.set_enabled(bool(self.host.get("wake")) and not self._speech_guard())
         question = self.host.get("clarification")

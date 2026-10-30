@@ -41,6 +41,17 @@ class TransportTests(unittest.TestCase):
         response.read.side_effect = io.BytesIO(payload).read
         return client, descriptor, response
 
+    def test_transcription_uses_enrolled_tls_identity_and_bounded_command_body(self):
+        client=self.client()
+        client.opener.open.return_value.__enter__.return_value.read.return_value=b'{"provider":"meta_muse","text":"Make a game"}'
+        self.assertEqual(client.transcribe_audio(bytes(800000)),"Make a game")
+        request=client.opener.open.call_args.args[0]
+        self.assertEqual(request.full_url,client.origin+"/device/transcribe")
+        self.assertEqual(request.get_header("Authorization"),"Bearer "+self.config['device_key'])
+        self.assertLess(len(request.data),1100000)
+        with self.assertRaises(TransportError):client.transcribe_audio(bytes(800002))
+        self.assertEqual(client.opener.open.call_count,1)
+
     def test_private_configuration_required(self):
         self.path.chmod(0o644)
         with self.assertRaises(TransportError):

@@ -58,7 +58,7 @@ def load_credentials(path):
         raise ValueError("Credential file must have mode600")
     allowed = {"MODEL_API_KEY", "FIREWORKS_API_KEY", "ELEVENLABS_API_KEY",
                "ELEVENLABS_VOICE_ID", "ELEVENLABS_MODEL_ID", "MODULATE_TTS_PROVIDER", "MODULATE_TTS_CHARACTER_LIMIT",
-               "MODULATE_MMS_PYTHON", "MODULATE_MMS_MODEL_DIR",
+               "MODULATE_MMS_PYTHON", "MODULATE_MMS_MODEL_DIR", "MODULATE_ASR_PROVIDER",
                "MODULATE_REMOTE_SECRET", "MODULATE_CLOUD_KEY", "MODULATE_CLOUD_URL"}
     for line in path.read_text().splitlines():
         name, separator, value = line.partition("=")
@@ -198,8 +198,9 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
                 return self.send(403, {"error": "Forbidden"})
             try:
                 length = int(self.headers.get("Content-Length", "0"))
+                maximum = 1100000 if device and urlparse(self.path).path == "/device/transcribe" else 256 * 1024
                 if (self.headers.get("Transfer-Encoding") or len(self.headers.get_all("Content-Length", [])) != 1
-                        or not 0 < length <= 256 * 1024
+                        or not 0 < length <= maximum
                         or self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json"):
                     return self.send(413, {"error": "Expected bounded JSON body"})
                 def unique_fields(pairs):
@@ -218,7 +219,9 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
                     raise ValueError("Expected an object")
                 path = urlparse(self.path).path
                 if device:
-                    if path == "/device/speech":
+                    if path == "/device/transcribe":
+                        result = product.transcribe_command(data)
+                    elif path == "/device/speech":
                         return self.send(200, product.get_speech_audio(data.get("id")), "application/octet-stream")
                     elif path == "/device/audio":
                         result = product.audio_packet(data.get("session"), data.get("after"))

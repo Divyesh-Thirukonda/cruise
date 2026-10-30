@@ -246,12 +246,14 @@ class VoiceListener:
     """
 
     def __init__(self, on_request, on_status, device=None, *, rms_threshold=0.015, on_cancel=None,
-                 on_unclear=None):
+                 on_unclear=None, command_transcribe=None):
         if device is not None and (type(device) is not int or device < 0):
             raise ValueError("Microphone device must be a sounddevice integer index")
         self.on_request, self.on_status = on_request, on_status
         self.on_cancel = on_cancel
         self.on_unclear = on_unclear
+        self.command_transcribe = command_transcribe
+        self._transcription_provider = "local"
         self.device = device
         self._vad = EnergyVAD(rms_threshold)
         self._gate = WakeGate()
@@ -395,6 +397,50 @@ class VoiceListener:
                 self._epoch += 1
                 self._pending_ptt = False
                 self._changed.set()
+
+    def set_transcription_provider(self, provider):
+        if provider not in {"local", "meta_muse"}:
+            raise ValueError("Unknown command transcription provider")
+        with self._lock:
+            if provider != self._transcription_provider:
+                self._transcription_provider = provider
+                self._epoch += 1
+                self._changed.set()
+
+    def _command_text(self, utterance, ptt, epoch):
+        """Cloud ASR follows an invocation; wake/media/cancel checks stay local."""
+        with self._lock:
+            if self._stop.is_set() or epoch != self._epoch:
+                return None
+            cloud = self._transcription_provider == "meta_muse" and not self._busy
+        invoked = ptt or bool(utterance.followup_id) or utterance.invoked or self._gate.armed(utterance.started_at)
+        text = utterance.transcript
+        local_wake = False
+        if text is not None and CANCEL_PATTERN.fullmatch(wake_remainder(text) or ""):
+            return text  # Cancellation never waits for a cloud recognizer.
+        # If the early probe did not detect wake, run the final local check first.
+        # Never send ambient or rolling computer-media wake audio to Meta.
+        if not (cloud and invoked and not utterance.playback_wake and utterance.audio):
+            if text is None:
+                text = self._transcribe(utterance.audio)
+            local_wake = bool(wake_remainder(text))
+            invoked = invoked or local_wake
+        if cloud and invoked and not utterance.playback_wake and utterance.audio:
+            with self._lock:
+                if self._stop.is_set() or epoch != self._epoch:
+                    return None
+            self._emit("transcribing", "Transcribing your request with Meta Muse; microphone is paused")
+            try:
+                if self.command_transcribe is None:
+                    raise ValueError()
+                result = self.command_transcribe(utterance.audio)
+                if type(result) is not str or len(result) > 2000:
+                    raise ValueError()
+                # Carry the local wake decision if Muse omits the wake words.
+                return "Hey Meta, " + result if local_wake and not utterance.invoked and wake_remainder(result) is None else result
+            except Exception:
+                raise VoiceError("Muse transcription unavailable; request discarded. Try again or use Studio.") from None
+        return text
 
     def _callback(self, indata, frames, time_info, status):
         problem = None
@@ -822,14 +868,14 @@ class VoiceListener:
                         if epoch != self._epoch or (not ptt and (self._pending_ptt or not self._enabled)):
                             continue
                         self._transcribing = True
-                    if utterance.transcript is not None:
-                        text = utterance.transcript
-                    else:
+                    if utterance.transcript is None:
                         if ptt or utterance.invoked or self._gate.armed(utterance.started_at):
                             self._emit("transcribing", "Transcribing locally; microphone is paused")
                         else:
                             self._emit("wake_listening", "Checking locally for Hey Meta; microphone is paused")
-                        text = self._transcribe(utterance.audio)
+                    text = self._command_text(utterance, ptt, epoch)
+                    if text is None:
+                        continue
                     self._deliver(text, utterance, ptt, epoch)
                     del text, utterance
                 except Exception as error:

@@ -1,12 +1,11 @@
 'use strict';
 const { createHmac, randomBytes } = require('node:crypto');
 const { HttpError, secureEqual, boundedBytes } = require('./modulate-http.cjs');
-const PATH = 'modulate/discovery.json';
 let cached;
 let resolving;
 function registryOrigin() {
   const value = process.env.MODULATE_DISCOVERY_REGISTRY_URL;
-  if (!value) return null;
+  if (!value) throw new HttpError(503, 'Device registry is not configured.');
   if (!/^https:\/\/[a-z0-9-]+\.[a-z0-9-]+\.workers\.dev$/.test(value)) {
     throw new HttpError(503, 'Device registry is not configured correctly.');
   }
@@ -40,13 +39,6 @@ async function prove(origin, secret) {
   const expected = createHmac('sha256', secret).update(`modulate-discovery-v1:${nonce}`).digest('hex');
   if (!response.ok || !secureEqual(body.proof, expected)) throw new HttpError(503, 'The device identity could not be verified.');
 }
-async function read() {
-  const { get } = require('@vercel/blob');
-  const result = await get(PATH, { access: 'private', useCache: false });
-  if (!result) return null;
-  const value = JSON.parse((await boundedBytes(new Response(result.stream), 2048)).toString());
-  return { value, etag: result.blob.etag };
-}
 async function stage(name, operation) {
   try { return await operation(); }
   catch (error) {
@@ -62,24 +54,12 @@ async function register(body, signature, secret) {
   if (!secureEqual(signature, expected)) throw new HttpError(401, 'Device authentication required.');
   // Prove possession before sending any gateway credential to a new hostname.
   await stage('identity', () => prove(origin, secret));
-  if (registryOrigin()) {
-    const result = await external('/register', secret, { origin, timestamp: body.timestamp });
-    if (result.registered !== true) throw new HttpError(503, 'Registration was not acknowledged.');
-    cached = { origin, until: Date.now() + 30000 };
-    return { registered: true };
-  }
-  const current = await stage('read', read);
-  if (current && current.value.timestamp > body.timestamp) throw new HttpError(409, 'A newer device registration exists.');
-  if (current?.value.origin !== origin) {
-    const { put } = require('@vercel/blob');
-    await stage('save', () => put(PATH, JSON.stringify({ origin, timestamp: body.timestamp }), {
-      access: 'private', addRandomSuffix: false, allowOverwrite: Boolean(current),
-      contentType: 'application/json', ...(current ? { ifMatch: current.etag } : {}),
-    }));
-  }
+  const result = await external('/register', secret, { origin, timestamp: body.timestamp });
+  if (result.registered !== true) throw new HttpError(503, 'Registration was not acknowledged.');
   cached = { origin, until: Date.now() + 30000 };
   return { registered: true };
 }
+
 async function resolve(secret, force = false) {
   if (!force && cached && cached.until > Date.now()) return cached.origin;
   // Concurrent preview/state/session polls share one lookup in this instance.
@@ -88,7 +68,7 @@ async function resolve(secret, force = false) {
   try { return await resolving; } finally { resolving = null; }
 }
 async function lookup(secret) {
-  const record = registryOrigin() ? { value: await external('/resolve', secret) } : await read();
+  const record = { value: await external('/resolve', secret) };
   if (!record) throw new HttpError(503, 'Modulate is reconnecting. Keep it powered and on Wi-Fi.');
   const origin = tunnelOrigin(record.value.origin);
   await prove(origin, secret);

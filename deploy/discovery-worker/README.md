@@ -11,12 +11,17 @@ The website, provider gateway, browser sessions and Pi agent stay where they are
    `workers.dev` origin and keep `MODULATE_DEVICE_DISCOVERY=1`; redeploy the site.
 4. The Pi continues signing registrations to its existing Vercel URL. Registration
    proves the Pi's identity before storing its new origin. Verify a fresh rotation
-   and an existing browser session before removing the old Blob configuration.
+   and an existing browser session after deployment.
 
 Only hostname and timestamp are stored. HMAC/short timestamp window authenticates
 writes; reads require the derived registry credential. This credential cannot authenticate
 to the Pi gateway. The gateway independently
 proves the tunnel before sending credentials. Expiring sessions remain on the Pi.
-No requests should go to Blob when the registry URL is configured. Still subject
+The app has no Blob dependency or fallback. Still subject
 to Workers Free limits; monitor request counts and use caching rather than removing
 caps. Cloudflare daily limits reset at midnight UTC.
+
+Deployment: `https://modulate-discovery.divyesh-thirukonda.workers.dev`.
+The account uses Workers Free. New workers.dev subdomains can need HTTPS
+provisioning time; require a successful authenticated registration and lookup
+before treating deployment as healthy.

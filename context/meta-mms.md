@@ -48,3 +48,9 @@ it is not a commercially unrestricted replacement. This project supplies the
 isolated worker, PCM transport integration, cancellation, provider selection,
 number normalization, installation and device validation. No voice training or
 model architecture is claimed as project work.
+
+
+The final worker environment contains only fixed locale/path and offline flags;
+provider credentials are not inherited. A real Pi synthesis with this environment
+returned 47,616 PCM bytes, followed by a successful agent restart.
+See [sanitized deployment and native tests](evidence/mms-native-runtime.json).

@@ -329,3 +329,26 @@ Code comparison and pairing do not replace native OS permissions. Brightness was
 verified through the Pi agent; the background helper still needs Screen Recording
 and Accessibility for desktop actions. Camera/audio and physical knob brightness
 across this link are not yet live-validated. See [scope and evidence](optional-mac.md).
+
+
+## 2026-10-30 — Local MMS and website-managed native Mac access
+
+Use the pinned official Meta MMS English VITS checkpoint on the Pi as the active
+speech provider, following the user's explicit choice. Keep the ElevenLabs ledger
+unchanged for rollback; MMS makes no paid TTS requests or cumulative reservations.
+Keep bounded per-reply resources, cancellation and the separate $50 Meta ceiling.
+The offline speech subprocess receives no provider credentials. The checkpoint's
+CC-BY-NC-4.0 license is recorded in [the operating note](meta-mms.md).
+
+Use Modulate.app as the stable responsible macOS app for the native helper and
+permission prompts. The user enabled Screen Recording, Accessibility and Camera.
+Use the authenticated Vercel setup page for native comparison/status; expose the
+comparison code only to the linked browser, and retain physical small-A approval,
+revocation and the original eight-hour expiry. The localhost page is diagnostic.
+The user does not need a Mac for Pi generation or speech. Native Mac actions need
+the paired helper running with OS grants. Camera frames remain outside model input.
+
+The earlier unverified camera/audio note above is superseded by fresh capture and
+stop telemetry in [the new evidence](evidence/mms-native-runtime.json). That trial
+does not establish physical camera-display/audio-playback quality or broad desktop
+reliability. No physical brightness-knob trial was performed in this session.

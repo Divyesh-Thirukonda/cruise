@@ -304,3 +304,15 @@ result, clarification and current-app summary, without raw events, screenshots
 or source. Requested private task results may be returned to Muse under the
 user-approved full scope. See `muse-connector.md` for access, revocation and live
 evidence; this is a private custom connector rather than a public listing.
+
+## Muse invoked-command transcription — October 30
+
+The optional `meta_muse` command recognizer keeps ambient wake probes and busy
+cancellation local. Only invoked commands/PTT/clarification audio uses the
+pinned device `/device/transcribe` route and trusted agent's existing budget
+ledger. The fixed provider gateway sends bounded canonical WAV multipart audio
+to Meta's `muse-voice-transcribe-1.0` endpoint. Provider keys stay server-side.
+Voice permission is checked before and after dispatch; device epochs reject
+late results. Cloud failure discards the command without a hidden fallback or
+retry. Native capture, review/clarification/activation and local MMS speech
+remain separate. See [fit, limits and validation](muse-voice-transcribe.md).

@@ -10,6 +10,8 @@ The new behavior comes from generated code and mappings. Physical controls and g
 
 ## Status
 
+**Invoked voice requests now support Muse Voice Transcribe.** The installed Pi keeps “Hey Meta” checks and busy cancellation local, then uses the existing Meta gateway for command/PTT/follow-up transcription. A complete synthetic pinned-device trial returned text in 1.182s without executing the command. Three synthetic comparisons were slightly slower than cached local Whisper; no physical wake/noise or accuracy improvement is claimed. [Integration, measurements and rollback](context/muse-voice-transcribe.md).
+
 **Controls follow connected hardware.** A saved game that depended on the unplugged joystick now adapts through the live Meta agent; the user confirmed the generated knob version works. A second live Meta edit used the detected LSM6DS3TR-C IMU; the user confirmed tilt steering. [Evidence and current limits](context/adaptive-controls.md).
 
 Planning began October 27, 2026 for the Meta Global AI Developer Hackathon. The user renamed Cruise to **Modulate** and set this voice-first direction on October 28. **The first voice-to-number prototype runs on the physical Pi:** USB microphone → local Whisper transcription → local Meta Llama 3.2 generation → fixed code checks → PiTFT activation. A spoken trial displayed 1008 in blue from a newly generated program.

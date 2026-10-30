@@ -1103,3 +1103,32 @@ entry through Muse's secure credential form, with expiry shown as November 6,
 not muted, and updated its own connector doc/helper with the new expiry/revoke
 path. No token was pasted in chat, and the clipboard was replaced with the
 public website URL afterward. Native Mac pairing remains separate.
+
+
+## October 30 — Muse Voice Transcribe integration and live account checks
+
+Built bounded invoked-command ASR with a pinned device TLS route, existing
+server-held Meta key, canonical WAV multipart provider gateway, shared-ledger
+reservation/settlement and permission/epoch rejection of late results. Reused
+Meta hosted ASR, existing Whisper/Silero/MMS, TLS gateway and ledger; no copied
+cookbook source, new dependency, account or credential. Pi source 5a88f5c plus
+398070f frame fix; production website 398070f, deployment
+dpl_6NLqm84RJSQSbyywpvZExwWVfW9c.
+
+Validation: 1,156 local Python tests with 13 platform skips before three added
+focused late-result/transport/frame-padding checks, also passing; 199 focused Pi
+checks followed by 13 final ASR checks; 63 API and 42 UI tests and production build.
+Initial live replies were rejected by exact-duration validation: a 1,000 ms clip
+returned 1,040 ms. Fixed one-frame 80 ms padding, kept reservations conservative,
+normalized integer-string durations and matched Meta's no-filename JSON multipart
+part. Previous uncertain holds were retained; no limit was reset.
+
+Three in-memory MMS synthetic clips, never played or executed: Muse 1.448/1.000/
+1.100s including network, versus cached Whisper 0.955/0.895/0.939s excluding model
+load. Cost delta $0.000400. Both models misheard the synthesized wake phrase; no
+physical wake/noise, accuracy or speed improvement claim. Enabled meta_muse in
+the existing private Pi provider file and restarted the agent. A complete
+VoiceListener→pinned TLS→agent/gateway→Muse test returned text in 1.182s to an
+isolated callback, with no real command/audio and the game/volume preserved.
+Native Mac/Muse grants unchanged, total budget still $50. Evidence and limitations:
+muse-voice-transcribe.md and evidence/muse-voice-transcribe.json.

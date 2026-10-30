@@ -532,7 +532,9 @@ still pass current hardware/permission checks. If the launch fails due to change
 controls, inspect live capabilities and create a suitable adaptation with the normal checked tools.
 Say that you reopened a saved app; never describe a cache hit as new generation.
 For an edit to the active experience, refine it rather than launch an unrelated
-saved version. If no suitable app exists, generate normally.
+saved version. First inspect the current package. If it already satisfies the
+requested change, report that observed fact without writing, testing or activating
+an identical replacement. Do not manufacture a revision merely to show activity. If no suitable app exists, generate normally.
 For saved apps, past games, favorites, Trash or returning home, load app-library
 and use app_library. Successfully activated apps are saved automatically. Reopen
 an exact stored revision with launch; do not regenerate an approximation. An open
@@ -637,9 +639,12 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
                 # This call has not been dispatched, so its reservation is unused.
                 self.ledger.settle(call_id, 0)
                 raise AgentError("Cancelled by user; no further tool actions")
+            model_started = time.monotonic()
             try:
                 reply = self.provider.complete(messages, tools)
             except AgentProviderError as error:
+                self.event("model_finished", title="Model request ended", role=role,
+                           status="failed", seconds=round(time.monotonic() - model_started, 3))
                 # A fully received but malformed model turn may still report
                 # valid billing. Unknown transport/usage failures retain their
                 # reservation; never treat an uncertain call as free.
@@ -666,6 +671,8 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
                     " No action from that response was executed. Choose only currently advertised tools, "
                     "with a valid JSON object for arguments, or return a short answer. Retry once now."})
                 continue
+            self.event("model_finished", title="Model request ended", role=role,
+                       status="passed", seconds=round(time.monotonic() - model_started, 3))
             self.ledger.settle(call_id, cost_microdollars(reply["provider"], reply["model"], reply["usage"]))
             if self.cancelled.is_set():
                 raise AgentError("Cancelled by user; no further tool actions")

@@ -281,3 +281,22 @@ permission and idle state. The restricted component-setup agent has at most eigh
 model calls and only inspection, verified catalog installation, reinitialization
 and necessary human questions. No app replacement, native actions or address writes
 are authorized by discovery. See [scope and live trial](component-setup.md).
+
+
+## Muse custom connector — October 30
+
+Muse is an additional text input channel to the existing Pi agent. A sealed
+full-request credential binds to an expiring browser session and fixed HTTPS
+API; the old speaker credential remains speaker-only. The API permits bounded
+text submission, owned job status/clarification, cancellation and speaker read/set.
+It cannot administer pairing, permissions or budgets. Native Mac access and
+hardware/app safety checks remain inside the existing trusted runtime.
+
+A Pi-side durable reservation precedes request dispatch. Reusing the same client
+request ID/payload returns the same job; uncertain dispatch remains unknown, and
+status replaced by another job is explicitly superseded. No blind write replay
+or unconfirmed app-success claim is allowed. Status projects only the owned
+result, clarification and current-app summary, without raw events, screenshots
+or source. Requested private task results may be returned to Muse under the
+user-approved full scope. See `muse-connector.md` for access, revocation and live
+evidence; this is a private custom connector rather than a public listing.

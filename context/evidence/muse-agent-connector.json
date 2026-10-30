@@ -1,0 +1,73 @@
+{
+  "date": "2026-10-30",
+  "pi_source_revision": "1ee837666810d44e57ca0f07b7b6a412b7d8065e",
+  "website_revision": "e1ef39c41f0a446e8333db8cbf70f2be209c02ab",
+  "deployment": "dpl_2nfXSWwY4Bxk8ZgepWPxiAandmdc",
+  "direct_api_trial": {
+    "input_mode": "typed HTTPS request, not Muse chat",
+    "text": "What connected controls can Modulate currently use? Answer briefly.",
+    "acceptance_seconds": 0.642,
+    "completion_seconds": 5.98,
+    "job_id": "6fd33aa31f364b2da7ce9394b560d2e8",
+    "response": "Encoder, encoder press, button A, button B, and IMU motion/tilt.",
+    "immediate_duplicate_same_job": true,
+    "completed_duplicate_same_job": true,
+    "job_sequence_delta": 1,
+    "active_revision_preserved": true,
+    "revoked_parent_status": 401
+  },
+  "muse_chat_trial": {
+    "input_mode": "typed Muse chat forwarded through full Modulate connector",
+    "user_request": "can you make mario kart clone on modulate",
+    "job_id": "d0e9f82bd357413492462aa6ad17f558",
+    "job_sequence": 38,
+    "provider": "meta",
+    "model": "muse-spark-1.3",
+    "selected_skills": [
+      "games"
+    ],
+    "model_calls": 13,
+    "agent_seconds": 97.346,
+    "cached_replay": false,
+    "status": "completed",
+    "title": "Pip Kart Turbo",
+    "revision": "64fd9b9e7fec2d8e2d3ba4e17c20c2e304026193604b7fcd47debd11a0ccbc3a",
+    "checks_passed": true,
+    "device_acknowledged": true,
+    "connector_request_recorded": true,
+    "device_connected": true,
+    "declared_controls": [
+      "imu",
+      "encoder",
+      "button_a",
+      "button_b"
+    ],
+    "available_controls": [
+      "encoder",
+      "encoder_pressed",
+      "button_a",
+      "button_b",
+      "imu"
+    ],
+    "reported_controls": "Tilt to steer; encoder also steers; A boost; B brake; press A to race.",
+    "preview": "Actual host-rendered title screen observed in production Studio",
+    "mac_paired": false,
+    "physical_control_retest": false,
+    "credential_storage": "Muse secure API-key form; no token in chat",
+    "credential_expiry": "2026-10-31 01:39 America/New_York",
+    "network_approval_note": "User selected site always allowed in Muse while Chrome automation was unavailable. Consequential Pi/Mac action checks remain in Modulate.",
+    "legacy_speaker_connector_disconnected": true
+  },
+  "limitations": [
+    "Agent timing excludes Muse interpretation, network approval delay and setup.",
+    "No human could physically test the new game's steering/buttons during this trial.",
+    "Fresh game generation took 97 seconds; no sub-15-second claim for this build.",
+    "The approved PNG is served and referenced in metadata. Muse kept its default native connector icon after the attempted customization."
+  ],
+  "branding": {
+    "approved_logo_url": "https://modulate-connect.vercel.app/brand/modulate.png",
+    "metadata_logo_present": true,
+    "muse_native_icon_changed": false,
+    "observed_limit": "Muse reported its custom connector template has no icon URL field; Settings retained the default connector icon."
+  }
+}

@@ -30,7 +30,7 @@ export function ConnectionLanding({ standalone = false, loading, busy, notice, o
       <div className="mf-step-label">LET’S GET CONNECTED</div><h2 id="mf-connect-title">Your Modulate, right here.</h2>
       <div className="mf-setup-link"><span>{standalone ? 'No Mac needed.' : 'First time?'}</span> <Link href="/connect/setup" onClick={event => { event.preventDefault(); navigate('setup'); }}>{standalone ? 'Find your device code' : 'Set up your Mac'}</Link></div>
       <form onSubmit={onConnect}>
-        <label htmlFor="mc-connect-code">{standalone ? 'Enter the code shown on Modulate' : 'Back from setup? Enter your connection code'}</label>
+        <label htmlFor="mc-connect-code">{standalone ? 'Enter the connection code shown on Modulate' : 'Back from setup? Enter your connection code'}</label>
         <div className="mf-code-field"><KeyRound size={20} /><input id="mc-connect-code" autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{8}" placeholder="00000000" value={code} maxLength={8} onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 8))} disabled={loading || Boolean(busy)} required /></div>
         {connectionUnavailable && !notice && <ConnectionUnavailable onSetup={() => navigate('setup')} />}
         <Notice notice={notice} onDismissNotice={onDismissNotice} onSetup={() => navigate('setup')} />

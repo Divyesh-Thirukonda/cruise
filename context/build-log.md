@@ -989,3 +989,9 @@ The installed Mac helper retained an unexpired pairing but was targeting a stale
 
 - User authorized Wrangler; deployed the authenticated registry on Workers Free, configured production dynamic discovery and removed @vercel/blob plus the legacy fallback. Kept the website URL and Pi agent. Disabled Worker preview URLs and ignored local Wrangler state.
 - Live deliberate rotation: automatic registration after 64.1 s; website recovered with the same browser session and current Demo Circuit revision. No model calls. Native Mac pairing was expired and was not bypassed.
+
+
+### Reconnect audit follow-up
+
+- Fixed preview retry after a temporary disconnect with the same active revision, and replaced command timeout/retry advice with an explicit uncertain-outcome message. Already-aborted requests cannot dispatch. No automatic mutation replay.
+- Validation: 45 API tests, 38 UI/transport tests and production build passed. Changes in ef8f999; existing unrelated Muse/UI assets preserved.

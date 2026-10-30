@@ -60,7 +60,7 @@ class ConnectionSetup:
         return {**brief, "device_connected": product.connected(), "companion_running": True,
                 "pairing_saved": bool(product.capabilities()["paired_host"]),
                 "local_ready": product.connected() and (product.standalone or bool(session)),
-                "companion_setup_url": "http://127.0.0.1:8787/setup",
+                "companion_setup_url": (CONNECT_URL + "/setup" if product.standalone else "http://127.0.0.1:8787/setup"),
                 "browser_linked": bool(brief["browser_count"]),
                 "pairing_expires_at": session.get("expires_at") if session else None,
                 "native_permissions": {key: permissions.get(key) if type(permissions.get(key)) is bool else None

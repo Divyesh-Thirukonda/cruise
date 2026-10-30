@@ -1,7 +1,7 @@
 # Optional Mac controls with a Pi-owned agent
 
 The Pi owns AI, speech, apps and existing cost ledgers. Wi-Fi is required for
-new Meta requests and ElevenLabs replies; saved games run locally. This prototype
+new Meta requests; [Meta MMS speech](meta-mms.md) and saved games run locally. This prototype
 assumes configured Wi-Fi; factory network provisioning is not implemented.
 
 ## The two connections
@@ -10,8 +10,9 @@ assumes configured Wi-Fi; factory network provisioning is not implemented.
 guide. Enter its one-use eight-digit code at the website /connect form.
 2. Mac: copy the website's Mac setup prompt into a coding agent on the computer
 to control. Keep the Pi agent running; never restart the legacy Mac AI studio.
-The optional helper and Pi show a matching eight-digit comparison code. Compare
-both, then press small PiTFT A. Do not enter that code into the website.
+After linking the browser, the Vercel setup page and Pi show a matching eight-digit
+Mac comparison code. Compare both, then press small PiTFT A. Do not type this
+second code into a form. Only the physical press grants native access.
 3. Native access lasts up to eight hours. Temporary disconnects/restarts reconnect
 within that session. Expiry or Revoke Mac pairing requires fresh confirmation.
 macOS permissions still apply. Closing the browser does not revoke the Mac.
@@ -22,12 +23,31 @@ Use this trusted checkout and its existing Mac Python environment/native depende
 Obtain the current Pi address and fingerprint from the physical setup display or
 an existing authenticated connection. Never silently trust a changed fingerprint.
 
-Run `.venv/bin/python -m modulate.mac_companion --pair --device ADDRESS --fingerprint IDENTITY`
-and open http://127.0.0.1:8787/setup for comparison. After confirmation, the same
-command without --pair reconnects owner-only state in ~/.local/share/modulate-mac.
-A per-user LaunchAgent can keep it running at login. Stop that helper before
-running --revoke, or revoke from the website's Device page while it is running.
+Build the trusted native app with `.venv/bin/python scripts/install_mac_app.py`.
+It installs `~/Applications/Modulate.app` with a stable bundle identifier. Reuse an
+existing valid app to preserve macOS grants. Stop a running helper before starting
+a new pairing. Run `.venv/bin/python -m modulate.mac_companion --pair --pair-only
+--device ADDRESS --fingerprint IDENTITY`, then open Modulate.app promptly. This
+prepares a 120-second pending request; it does not authorize the Mac.
+
+Open https://modulate-connect.vercel.app/connect/setup in the linked browser and
+compare its code with the Pi. Press small A only when they match. The website
+shows current native permissions and the pairing expiry once connected. The
+legacy localhost comparison endpoint remains for diagnostics; it is no longer
+required by the normal setup flow.
+
+In Modulate.app, the user grants Screen & audio recording, Keyboard & mouse access,
+and optionally Camera. The native app supplies the responsible macOS identity for
+its trusted Python child. Restart the app after an OS-required quit. Closing its
+window keeps the helper running; quitting the app stops it. Enable login launch
+with `.venv/bin/python scripts/install_mac_app.py --skip-build --login`. The app
+restarts a failed child, and reconnects the saved owner-only state in
+`~/.local/share/modulate-mac` while its eight-hour session remains valid.
+
 The helper has no model keys, app generator or AI/speech accounting ledger.
+Revoke from the website Device page, or stop the helper and use `--revoke`.
+Rebuilding an ad-hoc-signed app can require granting macOS permissions again;
+this is a development app, not a notarized distribution.
 
 ## Brightness path
 
@@ -68,10 +88,15 @@ native final readback. Orbit Catch retained its exact revision. The helper was
 restarted as a per-user LaunchAgent and reconnected within the same eight-hour
 session. No physical brightness mapping was activated or knob trial claimed.
 
-The background helper currently reports Screen Recording and Accessibility as
-ungranted. Native brightness works; desktop actions stay blocked until macOS grants
-those permissions to the helper. Camera and audio over this new network link are
-not live-validated. Pairing alone is not proof of every capability.
+The user subsequently enabled all three permissions for Modulate.app. Fresh Pi
+state reported Screen Recording and Accessibility granted, with computer control
+enabled. A typed Pi Meta request opened Gmail, selected the newest primary-inbox
+message, and produced a spoken summary in eight model calls (39.523 seconds to
+agent completion, excluding later synthesis/playback). The selected message was
+independently checked in the browser. The native task recovered from an initial
+URL typing focus miss before opening Gmail; this is one successful trial, not a
+reliability benchmark. Orbit Catch retained its revision. MMS playback was
+reported delivered. Email contents are excluded from published evidence.
 
 See [sanitized runtime evidence](evidence/optional-mac-runtime.json). Discovery is
 for the single configured demo Pi; multi-customer identity/routing is future work.

@@ -35,7 +35,7 @@ class HardwareIntegrationTests(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.directory = Path(temporary.name)
         self.provider = SyntheticProvider([])
-        with patch.dict("os.environ", {"MODULATE_TTS_PROVIDER": "disabled-test"}):
+        with patch.dict("os.environ", {"MODULATE_TTS_PROVIDER": "local"}):
             self.product = Product(self.directory, self.provider, backend=FakeBackend(), computer=FakeComputer())
         self.product.hardware.timeout = 1
         self.pool = ThreadPoolExecutor(max_workers=2)

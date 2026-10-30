@@ -133,8 +133,10 @@ def main():
     parser.add_argument("--device")
     parser.add_argument("--fingerprint")
     parser.add_argument("--pair", action="store_true")
+    parser.add_argument("--pair-only", action="store_true", help="Prepare pairing, then let the native Modulate app reconnect")
     parser.add_argument("--revoke", action="store_true")
     args = parser.parse_args()
+    if args.pair_only and not args.pair: parser.error("--pair-only requires --pair")
     if os.sys.platform != "darwin": parser.error("Run this optional helper on macOS")
     os.umask(0o077)
     directory = Path(args.state_dir)
@@ -155,6 +157,9 @@ def main():
         config.update(token=result["token"], last_sequence=0,
                       pending_pairing={"code": result["code"], "expires_at": result["expires_at"]})
         save_private(path, config)
+        if args.pair_only:
+            print("Open Modulate.app and compare the code at https://modulate-connect.vercel.app/connect/setup", flush=True)
+            return
     if not config: parser.error("Pair this helper first with --pair --device ADDRESS --fingerprint IDENTITY")
     if args.revoke:
         post(config, "/mac/revoke", {}, config["token"])
@@ -163,7 +168,7 @@ def main():
         return
     from .mac_pairing_page import start
     page = start(native, pairing)
-    print("Mac pairing screen: http://127.0.0.1:8787/setup", flush=True)
+    print("Mac pairing: https://modulate-connect.vercel.app/connect/setup (link this browser first)", flush=True)
     stopped = threading.Event()
     signal.signal(signal.SIGTERM, lambda *_: stopped.set())
     signal.signal(signal.SIGINT, lambda *_: stopped.set())

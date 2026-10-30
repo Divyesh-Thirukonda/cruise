@@ -20,6 +20,26 @@ const deferred = () => {
   return { promise, resolve, reject };
 };
 
+test('linked setup shows the pending Mac comparison without a web approval action', async () => {
+  usePathname.mockReturnValue('/connect/setup');
+  connectApi.mockImplementation(async action => action === 'session' ? connectedSession : {
+    ...initialState, paired: false, mac_pairing: { code: '87654321', expires_at: Date.now()/1000 + 120 },
+  });
+  render(<Connect />);
+  expect(await screen.findByLabelText('Mac comparison code')).toHaveTextContent('87654321');
+  expect(screen.getByText(/This website cannot approve native access/)).toBeInTheDocument();
+  expect(command).not.toHaveBeenCalled();
+});
+
+test('unlinked setup never fetches or displays a Mac comparison code', async () => {
+  usePathname.mockReturnValue('/connect/setup');
+  connectApi.mockResolvedValue({ connected: false, companion: { online: true, platform: 'linux' } });
+  render(<Connect />);
+  await screen.findByRole('heading', { name: '1. Link this browser.' });
+  expect(screen.queryByLabelText('Mac comparison code')).not.toBeInTheDocument();
+  expect(connectApi.mock.calls.some(([action]) => action === 'state')).toBe(false);
+});
+
 beforeEach(() => {
   jest.clearAllMocks();
   usePathname.mockReturnValue('/connect/studio');

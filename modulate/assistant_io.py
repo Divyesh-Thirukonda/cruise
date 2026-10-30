@@ -35,7 +35,7 @@ class AssistantIO(MacAccess):
         self.speech_worker = None
         if os.environ.get("MODULATE_TTS_PROVIDER") == "elevenlabs":
             from .tts import ElevenLabsTTS
-            self.tts = ElevenLabsTTS(self.directory)
+            self.tts = ElevenLabsTTS(self.directory, max_chars=int(os.environ.get("MODULATE_TTS_CHARACTER_LIMIT", "5000")))
 
     def computer_status(self):
         self._sync_computer_pairing()

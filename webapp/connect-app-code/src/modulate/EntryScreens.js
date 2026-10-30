@@ -23,14 +23,14 @@ export function ConnectionUnavailable({ onSetup }) {
   return <div className="mc-notice mc-notice-warning" role="status"><span>Your Modulate connection isn’t reachable yet. Ask your setup agent to finish or reconnect it.{onSetup && <button className="mf-notice-action" type="button" onClick={onSetup}>Get connection help<ArrowRight size={14} /></button>}</span></div>;
 }
 
-export function ConnectionLanding({ loading, busy, notice, onDismissNotice, connectionUnavailable, navigate, code, setCode, onConnect }) {
+export function ConnectionLanding({ standalone = false, loading, busy, notice, onDismissNotice, connectionUnavailable, navigate, code, setCode, onConnect }) {
   return <EntryFrame navigate={navigate} className="mf-landing">
     <div className="mf-intro"><span className="mf-kicker">A NEW IDEA. THE SAME DEVICE.</span><h1>What will yours<br />become?</h1><p>A game. A music controller. Something only you imagined.<br className="mf-desktop-break" /> Connect Modulate, then say what you want to make.</p><GadgetIllustration /></div>
     <section className="mf-connect-panel" aria-labelledby="mf-connect-title">
       <div className="mf-step-label">LET’S GET CONNECTED</div><h2 id="mf-connect-title">Your Modulate, right here.</h2>
-      <div className="mf-setup-link"><span>First time?</span> <Link href="/connect/setup" onClick={event => { event.preventDefault(); navigate('setup'); }}>Set up your Mac</Link></div>
+      <div className="mf-setup-link"><span>{standalone ? 'No Mac needed.' : 'First time?'}</span> <Link href="/connect/setup" onClick={event => { event.preventDefault(); navigate('setup'); }}>{standalone ? 'Find your device code' : 'Set up your Mac'}</Link></div>
       <form onSubmit={onConnect}>
-        <label htmlFor="mc-connect-code">Back from setup? Enter your connection code</label>
+        <label htmlFor="mc-connect-code">{standalone ? 'Enter the code shown on Modulate' : 'Back from setup? Enter your connection code'}</label>
         <div className="mf-code-field"><KeyRound size={20} /><input id="mc-connect-code" autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{8}" placeholder="00000000" value={code} maxLength={8} onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 8))} disabled={loading || Boolean(busy)} required /></div>
         {connectionUnavailable && !notice && <ConnectionUnavailable onSetup={() => navigate('setup')} />}
         <Notice notice={notice} onDismissNotice={onDismissNotice} onSetup={() => navigate('setup')} />
@@ -40,13 +40,19 @@ export function ConnectionLanding({ loading, busy, notice, onDismissNotice, conn
   </EntryFrame>;
 }
 
-export function SetupScreen({ navigate, connected, urgentControls, notice, onDismissNotice, connectionUnavailable }) {
+export function SetupScreen({ standalone = false, navigate, connected, urgentControls, notice, onDismissNotice, connectionUnavailable }) {
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
   const copyPrompt = async () => {
     try { await navigator.clipboard.writeText(SETUP_PROMPT); setCopied(true); setCopyError(false); }
     catch { setCopyError(true); }
   };
+  if (standalone) return <EntryFrame navigate={navigate} back={connected ? 'studio' : 'connect'} urgentControls={urgentControls} className="mf-setup">
+    <Notice notice={notice} onDismissNotice={onDismissNotice} />
+    <div className="mf-heading"><span className="mf-kicker">YOUR DEVICE. ITS OWN AI.</span><h1>Just Modulate<br />and Wi-Fi.</h1><p>Speak to create apps and hear replies without a Mac. Connect this browser when you want to manage your device.</p></div>
+    <section className="mf-prompt-card"><h2>Get your connection code.</h2><p>Hold the small A button on Modulate for one second to open setup. Release it, then press A to show a one-use browser code. Enter that code here.</p><p>Connecting a browser does not grant access to your computer. Mac controls are not connected in this standalone setup.</p></section>
+    <Button primary icon={ArrowRight} onClick={() => navigate('connect')}>Enter device code</Button>
+  </EntryFrame>;
   return <EntryFrame navigate={navigate} back={connected ? 'studio' : 'connect'} urgentControls={urgentControls} className="mf-setup">
     <Notice notice={notice} onDismissNotice={onDismissNotice} />
     {connectionUnavailable && !notice && <ConnectionUnavailable />}

@@ -20,7 +20,8 @@ class ConnectionSetup:
         """Small non-secret device contract, independent of model/provider access."""
         product = self.product
         remote = product.remote_access.local_status() if product.remote_access else {}
-        return {"paired_mac": bool(product._paired_session()),
+        return {"ai_host": "pi" if product.standalone else "mac",
+                "paired_mac": bool(product._paired_session()),
                 "remote_enabled": remote.get("enabled") is True,
                 "browser_count": len(remote.get("browsers", [])), "connect_url": CONNECT_URL}
 
@@ -38,7 +39,10 @@ class ConnectionSetup:
             display = {}
         visible = bool(product.connected() and offer_id and display.get("kind") == "setup"
                        and display.get("offer_id") == offer_id)
-        if not product.connected():
+        if product.standalone:
+            instructions = ["Modulate runs its agent on the Pi using Wi-Fi for Meta and spoken replies.",
+                            "Connect a browser to manage apps. Mac access is optional and requires its companion."]
+        elif not product.connected():
             instructions = ["Keep Modulate powered and on the companion's network.",
                             "Keep the companion running on your Mac; continue in the connection setup page."]
         elif not brief["paired_mac"]:
@@ -54,7 +58,7 @@ class ConnectionSetup:
             instructions = [f"The Mac is paired. Use {CONNECT_LABEL} to manage the existing device connection."]
         return {**brief, "device_connected": product.connected(), "companion_running": True,
                 "pairing_saved": bool(product.capabilities()["paired_host"]),
-                "local_ready": product.connected() and bool(session),
+                "local_ready": product.connected() and (product.standalone or bool(session)),
                 "companion_setup_url": "http://127.0.0.1:8787/setup",
                 "browser_linked": bool(brief["browser_count"]),
                 "pairing_expires_at": session.get("expires_at") if session else None,
@@ -64,7 +68,8 @@ class ConnectionSetup:
                 "display_status": {"offer_id": offer_id, "visible": visible},
                 "permissions": dict(remote.get("permissions", {})),
                 "instructions": instructions,
-                "limits": ["Meta runs on the companion; an offline Pi shows local setup guidance without AI.",
+                "limits": [("New AI requests require internet; saved apps run locally. Mac controls require an optional paired companion."
+                            if product.standalone else "Meta runs on the companion; an offline Pi shows local setup guidance without AI."),
                            "A browser controls this configured Mac/Pi hub, not the phone's own operating system.",
                            "Your setup agent handles Mac software and browser steps; physical confirmation and required macOS permission dialogs need you."]}
 
@@ -113,6 +118,9 @@ class ConnectionSetup:
                 pairing = product.remote_access.create_pairing()
                 offer.update(kind="browser_code", code=pairing["code"], expires_at=pairing["expires_at"],
                              title="Connect this browser", lines=[CONNECT_HOST, "/connect", "Enter this one-use code", "B: not now"])
+            elif product.standalone:
+                offer["title"] = "Connect a browser"
+                offer["lines"] = [CONNECT_HOST, "/connect", "A: show browser code", "B: close"]
             elif not brief["remote_enabled"]:
                 offer["title"] = "Finish connecting" if brief["paired_mac"] else "Confirm Mac access"
                 offer["lines"] = ["Continue on your Mac.",

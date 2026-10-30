@@ -60,8 +60,9 @@ class SetupScreen:
         self.buttons_released = False
 
     def update(self, *, enrolled, fresh, host, now, wall, enrollment_setup=None):
+        standalone = (host.get("setup_status") or {}).get("ai_host") == "pi"
         reason = ("enrollment" if not enrolled else "offline" if not fresh and now - self.started >= 8
-                  else "pairing" if fresh and host.get("paired") is False else None)
+                  else "pairing" if fresh and host.get("paired") is False and not standalone else None)
         # A recovered paired connection ends the episode. Dismissal never persists
         # across a process start, and an outage cannot erase a stored application.
         if fresh and host.get("paired") is True:
@@ -142,9 +143,16 @@ class SetupScreen:
     @staticmethod
     def _action(host):
         status = host.get("setup_status") or {}
+        if status.get("ai_host") == "pi":
+            return "create_browser_code" if status.get("remote_enabled") is True else "next"
         return "start_pairing" if host.get("paired") is False else "create_browser_code" if status.get("remote_enabled") is True else "next"
 
     def _local_card(self, reason, host, enrolled, fresh):
+        if (host.get("setup_status") or {}).get("ai_host") == "pi":
+            return {"kind": "guide", "title": "Connect a browser" if fresh else "AI service restarting",
+                    "lines": ([CONNECT_HOST, "/connect", "A shows a one-use code.", "Mac pairing is optional."]
+                              if fresh else ["Your agent runs on Modulate.", "Retrying the local service.", "Your saved app is retained."]),
+                    "action": self._action(host) if fresh else "next", "connect_url": CONNECT_URL}
         if not enrolled:
             title = "Set up Modulate"
             lines = (["Open on your computer:", CONNECT_HOST, "/connect", "Follow the setup guide."] if self.page == 0 else

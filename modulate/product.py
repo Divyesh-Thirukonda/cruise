@@ -71,7 +71,8 @@ def _save_json(path, value):
 
 
 class Product(AssistantIO):
-    def __init__(self, state_dir, provider, *, budget=0, backend=None, computer=None):
+    def __init__(self, state_dir, provider, *, budget=0, backend=None, computer=None, standalone=False):
+        self.standalone = standalone
         self.directory = Path(state_dir)
         self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.lock = threading.RLock()
@@ -367,6 +368,7 @@ class Product(AssistantIO):
                     self.volume_token = None
                     self.volume = None
             return {"display": {"width": 240, "height": 135}, "runtime": "modulate-game-v1",
+                    "ai_host": "pi" if self.standalone else "mac",
                     "device_connected": self.connected(), "controls": list(self.device["controls"]) if self.connected() else [],
                     "devices": copy.deepcopy(self.device["devices"]), "warnings": list(self.device["warnings"]),
                     "button_sources": dict(self.device["button_sources"]),
@@ -1068,6 +1070,8 @@ class Product(AssistantIO):
 
     def create_pairing(self):
         with self.lock:
+            if not self.bridge.backend.capabilities().get("supported"):
+                raise AgentError("Mac controls need an optional Mac companion connection. Modulate's own apps and voice work without it.")
             self.pairing = self.bridge.create_pairing()
             return copy.deepcopy(self.pairing)
 

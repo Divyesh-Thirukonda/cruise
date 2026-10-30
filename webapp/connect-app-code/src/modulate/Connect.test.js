@@ -367,3 +367,21 @@ test('a failed preview retries after reconnecting without a new app revision', a
   expect(await screen.findByAltText(label)).toBeInTheDocument();
   expect(command).not.toHaveBeenCalled();
 });
+
+
+test('detected unknown boards are listed separately from ready runtime controls', async () => {
+  usePathname.mockReturnValue('/connect/device');
+  connectApi.mockImplementation(async action => action === 'session' ? connectedSession : {
+    ...initialState, device: { ...initialState.device, capabilities: {
+      controls: ['encoder'], components: [
+        { id: 'imu', model: 'LSM6DS3TR-C', addresses: ['0x6a'], ready: true, status: 'ready' },
+        { id: 'i2c:0x39', addresses: ['0x39'], ready: false, status: 'needs_identification' },
+      ],
+    } },
+  });
+  render(<Connect />);
+  const inventory = await screen.findByLabelText('Detected components');
+  expect(within(inventory).getByText(/LSM6DS3TR-C/)).toBeInTheDocument();
+  expect(within(inventory).getByText('Needs identification')).toBeInTheDocument();
+  expect(command).not.toHaveBeenCalled();
+});

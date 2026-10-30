@@ -1,0 +1,68 @@
+{
+  "date": "2026-10-30",
+  "code_commit": "8f9e2e4ff701083d28d34904858a07900e70c794",
+  "input": "typed through authenticated Pi tunnel",
+  "timing": "submission to ready, sampled approximately every 1.2 seconds; excludes microphone/transcription and spoken playback",
+  "physical_verification": false,
+  "mac_paired": false,
+  "runs": [
+    {
+      "label": "reuse-orbit",
+      "seconds": 8.8,
+      "model_calls": 3,
+      "cost_or_holds_dollars": 0.035044,
+      "status": "completed",
+      "revision": "03130009c50e9e5cf4affbac4e55461a1b53b770bfeb8073ac720b3200c7edf7"
+    },
+    {
+      "label": "reuse-kart",
+      "seconds": 42.7,
+      "model_calls": 8,
+      "cost_or_holds_dollars": 0.197713,
+      "status": "completed",
+      "revision": "74f963059b477ebc1f8688bbccef18cdce47a2e252b6cee1fd960979819d6789"
+    },
+    {
+      "label": "reuse-kart-repeat",
+      "seconds": 6.6,
+      "model_calls": 3,
+      "cost_or_holds_dollars": 0.037101,
+      "status": "completed",
+      "revision": "74f963059b477ebc1f8688bbccef18cdce47a2e252b6cee1fd960979819d6789"
+    },
+    {
+      "label": "reuse-library",
+      "seconds": 4.1,
+      "model_calls": 3,
+      "cost_or_holds_dollars": 0.038525,
+      "status": "completed",
+      "revision": "74f963059b477ebc1f8688bbccef18cdce47a2e252b6cee1fd960979819d6789"
+    },
+    {
+      "label": "reuse-reverse",
+      "seconds": 5.3,
+      "model_calls": 3,
+      "cost_or_holds_dollars": 0.038249,
+      "status": "completed",
+      "revision": "74f963059b477ebc1f8688bbccef18cdce47a2e252b6cee1fd960979819d6789"
+    },
+    {
+      "label": "reuse-coins",
+      "seconds": 18.3,
+      "model_calls": 6,
+      "cost_or_holds_dollars": 0.108949,
+      "status": "completed",
+      "revision": "d4e130d025930a047b65b17156586208fb88a48d6600c468dddc3b7e56cc8c0e"
+    },
+    {
+      "label": "reuse-kart-edited",
+      "seconds": 9.1,
+      "model_calls": 4,
+      "cost_or_holds_dollars": 0.052722,
+      "status": "completed",
+      "revision": "d4e130d025930a047b65b17156586208fb88a48d6600c468dddc3b7e56cc8c0e"
+    }
+  ],
+  "no_new_revisions_on_repeat": true,
+  "model_spend_ceiling_dollars": 50
+}

@@ -377,3 +377,10 @@ A network-address change can reconnect the installed Mac helper within an existi
 - Use a shared 32-call agent budget with parent completion reserve, partial specialist handoffs and at most two cancellable transient inference retries. The million-character historical speech allowance is unrelated to agent turns. Do not remove spending or effect-replay protections.
 - Replace the single-address Vercel Blob discovery record with Cloudflare Workers Free plus a SQLite Durable Object. Store only hostname/timestamp; derive a registry-only HMAC credential from the existing gateway secret. Preserve independent Pi identity proofs and expiring sessions. Deployment is pending explicit Wrangler authorization; do not label the migration live until verified.
 - During the Blob quota outage, use the already-supported direct, identity-verified tunnel configuration as a temporary website recovery. Re-enable dynamic discovery after Cloudflare registration and session continuity are tested. No paid plan, new model provider or device-agent relocation is needed.
+
+
+## 2026-10-30 — Reuse real creations for repeated requests
+
+- Meta decides semantic reuse from bounded saved-app metadata before generation; a saved launch retains trusted verification, capability checks and activation acknowledgement. Explicit new versions generate; edits refine. Report reuse honestly rather than fresh generation.
+- Present the latest saved revision per title by default while retaining all source, favorites, Trash and rollback history. Expose older versions explicitly on the website; do not destructively merge same-title packages.
+- Optimize computer-task round trips generically, retaining fresh observations and current access. Do not cache private answers or hardcode the demo script. The under-15-second target applies to measured runs, not a blanket performance claim.

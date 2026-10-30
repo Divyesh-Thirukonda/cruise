@@ -20,6 +20,18 @@ const deferred = () => {
   return { promise, resolve, reject };
 };
 
+test('a connected but silent speaker and expiring Mac session are visible before a demo', async () => {
+  connectApi.mockImplementation(async action => action === 'session' ? connectedSession : {
+    ...initialState,
+    device: { ...initialState.device, telemetry: { speaker_volume: { available: true, volume: 0, muted: false } } },
+    setup_status: { pairing_expires_at: Date.now()/1000 + 600 },
+  });
+  render(<Connect />);
+  expect(await screen.findByText(/speaker is at 0%/)).toHaveTextContent('Spoken replies will be silent');
+  expect(screen.getByText(/Mac access expires/)).toHaveTextContent('confirmation on the device is required');
+  expect(command).not.toHaveBeenCalled();
+});
+
 test('linked setup shows the pending Mac comparison without a web approval action', async () => {
   usePathname.mockReturnValue('/connect/setup');
   connectApi.mockImplementation(async action => action === 'session' ? connectedSession : {

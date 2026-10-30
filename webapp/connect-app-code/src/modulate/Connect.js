@@ -243,6 +243,21 @@ export default function Connect() {
   const computer = state?.computer;
   const approval = computer?.pending_approval;
   const speaker = state?.device?.telemetry?.speaker;
+  const speakerVolume = state?.device?.telemetry?.speaker_volume;
+  const demoWarnings = [];
+  if (deviceConnected && permissions.speaker !== false && speakerVolume?.available &&
+      (speakerVolume.muted || speakerVolume.volume === 0)) {
+    demoWarnings.push(speakerVolume.muted ? 'The Pi speaker is muted. Spoken replies will be silent.' :
+      'The Pi speaker is at 0%. Spoken replies will be silent.');
+  }
+  const macExpires = dateMs(state?.setup_status?.pairing_expires_at);
+  if (state?.paired && Number.isFinite(macExpires) && macExpires - now < 30 * 60 * 1000) {
+    demoWarnings.push(`Mac access expires ${macExpires > now ? `at ${clock(macExpires)}` : 'now'}. Pair again before a computer-control demo; confirmation on the device is required.`);
+  }
+  const browserExpires = dateMs(session?.expires_at);
+  if (authenticated && Number.isFinite(browserExpires) && browserExpires - now < 30 * 60 * 1000) {
+    demoWarnings.push('This browser connection expires soon. Reconnect before the demo.');
+  }
   const hardware = state?.hardware;
   const workflow = hardware?.workflow;
   const repairActive = workflow && !['complete', 'completed', 'cancelled'].includes(workflow.phase);
@@ -316,6 +331,7 @@ export default function Connect() {
     <div className="mc-main-shell" ref={mainShellRef}>
       <main className="mc-main" id="mc-main">
         <div className="mc-page-heading"><div className="mc-page-title"><button className="mc-menu-button" type="button" aria-label="Open navigation" aria-expanded={menuOpen} aria-controls="mc-navigation" onClick={() => setMenuOpen(true)}><Menu size={22} /></button><div><h1>{pageTitles[view][0]}</h1><p>{pageTitles[view][1]}</p></div></div>{authenticated && <Button icon={RefreshCw} quiet disabled={Boolean(busy)} onClick={refresh}>Refresh</Button>}</div>
+        {demoWarnings.length > 0 && <div className="mc-notice mc-notice-warning" role="status"><Bell size={18} /><span>{demoWarnings.join(' ')}</span></div>}
         {notice && <div className={`mc-notice mc-notice-${notice.type}`} role="status">{notice.type === 'success' ? <CheckCircle2 size={18} /> : <Bell size={18} />}<span>{notice.text}</span><button aria-label="Dismiss notification" onClick={() => setNotice(null)}><X size={16} /></button></div>}
         {authenticated && !online && <ConnectionUnavailable onSetup={() => navigate('setup')} />}
         {computer?.active && <div className="mc-live-control" role="status"><span className="mc-pulse-dot" /><strong>Modulate is using your Mac</strong><span>{computer.scope || 'Paired Mac desktop'}</span><Button danger icon={Square} onClick={() => act('computer', '/api/computer', { action: 'revoke' })} disabled={genericDisabled}>Pause access</Button></div>}

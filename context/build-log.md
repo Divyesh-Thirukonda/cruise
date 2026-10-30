@@ -858,3 +858,48 @@ SHA256 `91c5182953bafec30fecd896bc4b6d71f0c4faae945e7e0706686de58db41ddf`
 was verified before installation. No billable probe or provider-key change was
 needed. ElevenLabs official API-key documentation distinguishes key credit quotas
 from workspace quota; Meta documents rate limits per team, not per key.
+
+
+## 2026-10-30 — Optional Mac controls from the Pi and tunnel discovery
+
+Added a native-only Mac helper, pinned LAN RPC listener, expiring physical pairing,
+persisted command sequences, single delivery, acknowledgement deadlines and a
+three-second disconnect watchdog. Reused the project's existing native system,
+desktop, camera and audio adapters; no second model agent or cost ledger runs on
+Mac. Generated packages remain outside the trusted bridge. Installed the helper
+as a per-user LaunchAgent and verified reconnect with the same grant.
+
+The user confirmed matching eight digits and pressing small A. A typed live Meta
+request ran on Pi and read 47%, changed native Mac brightness to 48%, restored 47%
+and read 47% again. An independent Mac native read confirmed restoration. Six Meta
+calls took 10.817 seconds from typed submission with one-second completion polling.
+Orbit Catch retained revision 491f6971e962eff1495c40374430d8d27004fdba49742c49e31787cfb10046b8.
+Cumulative model usage: 601 calls / $11.444617 held or charged under the unchanged
+$50 ceiling. Speech allowance remains the user-approved 1,000,000 characters.
+
+The background LaunchAgent lacks Screen Recording and Accessibility grants, so
+native desktop actions remain blocked. Brightness needs neither and was verified.
+Camera/audio across the new link and physical knob brightness were not retested.
+
+Reused cloudflared and added @vercel/blob 2.8.2 for a private single-record device
+registry. The Pi signs changing tunnel origins with its existing scoped secret;
+the server proves endpoint identity before recording or forwarding credentials.
+No Vercel administrator credential is installed on Pi. Browser setup now defaults
+to standalone guidance even offline, distinguishes browser-code entry from native
+code comparison, and retains access to a new browser code after prior linking.
+
+Live deployment c91da61 initially exposed a missing systemd WorkingDirectory;
+8bd3730 records the corrected supervisor unit and setup fixes. A verified tunnel
+restart changed hostname. Identity checks initially raised fetch TypeError, then
+automatic retries registered the new hostname after 121.738 seconds. Public session
+returned online Linux at 141 seconds, with no intervening deployment/env change.
+The specific network cause was not conclusively diagnosed. All three Pi services,
+native pairing and app revision remained active with no extra model calls.
+
+Validation: 1,061 host tests passed / 13 skipped; 22 focused Pi tests; 44 final
+host checks; 41 website API tests, 29 UI tests and production build passed.
+Production deployment dpl_FAJvYNhmTgjZ5RXkKwuTCCHVqotc is READY. Temporary transfer
+and evidence-receiver servers were stopped. Initial Pi archive extraction rejected
+an unsupported filter argument; verified safe extraction recovered before service
+restart. TLS pin checking also rejected a mistyped fingerprint before credentials.
+See [sanitized evidence](evidence/optional-mac-runtime.json) and [operating guide](optional-mac.md).

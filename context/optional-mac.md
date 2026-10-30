@@ -52,6 +52,26 @@ modulate.connect_tunnel supervises cloudflared. On hostname changes it signs a
 registration to the fixed website with the existing scoped gateway secret. The
 website proves endpoint identity before storing one origin/timestamp record in
 private Vercel Blob. There is no Vercel administrator credential on the Pi.
-Discovery refreshes within 30 seconds per function instance; browser polling
-reuses the existing session. Direct provider calls remain independent of tunnels.
+After successful registration, discovery refreshes within 30 seconds per function
+instance; browser polling keeps its existing session. In the live restart trial,
+new-host identity checks initially failed and retries registered the hostname after
+121.738 seconds. The public session endpoint was confirmed online at 141 seconds
+without another deployment or environment change. Direct provider calls remain
+independent of tunnels.
 Quick Tunnels still have development availability limits; this is not a production SLA.
+
+## Verified scope — October 30
+
+The user compared matching codes and pressed small A. A typed live Pi Meta request
+changed native Mac brightness 47 → 48 → 47 in six model calls, with independent
+native final readback. Orbit Catch retained its exact revision. The helper was
+restarted as a per-user LaunchAgent and reconnected within the same eight-hour
+session. No physical brightness mapping was activated or knob trial claimed.
+
+The background helper currently reports Screen Recording and Accessibility as
+ungranted. Native brightness works; desktop actions stay blocked until macOS grants
+those permissions to the helper. Camera and audio over this new network link are
+not live-validated. Pairing alone is not proof of every capability.
+
+See [sanitized runtime evidence](evidence/optional-mac-runtime.json). Discovery is
+for the single configured demo Pi; multi-customer identity/routing is future work.

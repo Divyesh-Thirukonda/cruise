@@ -32,10 +32,13 @@ ElevenLabs. Normal device AI no longer needs a running Mac. Internet is still
 required for new AI requests; installed games run locally. See the
 [standalone setup and evidence](context/standalone.md).
 
-The legacy Mac-hosted mode remains in the codebase for native computer features.
-A separate Mac bridge has **not** yet been connected to the Pi-owned agent;
-desktop/camera/system-audio control is unavailable in this standalone deployment.
-Hold small screen A for one second to open optional browser linking.
+An optional native Mac helper now connects to the Pi-owned agent. After the user
+compared eight digits and pressed A, a typed live Meta request changed native
+brightness 47 → 48 → 47, with independent readback and Orbit Catch retained.
+The helper reconnects within its existing eight-hour session; it does not run a
+second AI agent. Desktop/camera/audio adapters are connected but those paths have
+not been revalidated across this new network link. Hold small screen A for one
+second to open optional browser linking. See the [pairing flow](context/optional-mac.md).
 
 ```sh
 python3 -m venv .venv

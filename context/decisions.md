@@ -308,3 +308,24 @@ This is a persistent installation-wide allowance across replies/restarts, not a
 per-request or API-key quota. Provider key/account limits and the $50 model
 ceiling were not changed. Repeated-operation failure feedback now distinguishes
 an unsuccessful attempt from a usage quota; bounded repair loops remain intact.
+
+
+## 2026-10-30 — Pi-owned AI with optional native Mac access
+
+The Pi remains sole AI/speech accounting owner. Native computer controls use an
+optional Mac helper with no model credentials or ledgers. The helper connects
+outbound over pinned local TLS; a fresh physical comparison-code confirmation
+creates the revocable eight-hour grant. Temporary reconnects preserve its original
+expiry. Commands consume persisted sequences before execution and uncertain
+outcomes are not replayed. Browser linking remains separate and optional.
+
+Use the existing scoped gateway secret for signed tunnel registration and endpoint
+identity proof, storing only one origin/timestamp in private Vercel Blob. Never put
+Vercel admin access on the device. A changing development tunnel may cause a brief
+website outage (121.738 seconds to registration in the recorded trial); device AI
+and native LAN controls do not depend on it. This registry serves one demo Pi.
+
+Code comparison and pairing do not replace native OS permissions. Brightness was
+verified through the Pi agent; the background helper still needs Screen Recording
+and Accessibility for desktop actions. Camera/audio and physical knob brightness
+across this link are not yet live-validated. See [scope and evidence](optional-mac.md).

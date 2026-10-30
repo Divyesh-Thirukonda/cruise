@@ -13,7 +13,8 @@ Inference still needs internet; installed games run in the isolated local runtim
 - `modulate-agent.service`: starts `modulate.studio --standalone` at boot.
   Studio is loopback port 8787, pinned device HTTPS is loopback 8788, and the
   authenticated remote gateway is loopback 8789. LAN listener overrides are
-  rejected in standalone mode.
+  rejected for that controller transport in standalone mode. The optional Mac
+  helper has a separate pinned LAN TLS listener on port 8790.
 - The `standalone.conf` drop-in for `modulate-device.service` selects the local
   agent enrollment and disables legacy Mac enrollment bootstrap. It Wants the
   agent, so a failing AI service does not stop an installed local game.
@@ -106,16 +107,18 @@ checks do not establish wake/noise reliability or provider uptime.
 
 Hold small screen A for one second, release, then press A to show the one-use
 browser code. Browser linking is optional for speaking to the device. Linking a
-browser grants no native computer access. Legacy native Mac desktop, camera,
-system audio and volume code is preserved, but a separate network Mac bridge
-has **not** been connected to the Pi-owned agent in this deployment.
+browser grants no native computer access. The optional native Mac helper is now
+connected to the Pi agent. Physical comparison-code approval and a live typed
+brightness request were verified; existing desktop/camera/audio adapters are
+connected but have not been revalidated across this new link. See
+[optional Mac setup and transport boundaries](optional-mac.md).
 
-The existing website transport uses a development Quick Tunnel. Its public
-hostname changes when cloudflared restarts. `MODULATE_COMPANION_URL` in the
-Vercel production project must then be updated and the site redeployed. A stable
-named tunnel or durable outbound device channel remains unfinished. This affects
-the browser dashboard after a reboot, **not** direct Pi AI requests. Do not put a
-Vercel administrator token on the Pi to automate this workaround.
+The optional website transport still uses a development Quick Tunnel. Its
+supervisor registers hostname changes with the fixed website using a scoped HMAC
+and an endpoint identity challenge. Private Vercel Blob stores only the current
+origin and timestamp; no administrator token is installed on the Pi. Deployment
+requires the discovery flag and Blob connection. The existing fixed-URL path is
+preserved for legacy installations. Direct Pi AI requests do not use this tunnel.
 
 Sources checked during implementation: [Meta Chat Completions](https://dev.meta.ai/docs/protocols/chat-completions),
 [ElevenLabs streaming TTS](https://elevenlabs.io/docs/api-reference/text-to-speech/stream),

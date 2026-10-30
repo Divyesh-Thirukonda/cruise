@@ -29,9 +29,12 @@ is now 1,000,000 characters (explicitly raised October 30); the model ceiling re
 
 No Mac pairing is needed for local apps, conversations, speaker volume or browser
 linking. Speaker commands retain session/sink/epoch/revision and readback checks.
-The legacy Mac-hosted path remains available in source; a network Mac bridge for
-the Pi-owned agent is not yet implemented. The diagram below includes those
-legacy computer features; they are not active in the standalone installation.
+The optional Mac helper connects outbound over pinned local TLS to the Pi on
+port 8790. Physical comparison-code confirmation grants an expiring native
+session. Fixed operations carry persisted sequences, deadlines and acknowledgements;
+unknown outcomes are never replayed. Native brightness has been demonstrated
+through the Pi Meta agent; desktop/camera/audio over this link remain unverified.
+The legacy Mac-hosted path remains in source. See [optional Mac controls](optional-mac.md).
 See [deployment and evidence](standalone.md).
 
 ```mermaid

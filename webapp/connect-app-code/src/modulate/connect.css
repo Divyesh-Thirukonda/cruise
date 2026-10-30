@@ -659,3 +659,5 @@
 
 .mc-services-grid > .mc-muse-card { grid-column: 1 / -1; order: 1; }
 .mc-muse-grant { max-width: 720px; }
+
+.mc-muse-connections { margin-top: 20px; }

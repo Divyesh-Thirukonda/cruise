@@ -55,8 +55,40 @@ test('poll and cancel use the same fixed request identity without replaying disp
  global.fetch=async(...args)=>{calls.push(args);throw Error('uncertain action');};calls=[];
  assert.equal((await handler(request('POST',{request_id:id,text:'Make a game'}))).status,502);assert.equal(calls.length,1);
 });
-test('device grant issuance retains CSRF and parent lifetime without changing permissions',async()=>{
- global.fetch=async(...args)=>{calls.push(args);return Response.json({connected:true,expires_at:Math.floor(Date.now()/1000)+600,permissions:{speaker:false}});};
+test('week grant issuance creates a dedicated scoped session with CSRF and no permission change',async()=>{
+ const connector='w'.repeat(43),connectionId='d'.repeat(64),expiry=Math.floor(Date.now()/1000)+604800;
+ global.fetch=async(...args)=>{calls.push(args);return Response.json({token:connector,kind:'connector',id:connectionId,expires_at:expiry});};
  const response=await gateway(new Request('https://modulate-connect.vercel.app/api/modulate?action=muse-link',{method:'POST',headers:{cookie:`__Host-modulate_session=${session}; __Host-modulate_csrf=${csrf}`,origin:'https://modulate-connect.vercel.app','x-modulate-csrf':csrf,'content-type':'application/json'},body:'{}'}));
- assert.equal(response.status,200);const data=await response.json();assert.equal(grant.verify(data.token,Date.now()/1000,['device']).scope,'device');assert.equal(calls.length,1);assert.equal(calls[0][1].method,'GET');
+ assert.equal(response.status,200);const data=await response.json();assert.equal(grant.verify(data.token,Date.now()/1000,['device-week']).scope,'device-week');
+ assert.equal(grant.verify(data.token,Date.now()/1000+6*86400,['device-week']).session,connector);
+ assert.throws(()=>grant.verify(data.token,expiry,['device-week']),e=>e.status===401);
+ assert.equal(data.expires_at,expiry);assert.equal(data.id,connectionId);assert.ok(!data.token.includes(connector));
+ assert.equal(calls.length,1);assert.equal(calls[0][0],'https://synthetic.example/connector-session');assert.equal(calls[0][1].method,'POST');
+ assert.deepEqual(JSON.parse(calls[0][1].body),{});assert.equal(calls[0][1].headers['X-Modulate-Session'],session);
+});
+
+test('legacy device grants retain eight-hour expiry; new week grants work only on scoped tools',async()=>{
+ const now=Date.now()/1000;
+ const old=grant.issue(session,now+604800,now,'device');
+ assert.ok(old.expires_at<=now+28800);assert.throws(()=>grant.verify(old.token,now+28801,['device']),e=>e.status===401);
+ const weekly=grant.issue(session,now+604800,now,'device-week');
+ assert.throws(()=>grant.verify(weekly.token,now,['speaker']),e=>e.status===401);
+ for(const endpoint of ['state','session']){
+  const result=await gateway(new Request('https://modulate-connect.vercel.app/api/modulate?action='+endpoint,{headers:{cookie:'__Host-modulate_session='+weekly.token}}));
+  assert.equal(result.status,endpoint==='state'?401:200);
+ }
+});
+
+test('Muse revocation is authenticated, CSRF-protected, fixed-route and never blindly replayed',async()=>{
+ const connectionId='d'.repeat(64);
+ const headers={cookie:`__Host-modulate_session=${session}; __Host-modulate_csrf=${csrf}`,origin:'https://modulate-connect.vercel.app','x-modulate-csrf':csrf,'content-type':'application/json'};
+ const make=(overrides={},body={id:connectionId})=>new Request('https://modulate-connect.vercel.app/api/modulate?action=muse-disconnect',{method:'POST',headers:{...headers,...overrides},body:JSON.stringify(body)});
+ assert.equal((await gateway(make({'x-modulate-csrf':'bad'}))).status,403);
+ assert.equal((await gateway(make({origin:'https://evil.example'}))).status,403);
+ assert.equal((await gateway(make({}, {id:'bad'}))).status,400);assert.equal(calls.length,0);
+ global.fetch=async(...args)=>{calls.push(args);return Response.json({revoked:true,id:connectionId});};
+ const result=await gateway(make());assert.deepEqual(await result.json(),{revoked:true,id:connectionId});
+ assert.equal(calls[0][0],'https://synthetic.example/connector-session?id='+connectionId);assert.equal(calls[0][1].method,'DELETE');
+ calls=[];global.fetch=async(...args)=>{calls.push(args);throw Error('unknown');};
+ assert.equal((await gateway(make())).status,502);assert.equal(calls.length,1);
 });

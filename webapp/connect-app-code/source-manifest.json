@@ -6,7 +6,7 @@
   "files": [
     {
       "path": "src/modulate/Connect.js",
-      "sha256": "8860b81390469d053618b41d2cc9a8666e381d958b561635154dd5c9bd456e8f",
+      "sha256": "411fdbc4d0a9ecb319f7fb2de97aa1d2d05cfc5a14574269222937afda15885a",
       "source_sha256": "1ad805892fde6366bc642f0bec239f4fc26ec096500cd7d2169a27d663675e67"
     },
     {
@@ -21,7 +21,7 @@
     },
     {
       "path": "src/modulate/connect.css",
-      "sha256": "f5a23a25a3c9b4376e953153b6d09f1d8a20eb4a48c6d64b62a2b1cfc49d36fb",
+      "sha256": "45cbd1277ac22b74f7a95591ae3156451a8f00ee4ae81dbb162ff583ade77191",
       "source_sha256": "b96e8303ebbf1fbd0317c3efbc0fa53e03e7fb7bbee4b9d44825b6cc13db0de1"
     },
     {

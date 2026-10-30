@@ -656,3 +656,6 @@
 
 .mc-muse-grant { display: grid; gap: 12px; margin-top: 20px; }
 .mc-muse-grant input { width: 100%; min-width: 0; padding: 12px; color: var(--mc-text); background: var(--mc-bg); border: 1px solid var(--mc-line); border-radius: 10px; font: inherit; }
+
+.mc-services-grid > .mc-muse-card { grid-column: 1 / -1; order: 1; }
+.mc-muse-grant { max-width: 720px; }

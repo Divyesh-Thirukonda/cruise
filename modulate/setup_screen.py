@@ -21,6 +21,19 @@ def setup_address_lines(address, port=None):
 
 
 class SetupScreen:
+    @staticmethod
+    def requested(text):
+        """Explicit local navigation, available even before AI provisioning."""
+        if type(text) is not str:
+            return False
+        text = " ".join(text.lower().strip(" .!?").split())
+        return re.fullmatch(
+            r"(?:please |can you |could you )?(?:"
+            r"(?:help me )?(?:connect|pair|link)(?: (?:to )?(?:my |a |the )?(?:mac|computer|device))?"
+            r"|(?:show|open|go to)(?: the)? (?:connection )?setup"
+            r"|help me (?:set up|setup)(?: (?:my |the )?(?:mac|computer|device|modulate))?"
+            r")(?: please)?", text) is not None
+
     def __init__(self, started):
         self.started = started
         self.reason = None
@@ -32,9 +45,19 @@ class SetupScreen:
         self.identity = None
 
     def wake(self):
+        """Reopen setup only for an explicit setup action, not ambient wake."""
         if self.reason:
             self.dismissed = False
             self.page = 0
+
+    def dismiss(self, offer_id=None):
+        """Leave the whole setup episode, including late offers from this attempt."""
+        self.dismissed = True
+        self.dismissed_offer = offer_id
+        self.force = False
+        self.page = 0
+        self.identity = None
+        self.buttons_released = False
 
     def update(self, *, enrolled, fresh, host, now, wall, enrollment_setup=None):
         reason = ("enrollment" if not enrolled else "offline" if not fresh and now - self.started >= 8
@@ -45,7 +68,7 @@ class SetupScreen:
             self.dismissed = False
         self.reason = reason
         offer = self._offer(host.get("setup"), fresh, wall)
-        if offer and offer["id"] != self.dismissed_offer:
+        if offer and not self.dismissed and offer["id"] != self.dismissed_offer:
             card = dict(offer)
             card["action"] = "next" if offer["kind"] == "browser_code" else self._action(host)
         elif (reason and not self.dismissed) or self.force:
@@ -156,9 +179,7 @@ class SetupScreen:
             return None
         self.buttons_released = False
         if b:
-            self.dismissed = True
-            self.dismissed_offer = card.get("id")
-            self.force = False
+            self.dismiss(card.get("id"))
             return "dismiss"
         if card["action"] == "next":
             self.page = (self.page + 1) % 2

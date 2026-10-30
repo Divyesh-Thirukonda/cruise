@@ -270,3 +270,12 @@ three identical filled cube modules on the public website and local web
 surfaces. Prefer the transparent SVG for wordmarks and a dark tile behind the
 same geometry for favicons. This supersedes the earlier generated logo choice;
 the website-only red/blue/yellow palette remains unchanged.
+
+## Later means leaving connection setup — October 29, 2026
+
+A user may decline setup without being sent into another connecting screen.
+Dismiss the whole episode until explicit setup reopening (hold-A or a local
+setup voice command) or a later boot; an
+ordinary wake/request is not setup intent. Return to the current local app or
+neutral idle state. Distinguish optional native Mac control from the prototype's
+current companion-hosted AI; do not imply that hiding setup adds standalone AI.

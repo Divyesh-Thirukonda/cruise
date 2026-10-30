@@ -122,7 +122,7 @@ tests of this path are separate from physical setup evidence.
 The maintained Pi runtime displays setup locally if enrollment is missing/invalid, the companion cannot be reached after an eight-second startup grace, or the reachable Mac is not paired. This card needs no model/API connection. A healthy paired boot goes straight to the retained app. A missing browser dashboard alone does not interrupt working Mac/voice controls.
 
 - Small PiTFT **A** advances local instructions, starts native Mac pairing when needed, then prepares a one-use browser code if the public gateway is available. The card tells you which action will happen. This native-first ordering is in the updated factory source; older installed images may offer browser access first.
-- Small PiTFT **B** dismisses setup and preserves the saved app. Dismissal stays in memory for the current process/boot. On a later restart it can remind you again; while disconnected, hold small A for one second to reopen it. A locally recognized wake phrase also reopens a dismissed reminder where wake listening is enabled.
+- Small PiTFT **B** dismisses the whole setup episode, including an underlying guide after declining native pairing and late offers from that attempt. It returns to the current app or a quiet idle screen. Dismissal stays in memory for this process/boot; a later restart can remind you again. Hold small A for one second to explicitly reopen setup, or say “help me connect” / “show setup” through available voice or push-to-talk. These local navigation commands do not need the AI service. An ordinary wake phrase or unavailable voice request does not reopen it.
 - **Both** screen buttons retain push-to-talk. Setup actions need a fresh release and press. Preparing native pairing does not approve it: the separate matching-code card still needs another fresh small-A press.
 - Once enrolled and able to reach the companion, say **“Hey Meta, help me connect”** or **“show setup.”** Meta chooses the `connection-setup` skill and trusted `connection_setup` tools to inspect state and prepare the next step. Computer use is not required for these tools. The agent cannot operate the Mac before native pairing or grant its own macOS permissions.
 
@@ -131,6 +131,14 @@ Native comparison codes appear in the focused Mac setup page even when pairing s
 Browser codes appear only in authenticated device setup offers, never the model's results, normal dashboard state or spoken reply. They expire after five minutes and disappear when consumed, replaced or revoked. A fresh matching Pi display telemetry report can confirm that an offered guide is visible; queued work is not reported as physical display success.
 
 This does **not** replace initial Raspberry Pi OS/Wi-Fi configuration, factory installation of the runtime, installation of the Mac companion, or macOS permission dialogs. It adds device-to-Mac enrollment for a preloaded gadget; it does not add a signed installer or multi-tenant public gateway. The current public site still connects to one configured hub.
+
+The current prototype's AI service runs in the companion: new voice requests,
+generation, conversation, library management and ElevenLabs synthesis need that
+service online. Native Mac-control pairing is separate and is not required for
+generating a Pi game through an enrolled, reachable companion. The Pi runs its
+current local game independently. Dismissing setup does not claim that standalone
+AI provisioning exists; an unavailable request explains the service dependency
+briefly and is not queued for a later connection.
 
 ## What the switches mean
 

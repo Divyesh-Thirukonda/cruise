@@ -8,6 +8,22 @@ The user's later scope replaces separate Chrome grants with connected paired-Mac
 
 ## Data and control flow
 
+### Current companion dependency
+
+The Pi owns capture/Whisper, physical input, checks and the current game runtime.
+The trusted `Product` and `Orchestrator` services currently run on the Mac, along
+with conversation, the library catalogue and ElevenLabs synthesis. Reaching that
+enrolled AI host is distinct from granting native Mac control: game generation
+does not require native Mac pairing, but does require the AI service online.
+
+Later/Cancel now leave setup and return to the retained app or an idle screen;
+ordinary voice requests do not reopen it. This UI behavior does not implement
+standalone AI. Making Mac access truly optional for new requests requires moving
+the trusted brain to the Pi or a cloud worker, keeping a separate optional Mac
+bridge, privately provisioning provider access, and preserving the cumulative
+model/speech ledgers. The Vercel provider gateway currently proxies model/speech
+calls; it is not a cloud orchestrator, library or activation service.
+
 ```mermaid
 flowchart LR
     V[USB microphone and local Whisper] --> Q[Transcript or disclosed typed request]

@@ -774,3 +774,18 @@ connection/setup pages plus static local Studio/setup rendering; the latter did
 not start a companion or alter the intentionally empty customer state. Public
 release target is the existing `modulate-connect` Vercel project from this repo's
 `main`, with no portfolio deployment or environment-variable changes.
+
+## October 29 — Respect Later and Cancel on the gadget
+
+Fixed the empty-runtime fallback that displayed “Connecting to Mac” immediately
+after dismissing setup. Later now returns to an idle card or the current local
+game. Declining native pairing also dismisses the underlying setup episode, and
+late offers cannot undo that choice. Ordinary wake phrases and unavailable
+requests no longer reopen setup; explicit hold-A or “help me connect” can. Unsent setup actions are cancelled.
+Offline requests remain
+unsent and explain the current companion-hosted AI dependency.
+
+All 93 focused setup/controller/presentation/connection tests passed locally, including
+new checks for late offers, native cancellation, idle fallback, continued local
+play and unavailable voice requests. This does not implement standalone AI:
+the current companion still runs orchestration, library and speech synthesis.

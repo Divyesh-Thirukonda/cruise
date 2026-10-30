@@ -25,6 +25,16 @@ class AgentReliabilityTests(unittest.TestCase):
         self.addCleanup(wait.stop)
         return agent, provider, service, ledger
 
+    def test_inference_timings_include_failed_attempt_without_provider_text(self):
+        agent, _, service, _ = self.make([
+            AgentProviderError("PRIVATE PROVIDER BODY", transient=True), reply(content="Done")])
+        agent.run("A simple request")
+        timings = [e for e in service.events if e["type"] == "model_finished"]
+        self.assertEqual([e["status"] for e in timings], ["failed", "passed"])
+        self.assertTrue(all(e["seconds"] >= 0 for e in timings))
+        self.assertTrue(all(set(e) == {"type", "request_id", "at", "title", "role", "status", "seconds"} for e in timings))
+        self.assertNotIn("PRIVATE PROVIDER BODY", (agent.directory / "trace.jsonl").read_text())
+
     def test_specialist_hands_off_written_candidate_after_its_last_turn(self):
         package = control_package()
         key = digest(package)

@@ -142,6 +142,14 @@ class Product(AssistantIO):
         self.connection_guide = ConnectionSetup(self)
         self.app_library = LibraryManager(self)
         self._init_assistant_io(computer)
+        self.mac_link = None
+        if standalone and backend is None and computer is None:
+            from .mac_link import MacLink, RemoteMacBackend, RemoteComputer, RemoteCamera, RemoteAudio
+            self.mac_link = MacLink(self.directory)
+            self.bridge.backend = RemoteMacBackend(self.mac_link)
+            self.computer = RemoteComputer(self.mac_link)
+            self.camera = RemoteCamera(self.mac_link)
+            self.system_audio = RemoteAudio(self.mac_link)
         # Permission denials survive launching the companion without its cloud
         # gateway configuration. Omitting a secret cannot restore authority.
         if (self.directory / "remote-access.json").exists():
@@ -1056,12 +1064,16 @@ class Product(AssistantIO):
             token = self.bridge.pair(code, name)
             try:
                 session = self.bridge.session(token)
+                if self.mac_link:
+                    self.mac_link.authorize(session)
                 self.volume_read_at = time.monotonic()
                 volume = self.bridge.execute(token, session["next_sequence"], "volume.get")
             except BridgeError:
                 self.pairing = None
                 self.volume = None
                 self.bridge.revoke(token)
+                if self.mac_link:
+                    self.mac_link.revoke()
                 raise
             self.volume_token, self.volume = token, volume
             self.intent_memory.clear()
@@ -1096,6 +1108,8 @@ class Product(AssistantIO):
             self.speaker_volume.disconnect()
             self.hardware.call("cancel")
             self.bridge.revoke_all()
+            if self.mac_link:
+                self.mac_link.revoke()
             self.volume_token = None
             self.volume = None
             self.volume_read_at = None

@@ -77,8 +77,12 @@ class ComputerAudioAccess:
                     self.stop_computer_audio()
                     return
                 if receiver.get("playing") and not getattr(self, "audio_route_started", False):
-                    from .audio_route import MacAudioRoute
-                    self.audio_route = MacAudioRoute()
+                    if getattr(self, "mac_link", None):
+                        from .mac_link import RemoteAudioRoute
+                        self.audio_route = RemoteAudioRoute(self.mac_link)
+                    else:
+                        from .audio_route import MacAudioRoute
+                        self.audio_route = MacAudioRoute()
                     self.audio_route.start()
                     self.audio_route_started = True
 

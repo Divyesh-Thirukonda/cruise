@@ -149,6 +149,14 @@ class SetupScreen:
 
     def _local_card(self, reason, host, enrolled, fresh):
         if (host.get("setup_status") or {}).get("ai_host") == "pi":
+            status = host.get("setup_status") or {}
+            endpoint = status.get("mac_helper") or {}
+            if fresh and endpoint and not status.get("paired_mac") and (status.get("browser_count") or self.page == 1):
+                fingerprint = str(endpoint.get("fingerprint", ""))
+                return {"kind": "guide", "title": "Optional Mac setup",
+                        "lines": [str(endpoint.get("address", "")) + ":8790", "Identity (compare on Mac):",
+                                  fingerprint[:10].upper() + " " + fingerprint[10:].upper(), "Copy website setup prompt."],
+                        "action": "next", "connect_url": CONNECT_URL}
             return {"kind": "guide", "title": "Connect a browser" if fresh else "AI service restarting",
                     "lines": ([CONNECT_HOST, "/connect", "A shows a one-use code.", "Mac pairing is optional."]
                               if fresh else ["Your agent runs on Modulate.", "Retrying the local service.", "Your saved app is retained."]),

@@ -304,6 +304,14 @@ def handler_for(remote, server_secret):
             self.wfile.write(data)
 
         def process(self):
+            parsed = urlparse(self.path)
+            if self.command == "GET" and parsed.path == "/identity":
+                import hmac
+                nonce = parse_qs(parsed.query).get("nonce", [""])[0]
+                if not re.fullmatch(r"[0-9a-f]{64}", nonce):
+                    return self.send(400, {"error": "Invalid discovery challenge"})
+                proof = hmac.new(server_secret.encode(), ("modulate-discovery-v1:" + nonce).encode(), "sha256").hexdigest()
+                return self.send(200, {"proof": proof})
             if not secrets.compare_digest(self.headers.get("Authorization", ""), "Bearer " + server_secret):
                 return self.send(401, {"error": "Gateway authentication required"})
             try:

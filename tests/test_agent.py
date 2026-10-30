@@ -176,6 +176,19 @@ class AgentTests(unittest.TestCase):
         agent.manifest = self.service.capabilities()
         self.assertIn("candidate_id", agent.dispatch("write_package", {"package": game_package("imu")}, "orchestrator"))
 
+    def test_driver_install_refreshes_manifest_and_invalidates_prior_candidates(self):
+        agent, _ = self.prepare()
+        agent.dispatch('write_package', {'package':game_package()}, 'orchestrator')
+        def setup(action, label, driver):
+            self.assertEqual((action,driver),('install_driver','lsm6ds3trc'))
+            self.service.manifest['controls'].append('imu')
+            return {'verified':True}
+        self.service.hardware_debug=setup
+        result=agent.dispatch('hardware_debug', {'action':'install_driver','driver':'lsm6ds3trc'}, 'orchestrator')
+        self.assertTrue(result['verified']);self.assertEqual(agent.candidates,{})
+        self.assertEqual(agent.manifest_revision,digest(self.service.capabilities()))
+        self.assertIn('candidate_id',agent.dispatch('write_package', {'package':game_package('imu')}, 'orchestrator'))
+
     def test_orchestrator_can_finish_after_twelve_turns_within_shared_call_budget(self):
         steps = [reply(("inspect_capabilities", {})) for _ in range(12)]
         agent, provider = self.make([*steps, reply(content="Finished after inspecting the last result.")])

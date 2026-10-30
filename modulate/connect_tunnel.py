@@ -34,6 +34,26 @@ def register(origin, secret):
             raise ValueError("Registration was not acknowledged")
 
 
+def publish(origin, secret, status_path, process, stopped):
+    save_private(status_path, {"origin": origin, "registered": False, "started_at": time.time()})
+    failures = 0
+    while not stopped.is_set() and process.poll() is None:
+        try:
+            register(origin, secret)
+            save_private(status_path, {"origin": origin, "registered": True, "registered_at": time.time()})
+            print("Website discovery registered the current device tunnel", flush=True)
+            failures = 0
+            delay = 3600  # Writes happen only when the hostname changes.
+        except Exception:
+            # New Quick Tunnel DNS/edge routing may not be ready at first. Do
+            # not impose a 30-second penalty for each early registration miss.
+            delay = (2, 4, 8, 15, 30)[min(failures, 4)]
+            failures += 1
+            save_private(status_path, {"origin": origin, "registered": False, "retry_at": time.time() + delay})
+            print(f"Website discovery unavailable; retrying in {delay} seconds", flush=True)
+        stopped.wait(delay)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--env-file", required=True)
@@ -51,24 +71,12 @@ def main():
         process.terminate()
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
-    def publish(origin):
-        save_private(status_path, {"origin": origin, "registered": False, "started_at": time.time()})
-        while not stopped.is_set() and process.poll() is None:
-            try:
-                register(origin, secret)
-                save_private(status_path, {"origin": origin, "registered": True, "registered_at": time.time()})
-                print("Website discovery registered the current device tunnel", flush=True)
-                delay = 3600  # Writes happen only when the hostname changes.
-            except Exception:
-                print("Website discovery unavailable; retrying in 30 seconds", flush=True)
-                delay = 30
-            stopped.wait(delay)
     worker = None
     try:
         for line in process.stdout:
             match = ORIGIN.search(line)
             if match and worker is None:
-                worker = threading.Thread(target=publish, args=(match.group(),), daemon=True)
+                worker = threading.Thread(target=publish, args=(match.group(), secret, status_path, process, stopped), daemon=True)
                 worker.start()
         result = process.wait()
         if result and not stopped.is_set():

@@ -279,3 +279,21 @@ setup voice command) or a later boot; an
 ordinary wake/request is not setup intent. Return to the current local app or
 neutral idle state. Distinguish optional native Mac control from the prototype's
 current companion-hosted AI; do not imply that hiding setup adds standalone AI.
+
+
+## 2026-10-29 — Pi owns normal AI operation
+
+The user asked to remove the running-Mac dependency and use the Pi's Wi-Fi plus
+the existing Vercel deployment. Run the trusted agent/library/speech coordinator
+on the Pi with loopback pinned TLS to the device runtime; keep Meta/ElevenLabs
+API keys in the existing Vercel gateway. Browser linking is optional. Move both
+cumulative ledgers intact, freeze the stopped Mac's old copies, and refuse
+missing/malformed/migrated accounting on standalone startup. Preserve the $50
+total model ceiling and unknown holds. The user explicitly approved a 10,000
+cumulative speech-character ceiling; the separate provider cap is unchanged.
+
+The current installation supports local apps, replies and speaker control without
+Mac pairing. A separate native Mac bridge is not yet connected. The dashboard
+still uses a development Quick Tunnel with a hostname that changes on restart;
+direct Pi AI is independent of it. Do not claim either limitation is solved.
+[Deployment, trials and safeguards](standalone.md).

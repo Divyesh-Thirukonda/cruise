@@ -26,12 +26,16 @@ Later spoken requests created and refined Metro Dash, then generated **Star Dash
 
 ## Run the development studio
 
-The current prototype uses the Mac companion as its AI host. New app generation,
-voice replies and library management need that service online; a current local
-game can continue on the Pi without it. Native Mac-control pairing is separate
-and only needed for computer capabilities. Fully standalone AI is not yet
-implemented. Later/Cancel leave connection setup without forcing the user back
-into it; hold small screen A for one second to reopen setup.
+The Pi now runs the trusted AI agent, app library and speech coordinator itself.
+Its Wi-Fi connection reaches the existing Vercel provider gateway for Meta and
+ElevenLabs. Normal device AI no longer needs a running Mac. Internet is still
+required for new AI requests; installed games run locally. See the
+[standalone setup and evidence](context/standalone.md).
+
+The legacy Mac-hosted mode remains in the codebase for native computer features.
+A separate Mac bridge has **not** yet been connected to the Pi-owned agent;
+desktop/camera/system-audio control is unavailable in this standalone deployment.
+Hold small screen A for one second to open optional browser linking.
 
 ```sh
 python3 -m venv .venv

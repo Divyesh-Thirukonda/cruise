@@ -1028,3 +1028,15 @@ No audio played, Mac pairing remained absent and the prior empty active app was
 retained. Muse created the custom connector and opened its secure API-key form;
 the user approved secure credential storage and a live Muse 80% trial. See
 `muse-connector.md` and `evidence/muse-speaker-connector.json` for scope/evidence.
+
+
+### Muse chat confirmed
+
+Stored the user-approved credential only in Muse's secure API-key form. Muse
+reported a verified change from 0 to 80, not muted, for the user's chat example.
+An independent Pi loopback read confirmed volume 80 / not muted / available,
+without a paired Mac; left that requested level in place. Muse network approvals
+caused a timed-out read and extra setup delay, distinct from device API latency.
+Its game request was denied as expected under this speaker-only credential.
+The stored connector token expires October 31 at 01:39 Eastern. Private
+screenshots remain ignored under context/private/demo-audit.

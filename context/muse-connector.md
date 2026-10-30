@@ -54,9 +54,14 @@ checks cover altered/expired credentials, fixed operation scope, parent
 revocation, queued access withdrawal, malformed levels, unverified readback and
 no blind write replay. They are separate from the live volume trial.
 
-Muse has prepared the custom connector and the user authorized secure credential
-storage and an 80% test. Completion of the Muse-side flow is recorded separately
-once independently verified.
+Muse's custom connector is connected. After the user approved credential storage
+and the 80% trial, the token was entered only into its secure API-key form. Muse
+received the chat request, read 0%, applied 80%, and reported verified 80% / not
+muted. A separate Pi loopback state read confirmed 80%, available, not muted,
+with no Mac paired. The speaker remains at the requested 80%. The credential
+expires October 31 at 01:39 America/New_York. Muse's network approvals caused
+timeouts and extra setup delay; the direct API timings are not Muse latency.
+Its game-creation request was correctly denied because this grant is speaker-only.
 
 ## Sources and reused components
 

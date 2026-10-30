@@ -428,3 +428,15 @@ eight-hour maximum and immediate parent-session/speaker-permission revocation.
 No native Mac or private content access is included. The user explicitly approved
 storing that credential in Muse's secure store and testing 80%. No token belongs
 in chat, URLs, source or evidence. See `muse-connector.md`.
+
+
+## October 30 — Muse scope expanded to the normal device agent
+
+The user clarified that Muse must support “make Mario Kart” on the actual Pi,
+not just volume. Added a separate full-request credential and connector named
+Modulate, without silently expanding previously issued speaker-only credentials.
+The user approved its secure storage, existing-permission device/paired-Mac
+tasks and returned task results until 01:39 Eastern, plus a kart test. Requests
+use the same Meta agent/context/verification/activation path as Studio/voice.
+Durable request IDs prevent network retries from becoming duplicate builds.
+Use the approved existing Modulate logo in metadata. See `muse-connector.md`.

@@ -1040,3 +1040,40 @@ caused a timed-out read and extra setup delay, distinct from device API latency.
 Its game request was denied as expected under this speaker-only credential.
 The stored connector token expires October 31 at 01:39 Eastern. Private
 screenshots remain ignored under context/private/demo-audit.
+
+
+## October 30 — full Modulate requests from Muse
+
+Expanded the private connector at the user's request to submit normal text to
+the existing Pi Meta agent, poll only its session's jobs, relay clarification
+questions and cancel by identity. Added a durable reservation journal so an
+uncertain response/restart cannot duplicate dispatch. Retained speaker-only
+credential scope, existing device permissions, native pairing and $50 ceiling.
+Served the existing approved PNG in connector metadata; no new brand asset.
+Pi revision 1ee8376; production website e1ef39c. Validation: 1,137 local Python
+checks (13 skips), plus two later storage-failure focused checks; 41 focused Pi
+checks, 58 API checks, 41 UI checks and production builds.
+
+A direct HTTPS hardware question completed in 5.98s (0.642s acceptance), returned
+real available controls, and repeated IDs reused one job before/after completion.
+Revoking its temporary parent returned 401. The user separately approved storing
+the full connector token only in Muse's secure form until 01:39 Eastern. Muse
+then forwarded the kart request; Pip Kart Turbo passed checks and was acknowledged
+by the Pi, independently verified against the durable connector job and Studio
+preview. Fresh generation used 13 live Meta calls over 97.346s of agent time,
+excluding Muse/approval delay. No sub-15-second or physical-play claim. The game
+declares IMU, encoder, A and B; the disconnected joystick was not declared.
+Chrome automation stalled during approvals, then recovered after user input;
+the user independently selected site-always-allowed in Muse. No protection was
+changed by Codex for that step. See `muse-connector.md` and
+`evidence/muse-agent-connector.json`. Existing unrelated Muse artwork edits
+were preserved.
+
+
+Final Muse settings confirmed the full Modulate entry connected. Disconnected
+the superseded Modulate Speaker entry without deleting prior shared data. Muse
+saved preference for the full connector. The approved 256px PNG is available and
+in metadata, but Muse reported no native custom icon URL field; the default
+connector icon remained. This UI limitation is recorded, not presented as a
+successful native-icon change. Private final connection/preview screenshots are
+saved under context/private/demo-audit.

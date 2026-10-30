@@ -90,3 +90,17 @@ This verifies automatic recovery, not uninterrupted service. No model call was
 needed. At the migration check the Mac session was expired; it needs physical
 confirmation before native computer actions. Physical voice/control checks were
 not repeated.
+
+## Reconnect follow-up
+
+Continued the interrupted audit after Cloudflare migration. Fixed a preview
+error that could persist after reconnection when the saved app revision did not
+change. The connection transition now permits a new preview request.
+Command network failures, gateway failures and timeouts now warn that the action
+may already have run and direct the user to inspect activity/state before
+resending. No automatic command replay was added. Already-cancelled transport
+requests do not fetch or submit commands.
+
+Validation: 45 API tests, 38 UI/transport tests and production build passed.
+The reconnect preview test retains the exact app revision; transport tests
+verify no duplicate dispatch for network/gateway failures and timeout.

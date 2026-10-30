@@ -389,3 +389,8 @@ A network-address change can reconnect the installed Mac helper within an existi
 ### Cloudflare activation
 
 - Wrangler authorization and live rotation succeeded. Dynamic Cloudflare discovery is active; the temporary direct-address mode is no longer used. Remove the legacy Blob dependency/fallback to prevent accidental future quota use. Temporary tunnel changes still take roughly a minute to recover in this trial.
+
+
+### Uncertain command outcomes
+
+- A network or gateway error after command submission cannot prove the command failed. Tell users to inspect current activity/state before resending; preserve the no-replay rule. Allow failed previews to retry on a restored device connection even when the app revision is unchanged.

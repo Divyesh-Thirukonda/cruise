@@ -5,6 +5,7 @@ export async function connectApi(action, payload, { signal } = {}) {
   if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
   const mutating = payload !== undefined;
   if (mutating && !csrfToken) await connectApi('session');
+  if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
   const controller = new AbortController();
   const abort = () => controller.abort();
   const timer = setTimeout(abort, 25000);

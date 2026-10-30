@@ -394,3 +394,9 @@ A network-address change can reconnect the installed Mac helper within an existi
 ### Uncertain command outcomes
 
 - A network or gateway error after command submission cannot prove the command failed. Tell users to inspect current activity/state before resending; preserve the no-replay rule. Allow failed previews to retry on a restored device connection even when the app revision is unchanged.
+
+
+### Fast paths for demo requests
+
+- Let Meta choose semantically suitable saved apps and recognize edits already satisfied by current source. Preserve actual verification, capability checks and acknowledgement. Log model/tool duration to locate latency; no artificial processing pause or prewritten current-email answer.
+- Repeat/local timing trials meet the 15-second target in this small sample; fresh generation/editing and Mac tasks need separate timing. Do not call this a measured 75% reliability result. Physical pairing remains required before native Mac tests.

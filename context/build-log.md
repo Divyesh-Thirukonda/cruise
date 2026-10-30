@@ -997,3 +997,10 @@ The installed Mac helper retained an unexpired pairing but was targeting a stale
 - Validation: 45 API tests, 38 UI/transport tests and production build passed. Changes in ef8f999; existing unrelated Muse/UI assets preserved.
 
 - Final cancellation check (175e559) prevents command dispatch if cancellation occurs during the session lookup. Final validation: 45 API tests, 39 UI/transport tests and production build passed.
+
+
+### Demo command latency follow-up
+
+- Installed content-free model-call duration events alongside existing tool timings, and generic idempotent-edit guidance. Removed a contradictory always-fresh generation instruction and its franchise-specific example. Runtime policy uses real saved creations, fresh checks and acknowledgement; no preset router, cached email answer or artificial thinking delay.
+- Live typed Pi sequence: saved racer 7.5 s, already-red coins 5.3 s, repeated racer 6.4 s, library 5.2 s, menu reversal 5.3 s. Final policy racer reopen 7.6 s. Eight revisions before/after; original app/menu preference restored. Full Python suite: 1122 tests/13 skips; 82 focused checks on Pi.
+- Mac session expired and user has no physical access; fresh email/brightness/camera/audio tests cannot proceed. Added context/demo-command-runbook.md with measured commands, fill-ins and scope corrections; no new physical evidence claimed.

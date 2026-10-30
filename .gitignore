@@ -9,3 +9,5 @@ context/private/
 .DS_Store
 node_modules/
 web3d/dist/
+
+.wrangler/

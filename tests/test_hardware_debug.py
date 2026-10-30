@@ -100,6 +100,23 @@ class HardwareDebugTests(unittest.TestCase):
     def begin(self):
         return self.host.call("begin_button_repair", "new green button")["workflow"]
 
+    def test_install_driver_requires_catalog_id_and_bound_acknowledgement(self):
+        original=self.pi.scan
+        self.pi.scan=lambda identifier: {**original(identifier),'driver_setup':{'last_result':{'verified':True}}}
+        result=self.host.call('install_driver',driver='lsm6ds3trc')
+        self.assertTrue(result['report']['driver_setup']['last_result']['verified'])
+        command=self.pi.commands[-1]
+        self.assertEqual(command['target'],'lsm6ds3trc')
+        self.assertLessEqual(command['expires_at']-time.time(),55)
+        for action,driver in [('install_driver',None),('install_driver','pip'),('scan','lsm6ds3trc')]:
+            with self.assertRaises(HardwareDebugError):self.host.call(action,driver=driver)
+        self.assertEqual(self.pi.writes,[])
+
+    def test_install_driver_cannot_run_during_physical_address_repair(self):
+        self.begin()
+        with self.assertRaises(HardwareDebugError):self.host.call('install_driver',driver='lsm6ds3trc')
+        self.assertFalse(any(c['action']=='install_driver' for c in self.pi.commands))
+
     def confirm(self):
         w = self.host.inspect()["workflow"]
         self.host.confirm(w["id"], w["confirmation_step"])

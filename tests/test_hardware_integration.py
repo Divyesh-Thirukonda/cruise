@@ -179,7 +179,8 @@ class HardwareIntegrationTests(unittest.TestCase):
         agent = self.product.agent
         schema = next(item["function"]["parameters"] for item in TOOLS
                       if item["function"]["name"] == "hardware_debug")
-        self.assertEqual(set(schema["properties"]), {"action", "label"})
+        self.assertEqual(set(schema["properties"]), {"action", "label", "driver"})
+        self.assertEqual(schema["properties"]["driver"]["enum"], ["lsm6ds3trc"])
         with self.assertRaises(AgentError):
             agent.dispatch("hardware_debug", {"action": "inspect"}, "hardware-specialist")
         for field in ("confirmation", "confirmed", "phrase", "target", "register"):

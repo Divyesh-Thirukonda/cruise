@@ -88,6 +88,18 @@ class ButtonDiagnostics:
         return {"address": address, "id": identity, "firmware": major << 8 | minor,
                 "configured_address": configured}
 
+    def imu_identity(self):
+        # Read the documented WHO_AM_I register; no optional sensor driver or
+        # configuration writes are needed to identify an installable module.
+        for address in (0x6A, 0x6B):
+            try:
+                identity = self.driver.readByte(address, 0x0F)
+                if type(identity) is int and identity == 0x6A:
+                    return {"address": address, "who_am_i": identity}
+            except OSError:
+                continue
+        return None
+
     def readdress_factory_button(self, target):
         if type(target) is not int or target not in BUTTON_TARGETS:
             raise ValueError("Unsupported target")

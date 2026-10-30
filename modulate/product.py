@@ -197,7 +197,7 @@ class Product(AssistantIO):
                                 "selected_id": self.app_library.selected(),
                                 "preferences": self.app_library.preferences()}}
 
-    def hardware_debug(self, action, label=None):
+    def hardware_debug(self, action, label=None, driver=None):
         if action != "cancel":
             self.require_permission("hardware")
         with self.lock:
@@ -205,7 +205,7 @@ class Product(AssistantIO):
                 raise AgentError("Hardware request cancelled")
         # Device acknowledgements arrive on the network thread; never wait
         # while holding Product.lock.
-        result = self.hardware.call(action, label=label)
+        result = self.hardware.call(action, label=label, driver=driver)
         with self.lock:
             return {**result, "device_health": {
                 "connected": self.connected(),
@@ -385,6 +385,10 @@ class Product(AssistantIO):
                     "permissions": ({key: self.permission_allowed(key) for key in
                                     ("computer", "system", "camera", "audio", "voice", "speaker", "hardware")}),
                     "hardware_debug": {"supported": self.permission_allowed("hardware") and self.hardware.inspect().get("supported", False),
+                                       "driver_catalog": [
+                                           {key: entry.get(key) for key in ('id', 'model', 'identity', 'installable', 'input_ready', 'managed')}
+                                           for entry in ((self.hardware.inspect().get('report') or {}).get('driver_setup') or {}).get('catalog', [])
+                                           if type(entry) is dict],
                                        "guided_button_address_repair": True},
                     "paired_host": paired,
                     "app_library": {"supported": True, "persistent": True, "voice_navigation": True,

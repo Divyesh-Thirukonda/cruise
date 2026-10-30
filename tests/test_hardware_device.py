@@ -105,6 +105,34 @@ class HardwareTests(unittest.TestCase):
         snapshot["report"]["addresses"].clear()
         self.assertEqual(self.worker.snapshot()["report"]["addresses"], [0x6F])
 
+    def test_driver_install_is_session_bound_and_duplicate_command_is_not_reexecuted(self):
+        setup=Mock()
+        setup.inspect.return_value={'catalog':[], 'last_result':{'verified':True}}
+        self.worker.driver_setup=setup
+        command={**self.command('scan'),'action':'install_driver','target':'lsm6ds3trc'}
+        self.assertFalse(self.worker.offer({**command,'session':'b'*32}))
+        self.assertFalse(self.worker.offer({**command,'target':'shell'}))
+        ack=self.run_command(command)
+        self.assertEqual(ack['status'],'done')
+        self.assertEqual(ack['result']['scan_id'],command['id'])
+        self.worker.offer(command)
+        setup.install.assert_called_once()
+        self.assertEqual(self.bus.writes,[])
+
+    def test_driver_install_withdrawal_reaches_installer_before_commit(self):
+        from modulate.driver_setup import DriverSetupError
+        setup=Mock();setup.inspect.return_value={'catalog':[]}
+        def install(driver,controls,allowed,guard):
+            self.assertTrue(allowed())
+            self.worker.offer(None)
+            with guard():self.assertFalse(allowed())
+            raise DriverSetupError('Driver setup cancelled, disconnected or expired')
+        setup.install.side_effect=install;self.worker.driver_setup=setup
+        command={**self.command('scan'),'action':'install_driver','target':'lsm6ds3trc'}
+        ack=self.run_command(command)
+        self.assertEqual(ack['status'],'failed');self.assertIn('cancelled',ack['error'])
+        self.assertEqual(self.bus.writes,[])
+
     def test_scan_and_reinitialize_never_write_address_or_reset_encoder(self):
         for action in ("scan", "reinitialize"):
             command = self.command(action)

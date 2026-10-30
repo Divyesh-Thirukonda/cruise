@@ -26,6 +26,7 @@ from .rendering import font
 from .speaker import Speaker
 from .speaker_volume import SpeakerVolumeDevice
 from .hardware_device import HardwareDevice
+from .driver_setup import DriverSetup
 from .audio_receiver import AudioReceiver
 from .voice import VoiceListener
 from .setup_screen import SetupScreen, setup_address_lines
@@ -67,8 +68,11 @@ class Controller:
         self.screen = Screen(self.directory / "screen.png")
         self.screen.display.image(render_card("idle", "Waking up", "Getting your controls ready.", now=0), rotation=90)
         self.display_state = {"kind": "status", "title": "Connecting"}
+        self.driver_setup = DriverSetup(self.directory / "drivers")
+        self.driver_setup.restore()
         self.controls = Controls(self.screen)
-        self.hardware_debugger = HardwareDevice(self.controls, self.directory / "hardware", self.session)
+        self.hardware_debugger = HardwareDevice(self.controls, self.directory / "hardware", self.session,
+                                               driver_setup=self.driver_setup)
         self.sample = neutral_input()
         self.encoder_pending = 0
         self.encoder_revision = None

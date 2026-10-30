@@ -260,9 +260,10 @@ TOOLS = [
           "favorite": {"type": "boolean"}, "encoder_direction": {"type": "string", "enum": ["forward", "reversed"]}}, ["action"]),
     tool("connection_setup", "Inspect connection/OS permission metadata, show setup guidance on Modulate, prepare Mac pairing for physical small-A confirmation, or display a one-use browser code on the device. Never authorizes the Mac or grants native permissions itself; no raw codes are returned to the model.",
          {"action": {"type": "string", "enum": ["status", "show", "start_pairing", "create_browser_code"]}}, ["action"]),
-    tool("hardware_debug", "Inspect device health, scan the I2C bus, retry input drivers, or guide a factory Qwiic button address repair. Actions begin_button_repair and continue persist a workflow across power cycles. Only direct user confirmation can authorize an isolated write; tools cannot supply that confirmation. label is used only when beginning a repair.",
-         {"action": {"type": "string", "enum": ["inspect", "scan", "reinitialize", "begin_button_repair", "continue", "cancel"]},
-          "label": {"type": "string", "maxLength": 40}}, ["action"]),
+    tool("hardware_debug", "Inspect/scan hardware, retry drivers, install an identified supported driver pack, or guide Qwiic button repair. install_driver requires driver from the reported catalog, verifies chip identity and real readings, and retains the previous setup on failure. It may take up to 55 seconds. It accepts no URLs, commands or generated code. Physical button repair still requires direct user confirmation. label belongs only to begin_button_repair; driver only to install_driver.",
+         {"action": {"type": "string", "enum": ["inspect", "scan", "reinitialize", "install_driver", "begin_button_repair", "continue", "cancel"]},
+          "label": {"type": "string", "maxLength": 40},
+          "driver": {"type": "string", "enum": ["lsm6ds3trc"]}}, ["action"]),
     tool("read_recent_context", "Recover recent requests and confirmed actions. Set include_private only when continuing a computer task: those details expire after two minutes and enter private computer-task mode. Current state and the new request take precedence.",
          {"include_private": {"type": "boolean"}}),
     tool("speaker_control", "Read or change the Modulate Pi speaker's actual level, including streamed Mac audio and spoken replies. get needs no value; set is 0–100; delta is nonzero -10–10 percentage points; mute is boolean. Returns physical readback and before/after values.",
@@ -531,8 +532,15 @@ never from your own claims. The tool supplies the exact required phrase and
 instructions. Explain the next physical step and use ask_user to request that
 phrase when ready; end the turn instead of polling while the user rewires or reboots.
 Rewiring needs a normal shutdown then disconnected power. Preserve the working
-app and distinct existing addresses; never rewrite drivers or flash firmware to
-repair a module. Unknown modules may need identification or an unsupported driver;
+app and distinct existing addresses. When an identified module lacks a driver,
+use hardware_debug install_driver with its reported catalog ID. Verify readiness,
+then refresh inspect_capabilities before continuing the original task. Routine
+supported driver installation for a requested setup/repair needs no extra question.
+When a requested app would benefit from a detected installable module, use this
+setup path before declaring its input unavailable; installed drivers do not imply
+any fixed game-control choice.
+Never generate driver code, run shell installers or flash firmware. Modules outside
+the installer catalog still need identification and a trusted integration;
 do not invent pinouts or claim a newly addressed button is a new supported input.
 """
         prompt += """
@@ -741,6 +749,14 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
         if name == "connection_setup":
             return self.service.connection_setup(arguments["action"])
         if name == "hardware_debug":
+            if arguments.get("driver") is not None:
+                result = self.service.hardware_debug(arguments["action"], arguments.get("label"), driver=arguments["driver"])
+                # Invalidate prior candidates; newly installed input changes the
+                # contract against which the subsequent app must be checked.
+                self.candidates = {}
+                self.manifest = self.service.capabilities()
+                self.manifest_revision = digest(self.manifest)
+                return result
             return self.service.hardware_debug(arguments["action"], arguments.get("label"))
         if name == "computer_audio":
             return self.service.computer_audio(arguments["action"])

@@ -18,9 +18,10 @@ import time
 import uuid
 
 from .controls import BUTTON_TARGETS
+from .driver_setup import DRIVER_ID, DriverSetupError
 
 _HEX_ID = re.compile(r"[0-9a-f]{32}\Z")
-_ACTIONS = {"scan", "reinitialize", "readdress_button"}
+_ACTIONS = {"scan", "reinitialize", "readdress_button", "install_driver"}
 _MAX_JOURNAL = 256  # Never prune consumed mutations and silently make them replayable.
 
 
@@ -37,10 +38,11 @@ def _boot_id():
 
 class HardwareDevice:
     def __init__(self, controls, directory, session, *, backend=None,
-                 clock=time.time, boot_id=None, sleep=time.sleep):
+                 clock=time.time, boot_id=None, sleep=time.sleep, driver_setup=None):
         if not _id(session):
             raise ValueError("Invalid device session")
         self.controls, self.session = controls, session
+        self.driver_setup = driver_setup
         self._backend = backend
         self._clock, self._sleep = clock, sleep
         try:
@@ -140,7 +142,9 @@ class HardwareDevice:
             return False
         return ((command["action"] == "readdress_button" and type(command["target"]) is int
                  and command["target"] in BUTTON_TARGETS)
-                or (command["action"] != "readdress_button" and command["target"] is None))
+                or (command["action"] == "install_driver" and command["target"] == DRIVER_ID
+                    and self.driver_setup is not None)
+                or (command["action"] in {"scan", "reinitialize"} and command["target"] is None))
 
     def offer(self, command):
         with self._lock:
@@ -170,6 +174,8 @@ class HardwareDevice:
 
     def _scan(self, identifier):
         report = self.controls.hardware_scan(identifier, backend=self._backend)
+        if self.driver_setup is not None:
+            report["driver_setup"] = self.driver_setup.inspect(self.controls)
         if not self._journal_ok:
             report["warnings"].append("Repair history is unreadable; address changes are disabled")
         with self._lock:
@@ -216,6 +222,14 @@ class HardwareDevice:
         report = {}
         attempted = False
         try:
+            if command["action"] == "install_driver":
+                # Downloads run without bus_lock. Installer takes it only for
+                # identity/read verification and atomic activation.
+                self.driver_setup.install(command["target"], self.controls,
+                                          lambda: self._allowed(command, generation), lambda: self._lock)
+                report = self._scan(command["id"])
+                self._finish(command, generation, "done", report)
+                return
             with self.controls.bus_lock:
                 with self._lock:
                     if not self._allowed(command, generation):
@@ -283,7 +297,12 @@ class HardwareDevice:
                     self._journal[command["id"]]["status"] = "done"
                     self._save()
                 self._finish(command, generation, "done", report)
-        except Exception:
+        except Exception as failure:
+            if command["action"] == "install_driver":
+                report = self._scan(command["id"])
+                message = str(failure) if isinstance(failure, DriverSetupError) else "Driver setup unavailable; previous drivers retained"
+                self._finish(command, generation, "failed", report, message)
+                return
             status = "uncertain" if attempted else "failed"
             error = ("Address write outcome is uncertain; inspect and power-cycle the isolated button before any new repair"
                      if attempted else "Hardware operation rejected or unavailable; inspect the diagnostic report")

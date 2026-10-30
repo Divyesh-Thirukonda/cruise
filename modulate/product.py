@@ -195,7 +195,8 @@ class Product(AssistantIO):
                     "library": {"open": self.app_library.view["open"],
                                 "tab": self.app_library.view["tab"],
                                 "selected_id": self.app_library.selected(),
-                                "preferences": self.app_library.preferences()}}
+                                "preferences": self.app_library.preferences(),
+                                "saved_apps": self.app_library.catalog()}}
 
     def hardware_debug(self, action, label=None, driver=None):
         if action != "cancel":

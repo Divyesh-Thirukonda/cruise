@@ -290,7 +290,7 @@ function commandWav(samples=16000) {
   return wav;
 }
 test('Muse ASR forwards only canonical bounded audio to the fixed authenticated endpoint',async()=>{
-  global.fetch=async(...args)=>{calls.push(args);return response({transcript:'Make a game.',audioDurationMs:1000,private:'omit me'});};
+  global.fetch=async(...args)=>{calls.push(args);return response({transcript:'Make a game.',audioDurationMs:'1000',private:'omit me'});};
   const result=await run(provider,cloud('transcribe',{wav:commandWav().toString('base64')}));
   assert.equal(result.statusCode,200);assert.deepEqual(result.body,{model:'muse-voice-transcribe-1.0',transcript:'Make a game.',audioDurationMs:1000});
   assert.equal(calls[0][0],'https://api.meta.ai/v1/asr/transcribe');

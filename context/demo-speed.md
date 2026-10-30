@@ -74,6 +74,22 @@ read/set/restore and camera/audio successes remain historical evidence.
 
 Fresh Mac observations and a valid native session are necessary to measure the
 remaining computer tasks. Do not use a private inbox in public footage without
-choosing safe content. Automatic tunnel discovery is still awaiting the separate
-Cloudflare deployment authorization; the website currently uses the temporary
-identity-verified direct tunnel configured during the Blob outage.
+choosing safe content. Automatic tunnel discovery now uses the deployed Cloudflare registry; Blob was
+removed. A live rotation recovered automatically with the same browser session.
+
+## Follow-up measurements for the current script
+
+Installed e5092eb adds content-free inference timings alongside existing tool
+timings and asks Meta to inspect an edit for an already-satisfied outcome before
+creating a redundant revision. Five new typed tunnel trials took 7.5, 5.3, 6.4,
+5.2 and 5.3 seconds: saved racer, already-red coins, repeat racer, library, reverse
+library scrolling. Saved revision IDs stayed identical (eight before/eight after).
+Original game and menu preference were restored. The user confirmed no physical
+access, so Mac-only timings remain blocked by expired pairing. No email answer
+cache or authorization bypass was added.
+
+2566c08 resolves the older contradictory “always generate fresh” instruction and
+removes its named-franchise example in favor of generic original-creation guidance.
+Full Python validation: 1122 tests, 13 skips. Focused Pi validation: 82 tests.
+See [runbook](demo-command-runbook.md) and
+[measured results](evidence/demo-speed-followup.json).

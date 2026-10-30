@@ -4,15 +4,46 @@
   "deployment": "dpl_KZ8T8vXVsBAKEry1UdB7iK6vpnic",
   "input_mode": "direct HTTPS connector API, not Muse chat",
   "device": "physical Raspberry Pi 5",
-  "initial": {"verified": true, "volume": 0, "muted": false},
-  "set": {"verified": true, "volume": 80, "muted": false},
-  "fresh_read": {"verified": true, "volume": 80, "muted": false},
-  "restored": {"verified": true, "volume": 0, "muted": false},
+  "initial": {
+    "verified": true,
+    "volume": 0,
+    "muted": false
+  },
+  "set": {
+    "verified": true,
+    "volume": 80,
+    "muted": false
+  },
+  "fresh_read": {
+    "verified": true,
+    "volume": 80,
+    "muted": false
+  },
+  "restored": {
+    "verified": true,
+    "volume": 0,
+    "muted": false
+  },
   "revoked_parent_status": 401,
   "read_seconds": 0.778,
   "set_seconds": 0.493,
   "audio_played": false,
   "mac_paired": false,
   "modulate_model_calls": 0,
-  "limits": "One live trial. Latency excludes Muse interpretation, credential entry and approvals. Muse chat completion tracked separately."
+  "limits": "One live trial. Latency excludes Muse interpretation, credential entry and approvals. Muse chat completion tracked separately.",
+  "muse_chat": {
+    "input": "Raise speaker volume to 80%. Use Modulate Speaker and confirm the verified volume returned by the Pi.",
+    "reply_verified_volume": 80,
+    "reply_muted": false,
+    "independent_pi_read": {
+      "volume": 80,
+      "muted": false,
+      "available": true,
+      "mac_paired": false
+    },
+    "credential_expiry_local": "2026-10-31 01:39 America/New_York",
+    "credentials_entered": "Muse secure API-key form, not chat",
+    "action_approvals": "Enabled; individual network approvals caused setup delay",
+    "audio_played": false
+  }
 }

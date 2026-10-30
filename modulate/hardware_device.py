@@ -60,6 +60,7 @@ class HardwareDevice:
         self._active = None
         self._seen = {}
         self._report, self._ack = None, None
+        self._last_discovery = 0
         self._journal = {}
         self._journal_ok = True
         self._load()
@@ -180,6 +181,7 @@ class HardwareDevice:
             report["warnings"].append("Repair history is unreadable; address changes are disabled")
         with self._lock:
             self._report = deepcopy(report)
+            self._last_discovery = time.monotonic()
         return report
 
     def _finish(self, command, generation, status, result, error=None):
@@ -214,9 +216,14 @@ class HardwareDevice:
                 try:
                     # Only known, identity-checking drivers are reopened; no
                     # EEPROM/address writes or model calls. Outside frame loop.
-                    self.controls.hardware_reinitialize(refresh_missing=True)
+                    self.refresh_inventory()
                 except Exception:
                     pass
+
+    def refresh_inventory(self):
+        self.controls.hardware_reinitialize(refresh_missing=True)
+        if time.monotonic() - self._last_discovery >= 15:
+            self._scan(uuid.uuid4().hex)
 
     def _execute(self, command, generation):
         report = {}

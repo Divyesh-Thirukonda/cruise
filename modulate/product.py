@@ -23,6 +23,7 @@ from .speaker_volume import SpeakerVolume, SpeakerVolumeError
 from .hardware_debug import HardwareDebug
 from .connection_setup import ConnectionSetup
 from .library import LibraryManager
+from .component_setup import ComponentSetup, SETUP_REQUEST
 from .deployment import CONNECT_URL
 
 
@@ -143,6 +144,7 @@ class Product(AssistantIO):
         self.setup_offer = None
         self.connection_guide = ConnectionSetup(self)
         self.app_library = LibraryManager(self)
+        self.component_setup = ComponentSetup(self.directory)
         self._init_assistant_io(computer)
         self.mac_link = None
         if standalone and backend is None and computer is None:
@@ -182,6 +184,7 @@ class Product(AssistantIO):
         with self.lock:
             package = (self.active or {}).get("package", {})
             return {"recent": self.intent_memory.snapshot(include_private),
+                    "components": self.component_setup.inventory(self.hardware.inspect(), self.device["devices"]),
                     "current": {"app": {key: copy.deepcopy(package[key]) for key in
                                 ("title", "kind", "controls", "bindings", "camera") if key in package},
                                 "revision": self.revision,
@@ -387,6 +390,7 @@ class Product(AssistantIO):
                     "button_sources": dict(self.device["button_sources"]),
                     "permissions": ({key: self.permission_allowed(key) for key in
                                     ("computer", "system", "camera", "audio", "voice", "speaker", "hardware")}),
+                    "components": self.component_setup.inventory(self.hardware.inspect(), self.device["devices"]),
                     "hardware_debug": {"supported": self.permission_allowed("hardware") and self.hardware.inspect().get("supported", False),
                                        "driver_catalog": [
                                            {key: entry.get(key) for key in ('id', 'model', 'identity', 'installable', 'input_ready', 'managed')}
@@ -540,7 +544,7 @@ class Product(AssistantIO):
                 return ("I couldn't finish this request within one attempt. This isn't a daily request allowance; your current app is still available.", None)
         return ("An unexpected error stopped this request. Your active app is still available. Check Studio and describe what happened before starting a new request.", None)
 
-    def request(self, text, source="website", followup_id=None, *, _library_entry=None, _adapt_controls=False):
+    def request(self, text, source="website", followup_id=None, *, _library_entry=None, _adapt_controls=False, _component_setup=False):
         if source == "microphone":
             self.require_permission("voice")
         if not isinstance(text, str) or not 1 <= len(text.strip()) <= 4000:
@@ -552,7 +556,7 @@ class Product(AssistantIO):
                 raise AgentError("The physical controller is not connected")
             if self.device_revision != self.revision:
                 raise AgentError("Wait for the controller and host to finish synchronizing")
-            followup = self._followup(followup_id) if _library_entry is None and not _adapt_controls else None
+            followup = self._followup(followup_id) if _library_entry is None and not _adapt_controls and not _component_setup else None
             job_sequence = self.progress["job_sequence"] + 1
             if job_sequence >= 2**53:
                 raise AgentError("Request sequence limit reached")
@@ -638,7 +642,8 @@ class Product(AssistantIO):
                 elif followup and followup.get("kind") == "library_purge":
                     result = self.app_library.human_reply(followup["library_confirmation"], raw_human_reply)
                 else:
-                    result = (self.agent.run(request_text, adapt_controls=True) if _adapt_controls else
+                    result = (self.agent.run(request_text, component_setup=True) if _component_setup else
+                              self.agent.run(request_text, adapt_controls=True) if _adapt_controls else
                               self.agent.run(request_text, private=True) if followup and followup.get("private")
                               else self.agent.run(request_text))
                 summary = result if isinstance(result, str) else "Request finished."
@@ -865,6 +870,23 @@ class Product(AssistantIO):
                 pending.update(phase="abort", error="Host could not commit activation")
         self.changed.notify_all()
 
+    def _setup_new_components(self):
+        hardware = self.hardware.inspect()
+        workflow = hardware.get("workflow") or {}
+        voice = self.telemetry.get("voice") or {}
+        eligible = (self.connected() and self.device_revision == self.revision
+                    and self.permission_allowed("hardware") and not self.running
+                    and not self.clarification and not self.voice_draft and not self.speech_pending
+                    and not self.app_library.view["open"]
+                    and voice.get("state") not in {"listening", "transcribing"}
+                    and workflow.get("phase") in {None, "complete", "completed", "cancelled", "failed"}
+                    and not (self.pending and self.pending["phase"] not in {"confirmed", "abort"}))
+        if self.component_setup.consider(hardware, self.device["devices"], eligible=eligible, now=time.monotonic()):
+            try:
+                self.request(SETUP_REQUEST, source="component_discovery", _component_setup=True)
+            except AgentError:
+                pass  # Consumed attempt is not replayed after a concurrent state change.
+
     def _adapt_changed_controls(self):
         from .adaptation import ADAPT_REQUEST
         runtime = self.telemetry.get("app", {})
@@ -976,6 +998,7 @@ class Product(AssistantIO):
             self._acknowledge(packet.get("ack"))
             if failure is None:
                 self._restore_host_program()
+            self._setup_new_components()
             self._adapt_changed_controls()
             if isinstance(packet.get("audio_stopped"), str):
                 self.stop_computer_audio(packet["audio_stopped"])

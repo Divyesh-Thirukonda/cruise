@@ -1,0 +1,36 @@
+{
+  "date": "2026-11-03",
+  "timezone": "America/New_York",
+  "mode": "browser simulation; no live model or physical device calls",
+  "commit": "e04a23ccf4d26d4854cb04f59e4921ba27972ee0",
+  "branch": "codex/online-demo",
+  "deployment": "dpl_225KXvw5w3HhC84ZbziUnuZL4mAi",
+  "project": "modulate-connect",
+  "target": "production",
+  "state": "READY",
+  "url": "https://modulate-connect.vercel.app/demo",
+  "checks": {
+    "frontend_tests": 52,
+    "server_tests": 63,
+    "production_build": "passed",
+    "source_provenance": "11 files verified"
+  },
+  "browser_checks": [
+    "homepage Online demo link",
+    "live example request activated a pink Orbit Catch",
+    "held joystick moved player from x=120 to x=182.49",
+    "pause",
+    "no captured browser console errors",
+    "local knob steering",
+    "local capability rejection",
+    "local audio play/pause status",
+    "local saved library after reload",
+    "desktop and 390px mobile layout"
+  ],
+  "limits": [
+    "Conceptual Pi modules; no electrical/firmware or Arduino emulation",
+    "Built-in examples, not Meta generation",
+    "Audio playback status checked; human audibility not asserted",
+    "Existing live-device connection reported unavailable; demo worked independently"
+  ]
+}

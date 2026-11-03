@@ -1,0 +1,45 @@
+{
+  "date": "2026-11-03",
+  "status": "implementation_verified_live_inference_blocked",
+  "inference_calls_made": 0,
+  "provider_access": {
+    "endpoint": "https://api.meta.ai/v1/models",
+    "status": 200,
+    "model_available": "muse-spark-1.3",
+    "note": "Authenticated discovery, not an inference trial."
+  },
+  "automated": {
+    "node_api_runtime_tests": 71,
+    "jest_ui_tests": 52,
+    "python_allocation_tests": 2,
+    "source_manifest": "passed",
+    "next_production_build": "passed"
+  },
+  "browser": {
+    "production_mode_localhost": "http://localhost:3124/demo",
+    "session_and_server_wasm": 200,
+    "unfunded_generation": "429 with visible allowance unavailable message; no preset or app activated",
+    "worker_smoke": "151 fixture frames verified under production-style nonce/strict-dynamic/wasm CSP; button input changed state; not inference evidence"
+  },
+  "cloudflare": {
+    "worker": "modulate-discovery",
+    "deployed_version": "7b500342-295e-4e24-8815-cdb7684fea63",
+    "budget_limit_microdollars": 0,
+    "budget_charged_microdollars": 0,
+    "discovery_resolve": "authenticated 200"
+  },
+  "blocker": "Authoritative $50 ledger is on Pi. Raspberry Pi Connect timed out; device tunnel unavailable. No allocation taken from halted Mac backup.",
+  "pending": [
+    "Connect Pi; run idempotent $5 allocation against authoritative ledger",
+    "Activate matching Cloudflare allowance",
+    "Run actual Meta create/edit flow and exercise generated controls",
+    "Deploy verified commit to production and repeat live smoke test"
+  ],
+  "production": "Previous explicitly labeled preset demo remains deployed; this implementation is not promoted.",
+  "sources": [
+    "https://dev.meta.ai/docs/protocols/chat-completions",
+    "https://dev.meta.ai/docs/pricing-rate-limits",
+    "https://dev.meta.ai/docs/api-reference/models/list-models",
+    "https://github.com/justjake/quickjs-emscripten"
+  ]
+}

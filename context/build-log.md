@@ -1226,3 +1226,49 @@ existing live-device connection reported unavailable; the demo worked independen
 simulation evidence only. No production environment variables or native services
 were changed. The website source differs from the prior production commit only
 in the homepage entry, new demo route/modules and README.
+
+
+## November 3 — Real Meta generation for virtual hardware (release pending)
+
+Implemented the user's replacement of the preset browser demo with original
+Meta-generated JS apps. The existing server-only key routes to the fixed
+`muse-spark-1.3` endpoint. The model receives the attached component manifest,
+writes code, inspects independent check results and approves/repairs within three
+calls. The browser independently verifies and acknowledges the revision before
+activation. Source, response IDs, usage and check results are inspectable. App
+library restores and rollback run locally, without inference. Preset selection,
+scripted gameplay and fake timed build stages were removed from the live route.
+
+Reused existing Vercel and Cloudflare accounts. Added a separate transactional
+budget object to the existing Workers Free service; deployed version
+`7b500342-295e-4e24-8815-cdb7684fea63`, while preserving authenticated discovery.
+The pool remains at **$0**, with zero demo inference calls. An idempotent allocator
+reserves $5 within the Pi's existing $50 ledger, never a new ceiling. Unknown-cost
+holds, concurrency limits, anonymous session/IP-hash quotas, same-origin and CSRF
+checks are covered. The provider key passed authenticated `/v1/models` discovery
+and listed `muse-spark-1.3`; this does not prove a successful generation.
+
+Validation: **71 API/runtime tests, 52 UI tests, two Python allocation tests**,
+source provenance checks and production build passed. Real QuickJS tests verify
+input response, memory/state/drawing bounds, unavailable capabilities and infinite
+loop interruption. Browser fixture test passed 151 frames and button-driven state
+under production-style CSP. The production-mode local page reached the real
+private allowance service and displayed its unfunded 429 without activating a
+preset. The server-bundled WASM initialized successfully via session creation.
+A local hydration issue after rebuilding underneath a running production server
+was resolved by restarting that test server; the final build hydrated normally.
+
+**Not yet verified or released:** live Meta generation, generated gameplay/editing,
+and production promotion. Raspberry Pi Connect timed out and the device tunnel
+was unavailable, so the authoritative ledger could not be safely allocated. The
+user was asked to connect the Pi while implementation continued. The halted Mac
+backup was not changed. The old explicitly labeled preset demo remains production.
+[Sanitized verification evidence](evidence/online-demo/live/verification.json).
+
+New dependencies: MIT `quickjs-emscripten` and
+`@jitl/quickjs-singlefile-browser-release-sync` 0.32.0 (including QuickJS engine),
+and MIT esbuild 0.28.2 for the worker bundle. Existing Next.js/React/Lucide/brand
+assets retained. Original protocol adapter, generation/check/review loop, durable
+allowance, session layer and UI integration authored during this change. Test app
+fixtures are handwritten verification inputs, not production presets. No new
+third-party game art, generated promotional assets or physical evidence.

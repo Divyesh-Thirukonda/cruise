@@ -337,3 +337,27 @@ earlier job. This removes a live failure where a rejected Mac initialization
 left a local request marked running against the preceding completed job.
 Successful app activation and saved-app reopening leave speaker mode so its
 overlay cannot mask the selected experience. Failed activation preserves it.
+
+
+### Public virtual-device generation (November 3)
+
+`/demo` → same-origin `/api/demo` → private Cloudflare allowance → fixed Meta
+chat-completions endpoint (`muse-spark-1.3`). The model writes an app package
+(title, description, required virtual modules, control descriptions, JS source).
+A QuickJS checker evaluates init/update/draw over 151 frames and returns bounded
+results to Meta for review/repair, up to three calls. Only a checked candidate
+with explicit model approval returns to the browser. A separate QuickJS worker
+checks the same package and acknowledges its exact revision before UI activation.
+
+Generated JS has no DOM, network, filesystem, module loader, host callbacks or
+native actions. Drawing is a bounded command list; audio is a bounded oscillator
+command enabled by a user gesture. Virtual inputs are joystick axes, normalized
+encoder position and held A/B buttons. Real-time input never calls Meta. Restores
+reverify locally. Cancellation ignores late results; failed staging preserves the
+previous library entry. API keys and private allowance credentials stay server-side.
+
+The anonymous signed session is independent of device pairing. Durable rate
+limits and worst-case per-call holds draw from a single pre-reserved $5 slice of
+the authoritative $50 ledger. The initial allowance is zero until allocation;
+missing configuration, transport, checks, review or acknowledgement fail closed.
+No inference or physical capabilities are inferred from mocked tests.

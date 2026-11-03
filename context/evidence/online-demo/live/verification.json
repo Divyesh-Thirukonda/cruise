@@ -1,7 +1,7 @@
 {
   "date": "2026-11-03",
-  "status": "local_live_inference_verified_production_pending",
-  "inference_calls_made": 5,
+  "status": "production_live_inference_verified",
+  "inference_calls_made": 7,
   "provider_access": {
     "endpoint": "https://api.meta.ai/v1/models",
     "status": 200,
@@ -14,43 +14,46 @@
     "source_manifest": "passed",
     "next_production_build": "passed"
   },
-  "browser": {
-    "production_mode_localhost": "http://localhost:3124/demo",
-    "session_and_server_wasm": 200,
-    "unfunded_generation": "429 with visible allowance unavailable message; no preset or app activated",
-    "worker_smoke": "151 fixture frames verified under production-style nonce/strict-dynamic/wasm CSP; button input changed state; not inference evidence"
-  },
   "cloudflare": {
     "worker": "modulate-discovery",
     "deployed_version": "42f7f48f-658e-4516-8da7-51cf217c0412",
     "budget_limit_microdollars": 25000000,
-    "budget_charged_microdollars": 86049,
+    "budget_charged_microdollars": 101252,
     "discovery_resolve": "authenticated 200"
   },
   "blocker": null,
-  "pending": [
-    "Deploy final verified commit to production",
-    "Generate a fresh app on the published page and exercise it"
-  ],
-  "production": "Previous explicitly labeled preset demo remains deployed; this implementation is not promoted.",
+  "pending": [],
+  "production": {
+    "deployment": "dpl_ESMH6SjwQG3cAxeq8LpURN5zmdnG",
+    "state": "READY",
+    "url": "https://modulate-connect.vercel.app/demo",
+    "source_commit": "b0246098571ee3ff16d3434b8f25aed7d1de9746",
+    "title": "Neon Courier",
+    "revision": "c58cc93d02df5f9c9a89a0388767165dc4b8ea13fe0813587a40547d221c290e",
+    "calls": 2,
+    "seconds": 32.2,
+    "attached_components": [
+      "display",
+      "joystick",
+      "buttons"
+    ],
+    "behavior": "Browser joystick moved courier, collected parcels (score 0 to 2), and A changed cyan courier to magenta. No browser errors.",
+    "checks": "production-checks.txt",
+    "source": "production-courier.js"
+  },
   "sources": [
     "https://dev.meta.ai/docs/protocols/chat-completions",
     "https://dev.meta.ai/docs/pricing-rate-limits",
     "https://dev.meta.ai/docs/api-reference/models/list-models",
     "https://github.com/justjake/quickjs-emscripten"
   ],
-  "implementation_commit": "8d4552a11daba377e3899fc6f1a23394a2a94d55",
-  "preview": {
-    "deployment": "dpl_B5wr8CsWM16fQg8ELVNQVtpNPkt8",
-    "state": "READY",
-    "url": "https://modulate-connect-n9hmok0zk-divyesh-thirukondas-projects.vercel.app",
-    "note": "Build verification only; not promoted and no live inference trial."
-  },
+  "implementation_commit": "b0246098571ee3ff16d3434b8f25aed7d1de9746",
   "budget": {
     "authorized_total_dollars": 25,
     "independent_of_pi": true,
-    "charged_dollars": 0.086049,
-    "unknown_holds": 0
+    "charged_dollars": 0.101252,
+    "unknown_holds": 0,
+    "remaining_dollars": 24.898748
   },
   "local_live_runs": [
     {
@@ -82,5 +85,17 @@
     },
     "restore_added_calls": 0
   },
-  "prior_blocker_resolution": "User explicitly authorized an independent $25 demo budget; no Pi allocation was required or made."
+  "prior_blocker_resolution": "User explicitly authorized an independent $25 demo budget; no Pi allocation was required or made.",
+  "historical_unfunded_browser_check": {
+    "production_mode_localhost": "http://localhost:3124/demo",
+    "session_and_server_wasm": 200,
+    "unfunded_generation": "429 with visible allowance unavailable message; no preset or app activated",
+    "worker_smoke": "151 fixture frames verified under production-style nonce/strict-dynamic/wasm CSP; button input changed state; not inference evidence"
+  },
+  "initial_preview": {
+    "deployment": "dpl_B5wr8CsWM16fQg8ELVNQVtpNPkt8",
+    "state": "READY",
+    "url": "https://modulate-connect-n9hmok0zk-divyesh-thirukondas-projects.vercel.app",
+    "note": "Build verification only; not promoted and no live inference trial."
+  }
 }

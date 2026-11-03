@@ -1313,3 +1313,23 @@ is covered; human audibility is not claimed. Updated automated suites: **72
 API/runtime and 52 UI tests**; native allocation tests removed with that feature.
 Generation now scrolls its progress into view on small screens. Production
 release and final published-page inference are recorded after deployment.
+
+
+Production release: `b024609` pushed to `codex/online-demo`; deployment
+`dpl_ESMH6SjwQG3cAxeq8LpURN5zmdnG` reached READY and the existing
+[public demo](https://modulate-connect.vercel.app/demo) serves real generation.
+On the published page, a fresh typed request with only display/joystick/buttons
+attached generated **Neon Courier** in **32.2 s / two Meta calls**, revision
+`c58cc93d02df5f9c9a89a0388767165dc4b8ea13fe0813587a40547d221c290e`.
+Browser joystick input visibly moved the courier and collected parcels (**score
+0 → 2**); A changed its color from cyan to magenta. No browser errors were
+captured. Provider IDs, usage and source are in `production-checks.txt` and
+`production-courier.js`; before/after screenshots show the gameplay result.
+
+The complete live verification used **seven calls across three requests**, with
+**$0.101252 accounted usage, $24.898748 remaining and zero unknown holds**.
+The public demo is fully independent of Pi power, network, pairing, native
+services and the physical ledger. Production server credentials remained
+server-side. Code, durable safeguards and public behavior are now verified;
+actual Meta generation is demonstrated, while the hardware remains explicitly
+virtual. No Arduino firmware or physical-device behavior is claimed.

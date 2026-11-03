@@ -27,16 +27,16 @@ async function setup() {
   };
   return { call, CALL_HOLD };
 }
-test('allocation is fixed, concurrent reservations cannot exceed its cap, unknown costs stay held', async () => {
+test('cloud budget is fixed, concurrent reservations cannot exceed its cap, unknown costs stay held', async () => {
   const { call, CALL_HOLD } = await setup();
   assert.equal(
     (await call('start', { id: randomUUID(), session: 'a'.repeat(64), network: 'b'.repeat(64) }))
       .status,
     429,
   );
-  await call('allocate', { reservation: 'c'.repeat(32), amount: 2000000 });
+  await call('initialize', { budgetId: 'c'.repeat(32), amount: 2000000 });
   assert.equal(
-    (await call('allocate', { reservation: 'd'.repeat(32), amount: 8000000 })).status,
+    (await call('initialize', { budgetId: 'd'.repeat(32), amount: 8000000 })).status,
     409,
   );
   const ids = [randomUUID(), randomUUID()];
@@ -53,7 +53,7 @@ test('allocation is fixed, concurrent reservations cannot exceed its cap, unknow
 });
 test('duplicate calls cannot infer twice; settlements are idempotent, overages halt', async () => {
   const { call, CALL_HOLD } = await setup();
-  await call('allocate', { reservation: 'c'.repeat(32), amount: 5000000 });
+  await call('initialize', { budgetId: 'c'.repeat(32), amount: 5000000 });
   const id = randomUUID();
   await call('start', { id, session: 'a'.repeat(64), network: 'b'.repeat(64) });
   assert.equal(
@@ -68,4 +68,18 @@ test('duplicate calls cannot infer twice; settlements are idempotent, overages h
   await call('reserve', { id, call: 1 });
   await call('settle', { id, call: 1, cost: CALL_HOLD + 1 });
   assert.equal((await call('reserve', { id, call: 2 })).status, 409);
+});
+
+test('independent demo can use its own $25 ceiling without a Pi allocation', async () => {
+  const { call } = await setup();
+  const budgetId = 'f'.repeat(32);
+  assert.equal((await call('initialize', { budgetId, amount: 25000001 })).status, 400);
+  assert.equal((await call('initialize', { budgetId, amount: 25000000 })).status, 200);
+  assert.equal((await call('status')).limit, 25000000);
+  await call('initialize', { budgetId, amount: 25000000 });
+  assert.equal((await call('status')).charged, 0);
+  assert.equal(
+    (await call('initialize', { budgetId: 'e'.repeat(32), amount: 25000000 })).status,
+    409,
+  );
 });

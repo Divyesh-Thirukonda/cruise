@@ -142,6 +142,7 @@ export default function Demo() {
     generation.current = controller;
     setNotice('');
     setBuild({ phase: 'Connecting to Meta…' });
+    main.current?.scrollTo?.({ top: 0, behavior: 'smooth' });
     try {
       const sessionResponse = await fetch('/api/demo', { signal: controller.signal });
       const session = await sessionResponse.json();

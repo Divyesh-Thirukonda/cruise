@@ -526,3 +526,14 @@ fixed drawing/audio commands, 16 MiB memory, 40 ms frame interruption, worker
 termination watchdog, bounded state/output and component validation. Keep model
 calls out of gameplay. This browser contract is a restricted virtual-device
 adapter and does not alter physical firmware, drivers or paired-Mac services.
+
+
+### November 3 — Independent $25 online-demo budget (supersedes allocation plan)
+
+The user explicitly authorized the online demo's **own $25 total budget** and
+required the entire page to be independent of the Pi. Remove the proposed Pi
+allocation script and native-ledger tests. Initialize the existing Cloudflare
+DemoBudget object directly with this ceiling. Keep accrued costs, unknown holds,
+rate limits and fixed model/provider routing. The physical prototype's existing
+$50 ledger is unchanged. No Pi availability or native service is required to
+create, verify, play, save or restore an online app.

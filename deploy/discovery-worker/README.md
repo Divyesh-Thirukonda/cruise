@@ -1,4 +1,4 @@
-# Free connection registry
+# Cloudflare discovery and independent demo budget
 
 Replaces Vercel Blob for the single current Pi tunnel address. Uses a SQLite
 Durable Object on Cloudflare Workers Free; never select the paid Workers plan.
@@ -35,20 +35,14 @@ raw IP addresses or provider keys. `/demo-budget/*` is private and requires the
 existing derived registry credential. No public browser receives this credential.
 The v2 migration adds this object without changing the discovery object's data.
 
-Enable only after reserving the funds from the **current Pi ledger**, never the
-halted Mac backup. On the Pi, with its existing Python environment and checkout:
-
-```sh
-.venv/bin/python scripts/allocate_demo_budget.py --ledger /home/pi/modulate-product/brain/budget.json
-```
-
-This idempotently reserves $5 within the existing $50 ceiling, preserving all
-previous charges and holds. It prints a reservation ID and amount, not secrets.
-Then POST those exact `reservation` and `amount` fields to
-`/demo-budget/allocate` using server-side Bearer registry authentication. The
-allocation cannot subsequently be replaced or increased. Keep the Pi reservation
-held while this public pool exists; do not settle or refund it independently.
-Repeated allocation with the same values is idempotent.
+The public demo has its own **$25 total budget**, explicitly authorized by the
+user November 3, 2026. It is independent of the physical Pi and its $50 ledger.
+Initialize the cloud ledger once by POSTing `{"budgetId":"<fresh UUID hex>",
+"amount":25000000}` to `/demo-budget/initialize` with server-side Bearer registry
+authentication. Persist the initialization ID for retries. Identical retries are
+idempotent; changing the ID/amount or exceeding $25 is rejected. No Pi connection,
+ledger reservation, tunnel or native service is involved. Existing accrued usage
+and unknown-cost holds are never reset by initialization.
 
 The server calls `start`, `reserve`, `settle`, and `finish` for a generation.
 A call holds 1,345,536 microdollars (full 1,048,576 input context at $1.25/M plus

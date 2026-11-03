@@ -21,3 +21,10 @@ observation if visible; do not open an item merely to read information already
 shown. Use supported app activation/navigation instead of several menu clicks
 when appropriate. Observe after navigation, then stop as soon as the requested
 outcome is verified. Never reuse a previous email answer or screen as current.
+
+For media playback, opening the watch page or selecting a thumbnail is not
+completion. Verify the target content is actively playing from fresh player
+state. A paused pre-roll ad, loading spinner, autoplay rejection or consent dialog
+still needs attention. Handle visible routine playback controls and supported
+ad-skip controls; allow required waits and report a remaining blocker honestly.
+Do not infer playback merely from a title, viewer count or the page being open.

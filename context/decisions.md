@@ -475,3 +475,19 @@ expired native session through the existing physical comparison-code flow; retai
 the eight-hour duration and native OS grants. The live generated brightness
 binding is two percentage points per encoder step, physically confirmed in both
 directions. Browser relinking remains separate from native Mac pairing.
+
+
+### November 3: demo latency and independent mode switches
+
+Use generic revision-checked package edits and combined write/verification to
+reduce output and round trips. Keep Meta's inspection of check results and the
+separate exact-revision device acknowledgement. Initialize optional native
+computer work only when a desktop observation is requested, so local apps do
+not inherit a busy Mac helper dependency. A successful app selection exits
+speaker mode; a rejected replacement preserves the earlier experience.
+
+Fifteen seconds remains a target, not a guarantee: live saved-game launches and
+speaker/library paths met it, while generation, bubble editing, mirror creation
+and native YouTube work exceeded it. A completed agent turn is not evidence of
+media playback: independent checks found a paused ad. Keep those failures and
+unsupported script claims explicit; see [readiness](demo-readiness.md).

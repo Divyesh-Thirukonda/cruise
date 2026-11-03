@@ -1151,3 +1151,39 @@ website browser session was relinked and visibly shows Mac Paired and the active
 brightness mapping. Shared $50 ledger and eight-hour native expiry are preserved.
 Reused existing Pi agent, native companion, DisplayServices and CUA; no external
 assets added. No new voice reliability claim. Evidence: [sanitized record](evidence/mac-reconnect-2026-11-02.json).
+
+
+## November 2–3: independent demo commands and live timing audit
+
+Codex added generic exact-revision package edits, combined write/check results,
+capability context and actionable bounded schema diagnostics. The live first-person
+game initially failed three generic field checks in 76.773 s and retained Soup
+Sprint Kitchen. After diagnostic repair, Meta generated, checked and activated
+Rust Pit 2.5D in 148.457 s, using one coder delegate. A real bubble-enemy edit
+used the new edit tool and activated in 27.285 s. Reuse preserved its exact
+revision in 13.082 s. No game code or demo keyword handler was added to the base
+runtime; these are typed live website/tunnel requests, not spoken trials.
+
+The rehearsal exposed a second concrete fault: optional Mac initialization ran
+before every request and could leave running=true when the helper was busy.
+Moved it to the first actual desktop observation, kept failed initialization
+retryable, and rejected old-observation actions from a new job. Cleared the exact
+stale job during deployment without clearing usage, pairing or the saved app.
+Speaker → saved game now passes in 13.333 s; rejected activations retain speaker
+routing. Mirror generation took 33.198 s and reopening the game took 9.924 s.
+Library trials took 7.557/6.470 s and speaker start 5.639/10.769 s.
+
+Native YouTube agent turns ended in 74.507 s and a 58.249 s recovery, but independent
+native UI checks showed a paused pre-roll ad. Target playback is not confirmed.
+Added generic media-completion guidance; do not count those ready flags as
+verified playback. The current assembly advertises joystick/A/B, without encoder
+or IMU; no physical knob/tilt or new camera-image/audibility evidence is claimed.
+
+Host validation: 1,176 tests passed with 13 skips, plus nine skill checks after
+the media wording change. Pi focused suites passed 120, 29 and 93 checks at the
+corresponding deployment stages (overlapping coverage, not an additive count).
+All installed source payloads were hash checked and prior files backed up.
+Reused existing Meta runtime, native Mac helper, QuickJS and CUA; no new dependency
+or third-party asset. Final model ledger $17.382067/50, not halted. Temporary
+ElevenLabs credentials/provider selection remain private and uncommitted.
+See [evidence](evidence/demo-rehearsal-nov2.json) and [script readiness](demo-readiness.md).

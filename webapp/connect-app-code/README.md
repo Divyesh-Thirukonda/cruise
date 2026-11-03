@@ -30,6 +30,27 @@ Returning valid sessions open Studio. Stop/cancel controls remain available
 during active work, including on setup and access screens. The access switches
 apply to the whole device, and macOS still owns its native permission dialogs.
 
+## Online demo
+
+The homepage's **Online demo** button opens `/demo`, a separate browser-only
+playground with the same Studio / App library / Device organization. Visitors
+can attach or remove virtual Pi modules, play Orbit Catch and Pixel Rally,
+make sounds with Pocket Synth, and remix the built-in examples with color and
+speed requests. The knob can replace the joystick for steering. Missing required
+modules pause play and prevent activation; cancellation keeps the previous app.
+
+Apps, names and component choices persist under `modulate.playground.v1` in
+browser local storage, bounded to 24 apps. Storage failures fall back to a
+clearly labeled session-only experience. The demo never imports the live API,
+mounts the connected layout, pairs a device, or invokes a model. Its request
+walkthrough uses local example matching and capability checks, not AI generation.
+It is a conceptual component simulator, not electrical or firmware emulation;
+no Arduino runtime is claimed. Audio is synthesized locally after a click.
+
+Implementation: `src/modulate/demo/`; route: `src/app/demo/page.js`. Tests cover
+capability rejection, alternative steering, cancellation, persistence limits,
+malformed saved state, gameplay collisions/scoring, and absence of API requests.
+
 ## Read the implementation
 
 | Code | Responsibility |

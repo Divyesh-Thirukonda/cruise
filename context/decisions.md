@@ -465,3 +465,13 @@ Cloud failures discard the request without hidden fallback or automatic retry.
 Three MMS synthetic samples were slower than local Whisper, with both models
 mishearing the synthetic wake phrase; this is an integration choice, not proven
 recognition or speed improvement. Keep local recognition as explicit rollback.
+
+
+### November 2: reconnect existing native identity after address change
+
+For this repair, keep the existing trusted companion build and pinned Pi
+certificate when the current Wi-Fi endpoint proves the same identity. Renew an
+expired native session through the existing physical comparison-code flow; retain
+the eight-hour duration and native OS grants. The live generated brightness
+binding is two percentage points per encoder step, physically confirmed in both
+directions. Browser relinking remains separate from native Mac pairing.

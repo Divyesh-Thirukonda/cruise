@@ -1132,3 +1132,22 @@ VoiceListener→pinned TLS→agent/gateway→Muse test returned text in 1.182s t
 isolated callback, with no real command/audio and the game/volume preserved.
 Native Mac/Muse grants unchanged, total budget still $50. Evidence and limitations:
 muse-voice-transcribe.md and evidence/muse-voice-transcribe.json.
+
+
+## November 2: restored Mac pairing and verified native controls
+
+Codex, at the user's request, repaired the installed companion's stale Pi address
+after confirming the existing pinned device certificate, then completed a fresh
+eight-hour pairing with the user's physical comparison-code A press. No new app
+build, dependency, runtime source change or expanded permission was needed.
+Native Screen Recording and Accessibility both report granted.
+
+Typed live Pi Meta integration: brightness 44 → 45 → 44 independently sampled,
+then Calculator 7 × 8 = 56 independently observed through native UI; 55.789 s,
+12 calls, $0.159724. A second typed live request generated, checked and activated
+a two-percentage-point encoder brightness binding; 17.81 s, six calls, $0.080661.
+The user physically confirmed brightening and dimming in both directions. The
+website browser session was relinked and visibly shows Mac Paired and the active
+brightness mapping. Shared $50 ledger and eight-hour native expiry are preserved.
+Reused existing Pi agent, native companion, DisplayServices and CUA; no external
+assets added. No new voice reliability claim. Evidence: [sanitized record](evidence/mac-reconnect-2026-11-02.json).

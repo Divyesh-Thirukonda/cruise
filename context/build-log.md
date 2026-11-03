@@ -1215,3 +1215,14 @@ All new game mechanics, device/board diagrams, CSS artwork, request examples and
 synth code were authored for this change; no third-party game assets were added.
 Existing uncommitted native/Muse work was left in the original checkout; this
 change was developed in an isolated worktree.
+
+Release verified: pushed `e04a23c` on `codex/online-demo`; production deployment
+`dpl_225KXvw5w3HhC84ZbziUnuZL4mAi` reached READY with the existing
+`modulate-connect.vercel.app` alias. The published homepage opens `/demo`; a
+published pink-game request activated, and a held joystick moved its player from
+x=120 to x=182.49 before pause. No browser console errors were captured. The
+existing live-device connection reported unavailable; the demo worked independently.
+[Release evidence and screenshots](evidence/online-demo/release.json) are browser
+simulation evidence only. No production environment variables or native services
+were changed. The website source differs from the prior production commit only
+in the homepage entry, new demo route/modules and README.

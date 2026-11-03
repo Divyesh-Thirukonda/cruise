@@ -2,14 +2,14 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, Copy, Download, KeyRound, Loader2, ShieldCheck, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Copy, Download, KeyRound, Loader2, Play, ShieldCheck, X } from 'lucide-react';
 import { Brand, Button, GadgetIllustration, Toggle } from './ui';
 import { SETUP_PROMPT, SETUP_PLUGIN_URL } from './setup-content';
 import metaLogo from './assets/meta.svg';
 
 function EntryFrame({ children, navigate, back, step, urgentControls, className = '' }) {
   return <div className={`mc-app mf-entry ${className}`}>
-    <header className="mf-header"><Link href="/connect" aria-label="Modulate home"><Brand /></Link>{back && <Button quiet icon={ArrowLeft} onClick={() => navigate(back)}>Back</Button>}</header>
+    <header className="mf-header"><Link href="/connect" aria-label="Modulate home"><Brand /></Link>{back ? <Button quiet icon={ArrowLeft} onClick={() => navigate(back)}>Back</Button> : <Link className="mc-button" href="/demo"><Play size={15} />Online demo<ArrowRight size={15} /></Link>}</header>
     <main className="mf-main" id="mc-main">{urgentControls}{step && <div className="mf-steps" aria-label="Connection progress"><span className={step === 1 ? 'is-current' : 'is-complete'}>{step > 1 ? <Check size={13} /> : <i>1</i>}Connect</span><span className="mf-step-line" /><span className={step === 2 ? 'is-current' : ''}><i>2</i>Choose access</span></div>}{children}</main>
     <footer className="mf-footer"><img src={metaLogo.src || metaLogo} width={24} height={24} alt="" aria-hidden="true" /><span>Built with Meta AI</span></footer>
   </div>;

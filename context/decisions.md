@@ -491,3 +491,17 @@ speaker/library paths met it, while generation, bubble editing, mirror creation
 and native YouTube work exceeded it. A completed agent turn is not evidence of
 media playback: independent checks found a paused ad. Keep those failures and
 unsupported script claims explicit; see [readiness](demo-readiness.md).
+
+
+## November 3 — Public browser playground
+
+The user requested an Online demo entry at the top right of the homepage and a
+virtual experience for visitors without hardware. Use a separate `/demo` route
+with Studio, App library and Device views, conceptual Raspberry Pi components,
+playable built-in games and a browser synth. Keep the real pairing layout and
+API outside this route. Persist bounded visitor-owned demo state in local
+storage; a demo session grants no device, microphone, model or computer access.
+Label example matching, walkthrough stages and simulated hardware explicitly.
+This demonstrates the interaction concept, not live Meta inference, electrical
+simulation, firmware execution or Arduino compatibility. User authorized pushing
+the finished website change; retain the existing Modulate Vercel project.

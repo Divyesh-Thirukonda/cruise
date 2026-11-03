@@ -1187,3 +1187,31 @@ Reused existing Meta runtime, native Mac helper, QuickJS and CUA; no new depende
 or third-party asset. Final model ledger $17.382067/50, not halted. Temporary
 ElevenLabs credentials/provider selection remain private and uncommitted.
 See [evidence](evidence/demo-rehearsal-nov2.json) and [script readiness](demo-readiness.md).
+
+
+## November 3 — Hardware-free online demo
+
+Added the homepage Online demo link and an independent `/demo` playground with
+Studio, App library and Device views. Visitors attach/remove five conceptual Pi
+modules, play two original browser games (Orbit Catch and Pixel Rally), make
+sounds with a Web Audio triangle synth, rename saved apps and create color/speed
+remixes from explicitly labeled built-in request examples. Joystick and knob
+steering work, required-component removal pauses play, and activation/cancellation
+preserve the previous app. State is validated and bounded to 24 browser-local
+apps, with session-only fallback when storage is unavailable. No model calls,
+physical-device commands, microphone input or account creation are involved.
+
+Validation: 52 frontend tests (10 new demo tests), 63 server/API tests, source
+provenance verification and a successful Next.js production build. Browser QA
+verified the homepage entry, scoring, knob movement, missing-input rejection,
+example activation, browser synth playback status, and saved library after reload.
+Desktop and 390 px mobile layouts were inspected; the mobile Device page had no
+horizontal overflow. Browser audio creation/status was checked, not human audibility.
+No new physical or live-inference evidence is claimed. Deployment is recorded
+separately after release.
+
+Reused dependencies: existing Next.js, React, Lucide, and Modulate brand asset.
+All new game mechanics, device/board diagrams, CSS artwork, request examples and
+synth code were authored for this change; no third-party game assets were added.
+Existing uncommitted native/Muse work was left in the original checkout; this
+change was developed in an isolated worktree.

@@ -101,8 +101,13 @@ class AssistantIO(MacAccess):
         try:
             with self.lock:
                 focus = self.computer_focus_pending
-                self.computer_focus_pending = False
             if focus:
+                # Local app requests must never wait for the optional Mac.
+                # Begin only when its desktop is actually needed; a busy
+                # helper leaves this retryable, without wedging job startup.
+                self.computer.begin_task()
+                with self.lock:
+                    self.computer_focus_pending = False
                 self.computer.focus()
                 self.computer_authorized()
             return self.computer.observe()
@@ -114,6 +119,8 @@ class AssistantIO(MacAccess):
                 or not 1 <= len(description.strip()) <= 240 or not description.strip().isprintable()):
             raise AgentError("Describe one computer action in 1–240 printable characters")
         self.computer_authorized()
+        if self.computer_focus_pending:
+            raise AgentError("Observe the current desktop for this request before acting")
         if requires_confirmation:
             receipt = self.computer_approved_action
             matches = (receipt and receipt["expires_at"] > time.monotonic()

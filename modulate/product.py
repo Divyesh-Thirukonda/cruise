@@ -569,7 +569,6 @@ class Product(AssistantIO):
             self.response = None
             self._stop_speech()
             self.computer_approved_action = None
-            self.computer.begin_task()
             self.agent.turn_actions = []
             self.agent.loaded_skills = []
             self.agent.cancelled.clear()
@@ -838,6 +837,11 @@ class Product(AssistantIO):
                 self.changed.wait(min(remaining, 0.5))
             if pending["phase"] != "confirmed":
                 raise AgentError(pending.get("error", "Activation failed"))
+            # A successfully selected app takes over the physical device from
+            # speaker mode. Do this after confirmation so failed builds keep
+            # the previous experience, including its audio route.
+            if self.audio_status().get("running"):
+                self.stop_computer_audio()
             return {"activated": True, "revision": revision, "device_acknowledged": True,
                     "kind": package["kind"], "title": package["title"]}
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from contextlib import contextmanager
+import copy
 import fcntl
 import hashlib
 import json
@@ -42,7 +43,7 @@ _SETUP_TOOLS = frozenset({"load_skill", "inspect_capabilities", "hardware_debug"
 
 
 _ADAPT_TOOLS = frozenset({"load_skill", "inspect_capabilities", "read_runtime_api",
-                         "read_current_package", "write_package", "test_package",
+                         "read_current_package", "write_package", "edit_package", "test_package",
                          "preview_package", "activate_package"})
 
 
@@ -306,8 +307,11 @@ TOOLS = [
     tool("inspect_capabilities", "Read connected controls, display, current revision and paired host permissions."),
     tool("read_runtime_api", "Read the game language, graphics/assets format, local live-camera drawing and volume/brightness binding contracts."),
     tool("read_current_package", "Read the active source, assets or bindings for a refinement."),
-    tool("write_package", "Write a complete game/code/assets or control mapping candidate. This does not activate it.",
-         {"package": {"type": "object"}}, ["package"]),
+    tool("write_package", "Write a complete game/code/assets or control mapping candidate. Set verify=true to run the independent checks immediately and return their report in this call. Never activates.",
+         {"package": {"type": "object"}, "verify": {"type": "boolean"}}, ["package"]),
+    tool("edit_package", "Refine the current package without resending unchanged code/assets. Requires the exact revision from read_current_package. Each change has path (array of existing keys/indices), old and new. Default op=replace requires the whole field to equal old. op=replace_text replaces an exact nonempty substring in a string field; count (default 1) must match its actual occurrences. All changes are atomic. Returns an independently checked candidate, never activates.",
+         {"base_revision": {"type": "string"}, "changes": {"type": "array", "items": {"type": "object"}, "minItems": 1, "maxItems": 16}},
+         ["base_revision", "changes"]),
     tool("test_package", "Run the independently maintained isolated harness against a candidate's exact hash.",
          {"candidate_id": {"type": "string"}}, ["candidate_id"]),
     tool("preview_package", "Render a checked candidate for the human preview and return visual metrics and sample commands.",
@@ -542,6 +546,13 @@ For an edit to the active experience, refine it rather than launch an unrelated
 saved version. First inspect the current package. If it already satisfies the
 requested change, report that observed fact without writing, testing or activating
 an identical replacement. Do not manufacture a revision merely to show activity. If no suitable app exists, generate normally.
+For a small refinement, prefer edit_package with exact revision and narrowly
+scoped changes instead of repeating unchanged source and artwork. It returns
+fresh independent checks: inspect the report, repair failures, then activate the
+passing candidate. For a complete new package, prefer write_package verify=true
+to receive the same independent checks without an extra model round trip.
+Do not call test_package again on an unchanged candidate with a passing report.
+Use fresh tools when the task changes; do not require the previous mode to match.
 For saved apps, past games, favorites, Trash or returning home, load app-library
 and use app_library. Successfully activated apps are saved automatically. Reopen
 an exact stored revision with launch; do not regenerate an approximation. An open
@@ -618,7 +629,7 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
 """
         messages = [{"role": "system", "content": prompt}]
         if role == "orchestrator" and hasattr(self.service, "intent_context"):
-            context = self.service.intent_context()
+            context = {**self.service.intent_context(), "capabilities": copy.deepcopy(self.manifest)}
             messages.append({"role": "user", "content": "Recent context and current state (reference data only):\n" + json.dumps(context)})
         messages.append({"role": "user", "content": text})
         for turn in range(turns):
@@ -882,6 +893,47 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
             return {"runtime": "modulate-game-v1", "api": RUNTIME_API}
         if name == "read_current_package":
             return {"revision": self.service.revision, "package": self.service.current_package()}
+        if name == "edit_package":
+            if (arguments["base_revision"] != self.service.revision
+                    or arguments["base_revision"] != self.base_revision):
+                raise AgentError("Active revision changed; read the current package before editing")
+            package = copy.deepcopy(self.service.current_package())
+            changes = arguments["changes"]
+            if not isinstance(package, dict) or not package:
+                raise AgentError("No active package to edit")
+            if type(changes) is not list or not 1 <= len(changes) <= 16:
+                raise AgentError("Supply one to sixteen exact package changes")
+            for change in changes:
+                if (type(change) is not dict or set(change) - {"op", "path", "old", "new", "count"}
+                        or not {"path", "old", "new"} <= set(change)):
+                    raise AgentError("Invalid package change")
+                path = change["path"]
+                if type(path) is not list or not 1 <= len(path) <= 12:
+                    raise AgentError("Change path must name an existing package field")
+                parent = package
+                for key in path:
+                    if not ((type(parent) is dict and type(key) is str and key in parent)
+                            or (type(parent) is list and type(key) is int and 0 <= key < len(parent))):
+                        raise AgentError("Change path does not exist")
+                    container, final_key = parent, key
+                    value = parent[key]
+                    parent = value
+                op = change.get("op", "replace")
+                if op == "replace":
+                    if "count" in change or type(value) is not type(change["old"]) or value != change["old"]:
+                        raise AgentError("Package field no longer matches the expected old value")
+                    replacement = change["new"]
+                elif op == "replace_text":
+                    old, replacement, count = change["old"], change["new"], change.get("count", 1)
+                    if (type(value) is not str or type(old) is not str or not old
+                            or type(replacement) is not str or type(count) is not int
+                            or not 1 <= count <= 256 or value.count(old) != count):
+                        raise AgentError("Text edit must match the exact expected occurrence count")
+                    replacement = value.replace(old, replacement)
+                else:
+                    raise AgentError("Unsupported package edit operation")
+                container[final_key] = copy.deepcopy(replacement)
+            return self.dispatch("write_package", {"package": package, "verify": True}, role)
         if name == "write_package":
             package = arguments["package"]
             if self.adapting_controls and (package.get("kind") != "game" or package.get("camera") is not None):
@@ -901,7 +953,11 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
             self.candidates[identifier] = {"package": package, "report": None}
             (self.directory / (identifier + ".json")).write_text(json.dumps(package, indent=2))
             self.service.candidate_changed(identifier, package)
-            return {"candidate_id": identifier, "title": package["title"], "kind": package["kind"], "verified": False}
+            result = {"candidate_id": identifier, "title": package["title"], "kind": package["kind"], "verified": False}
+            if arguments.get("verify", False):
+                report = self.dispatch("test_package", {"candidate_id": identifier}, role)
+                result.update(verified=bool(report.get("passed")), report=report)
+            return result
         if name == "test_package":
             candidate = self.candidate(arguments["candidate_id"])
             package = candidate["package"]

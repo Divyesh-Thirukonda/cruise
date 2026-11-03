@@ -122,3 +122,29 @@ agent restart. Local Meta MMS speech is active; the user confirmed clear speaker
 output and the old ElevenLabs ledger stayed unchanged. The total Meta ledger is
 $11.734172 charged/reserved of $50 after these trials. See
 [sanitized evidence](evidence/mms-native-runtime.json) and [MMS details](meta-mms.md).
+
+
+## Mac reconnection and physical brightness check — November 2
+
+The saved Pi IPv6 address was stale. The existing pinned TLS certificate matched
+the Pi at its current Wi-Fi address, so the installed companion was reconnected
+without rebuilding the app or replacing trust. A first pending comparison expired;
+a fresh matching code was confirmed by the user's physical small-A press. The
+eight-hour native pairing expires November 3 at 5:31 AM Eastern. Screen Recording
+and Accessibility both report granted. Pairing duration and scope are unchanged.
+
+A typed live Pi Meta request changed native brightness 44 → 45 → 44, then opened
+Calculator and computed 7 × 8. Independent native sampling verified brightness
+restoration; native UI inspection showed 56. This combined trial took 55.789 seconds,
+12 model calls and $0.159724. A separate live request generated and activated
+Mac Brightness Knob at two percentage points per encoder step in 17.81 seconds,
+six calls and $0.080661. The user confirmed that turning the knob brightens and dims
+the Mac in both directions. This is a newly generated declarative mapping using
+existing bounded host actions, with no runtime source changes.
+
+The Vercel dashboard browser session was also relinked, preserving current access.
+Studio shows the active brightness mapping and Device shows the Mac as paired.
+The native connection works independently of the dashboard. Keep the existing Mac
+companion running; a future expired native session requires a fresh physical
+comparison. These are successful typed and physical trials, not a new wake-word or
+broad computer-use reliability benchmark. See [sanitized evidence](evidence/mac-reconnect-2026-11-02.json).

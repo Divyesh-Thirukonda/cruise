@@ -316,3 +316,24 @@ Voice permission is checked before and after dispatch; device epochs reject
 late results. Cloud failure discards the command without a hidden fallback or
 retry. Native capture, review/clarification/activation and local MMS speech
 remain separate. See [fit, limits and validation](muse-voice-transcribe.md).
+
+
+## Checked incremental edits and optional Mac initialization — November 3
+
+The runtime agent may use `edit_package(base_revision, changes)` to avoid
+repeating a large package for a small edit. Each of at most sixteen edits names
+an existing JSON path and expected old/new value, or an exact substring and
+occurrence count. Edits apply to a detached package; a mismatch creates no
+candidate and leaves the active app untouched. The resulting full package passes
+normal schema/capability validation and independent verification. Its exact
+check report is returned to Meta before the separate acknowledged activation.
+`write_package(verify=true)` offers the same combined write/check path for full
+packages. Private computer tasks and automatic component setup cannot use edits.
+
+Local job acceptance no longer calls the optional Mac's begin-task RPC. The
+first actual desktop observation initializes that task; a busy helper keeps
+initialization retryable. A fresh job cannot act using an observation from an
+earlier job. This removes a live failure where a rejected Mac initialization
+left a local request marked running against the preceding completed job.
+Successful app activation and saved-app reopening leave speaker mode so its
+overlay cannot mask the selected experience. Failed activation preserves it.

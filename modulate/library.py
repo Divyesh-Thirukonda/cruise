@@ -289,6 +289,8 @@ class LibraryManager:
                        "revision": entry_id, "kind": package["kind"], "title": package["title"]}
                       if already_active else self.product.activate(package, report, base_revision=base))
             with self.product.lock:
+                if already_active and self.product.audio_status().get("running"):
+                    self.product.stop_computer_audio()
                 self.view.update(open=False, version=self.view["version"] + 1)
                 self.confirmation = None
             return result

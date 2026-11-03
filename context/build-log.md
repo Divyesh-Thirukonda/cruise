@@ -1272,3 +1272,9 @@ assets retained. Original protocol adapter, generation/check/review loop, durabl
 allowance, session layer and UI integration authored during this change. Test app
 fixtures are handwritten verification inputs, not production presets. No new
 third-party game art, generated promotional assets or physical evidence.
+
+
+Implementation `8d4552a` was pushed to `codex/online-demo`. Vercel preview
+`dpl_B5wr8CsWM16fQg8ELVNQVtpNPkt8` reached READY for that exact commit. This
+confirms the hosted build, not live inference; production promotion remains
+pending the Pi allocation and a real generated-app trial.

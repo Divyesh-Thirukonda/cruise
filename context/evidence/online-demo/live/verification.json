@@ -41,5 +41,12 @@
     "https://dev.meta.ai/docs/pricing-rate-limits",
     "https://dev.meta.ai/docs/api-reference/models/list-models",
     "https://github.com/justjake/quickjs-emscripten"
-  ]
+  ],
+  "implementation_commit": "8d4552a11daba377e3899fc6f1a23394a2a94d55",
+  "preview": {
+    "deployment": "dpl_B5wr8CsWM16fQg8ELVNQVtpNPkt8",
+    "state": "READY",
+    "url": "https://modulate-connect-n9hmok0zk-divyesh-thirukondas-projects.vercel.app",
+    "note": "Build verification only; not promoted and no live inference trial."
+  }
 }

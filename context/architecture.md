@@ -357,7 +357,7 @@ reverify locally. Cancellation ignores late results; failed staging preserves th
 previous library entry. API keys and private allowance credentials stay server-side.
 
 The anonymous signed session is independent of device pairing. Durable rate
-limits and worst-case per-call holds draw from a single pre-reserved $5 slice of
-the authoritative $50 ledger. The initial allowance is zero until allocation;
+limits and worst-case per-call holds draw from a separate user-authorized $25
+cloud ledger. No Pi, tunnel, physical discovery or native budget is consulted;
 missing configuration, transport, checks, review or acknowledgement fail closed.
 No inference or physical capabilities are inferred from mocked tests.

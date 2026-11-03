@@ -1,0 +1,8 @@
+Code & checks · muse-spark-1.3 · 2 live calls
+
+Pearl fixed to bright pink #FF4DD2 independent of encoder, speed doubled 85 to 170, constellation logic/stars/controls/replay preserved; checks passed.
+
+151 server frames checked, plus browser verification. Typed input · 25.6s generation. Revision: b97992fa63ee9ee22b6250cb96614f0ccc98bda75616a6788fcf6796f6d2722c
+
+muse-spark-1.3 · 3815 input / 3618 output tokens · response chatcmpl-01a1a31c-8640-76c6-b9c4-3f90b889db4b
+muse-spark-1.3 · 7046 input / 462 output tokens · response chatcmpl-01a1a31c-9b87-77ba-ae75-3134902d6c53

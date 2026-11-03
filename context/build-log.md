@@ -1278,3 +1278,38 @@ Implementation `8d4552a` was pushed to `codex/online-demo`. Vercel preview
 `dpl_B5wr8CsWM16fQg8ELVNQVtpNPkt8` reached READY for that exact commit. This
 confirms the hosted build, not live inference; production promotion remains
 pending the Pi allocation and a real generated-app trial.
+
+
+## November 3 — Independent cloud budget and live Meta evidence
+
+The user explicitly authorized a separate **$25 total online-demo budget** and
+required the entire page to be Pi-independent. Removed the proposed native-ledger
+allocation script/tests and initialized the Cloudflare-only ledger directly.
+No Pi connection or native ledger mutation occurred. The existing physical $50
+budget remains unchanged. Cloudflare version
+`42f7f48f-658e-4516-8da7-51cf217c0412` adds private accounting status counts and
+preserves durable reservations, idempotency, rate limits and unknown-cost holds.
+
+Actual browser typed request generated **Pearl Constellations: Reef Sky** in
+**65.4 s / three Meta calls**, revision
+`0ea1894a6d68c5e4881e9a3b2667d8b9da34726d27ae9d7fce6581b78e95e205`.
+Both server and browser checked the candidate; Meta inspected the report and
+approved. Browser A started the game and keyboard joystick input visibly moved
+the pearl. A typed edit asking for a pink pearl and twice the speed completed in
+**25.6 s / two Meta calls**, revision
+`b97992fa63ee9ee22b6250cb96614f0ccc98bda75616a6788fcf6796f6d2722c`.
+The browser displayed the pink moving pearl. Replaying the actual exported
+sources under identical ten-frame input independently measured **28.3333 →
+56.6667 pixels**, with pearl colors **#FFFFFF → #FF4DD2**. These are real model
+outputs, not test fixtures or preset selection.
+
+Removing the joystick disabled play with an explicit missing-component message;
+reattachment and rollback restored the earlier revision. Reload preserved both
+apps. Cloud accounting before and after those operations stayed at **five calls,
+$0.086049 charged, zero unknown holds**, under the independent $25 ceiling.
+Actual response IDs, token usage, generated sources and screenshots are in
+[evidence](evidence/online-demo/live/verification.json). Audio command validation
+is covered; human audibility is not claimed. Updated automated suites: **72
+API/runtime and 52 UI tests**; native allocation tests removed with that feature.
+Generation now scrolls its progress into view on small screens. Production
+release and final published-page inference are recorded after deployment.

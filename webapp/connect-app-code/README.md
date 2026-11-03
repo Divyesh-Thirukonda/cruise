@@ -54,12 +54,12 @@ imported. Storage failures allow a clearly labeled session-only workspace.
 
 `/api/demo` uses the existing server-only Meta key, signed HttpOnly anonymous
 sessions, same-origin/CSRF checks, bounded requests and fixed provider/model IDs.
-The existing Cloudflare Worker supplies a separate durable allowance with daily
-visitor/network limits, per-call reservations and unknown-cost holds. **It starts
-disabled.** First reserve $5 from the authoritative Pi's existing $50 ledger using
-`scripts/allocate_demo_budget.py`; then configure the exact same reservation and
-amount in the Worker. See `deploy/discovery-worker/README.md`. This is an allocation
-inside the original ceiling, not an additional budget. Native access stays separate.
+The existing Cloudflare Worker supplies an independent **$25 total demo budget**
+with daily visitor/network limits, per-call reservations and unknown-cost holds.
+The user authorized this separate budget on November 3. It has no dependency on
+a Pi, its ledger, a tunnel, physical-device discovery or pairing. See
+`deploy/discovery-worker/README.md` for one-time cloud initialization. The native
+prototype's $50 ledger is unchanged. Initialization never resets accrued usage.
 
 Implementation: `src/modulate/demo/`, `shared/demo-runtime.mjs`, and `server/demo-*.mjs`.
 `prebuild`/`predev` bundle the pinned QuickJS browser worker; generated bundles are

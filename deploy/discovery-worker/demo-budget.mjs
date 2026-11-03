@@ -1,4 +1,4 @@
-// A separately allocated slice of the existing $50 ledger. No prompts, code, keys or raw IPs.
+// Independent $25 public-demo budget. No Pi, prompts, code, keys or raw IPs.
 export const CALL_HOLD = 1345536; // microdollars: full 1,048,576-token context + 8,192 output.
 const json = (body, status = 200) =>
   Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -17,7 +17,7 @@ export class DemoBudget {
     }
     return this.ctx.storage.transaction(async (storage) => {
       const ledger = (await storage.get('ledger')) || {
-        allocation: null,
+        budgetId: null,
         limit: 0,
         charged: 0,
         halted: false,
@@ -30,22 +30,32 @@ export class DemoBudget {
           limit: ledger.limit,
           charged: ledger.charged,
           halted: ledger.halted,
-          allocation: ledger.allocation,
+          budgetId: ledger.budgetId,
+          requests: Object.keys(ledger.requests).length,
+          calls: Object.values(ledger.requests).reduce(
+            (n, job) => n + Object.keys(job.calls).length,
+            0,
+          ),
+          unknownHolds: Object.values(ledger.requests).reduce(
+            (n, job) =>
+              n + Object.values(job.calls).filter((call) => call.cost === undefined).length,
+            0,
+          ),
         });
-      if (action === 'allocate') {
+      if (action === 'initialize') {
         if (
-          !/^[a-f0-9]{32}$/.test(body.reservation || '') ||
+          !/^[a-f0-9]{32}$/.test(body.budgetId || '') ||
           !Number.isSafeInteger(body.amount) ||
           body.amount < 1 ||
-          body.amount > 8000000
+          body.amount > 25000000
         )
-          return result({ error: 'Invalid allocation' }, 400);
+          return result({ error: 'Invalid budget configuration' }, 400);
         if (
-          ledger.allocation &&
-          (ledger.allocation !== body.reservation || ledger.limit !== body.amount)
+          (ledger.budgetId || ledger.allocation) &&
+          (ledger.budgetId !== body.budgetId || ledger.limit !== body.amount)
         )
-          return result({ error: 'Allocation already fixed' }, 409);
-        ledger.allocation = body.reservation;
+          return result({ error: 'Budget already fixed' }, 409);
+        ledger.budgetId = body.budgetId;
         ledger.limit = body.amount;
       } else if (action === 'start') {
         if (

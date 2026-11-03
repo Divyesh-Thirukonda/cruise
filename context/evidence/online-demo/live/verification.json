@@ -1,7 +1,7 @@
 {
   "date": "2026-11-03",
-  "status": "implementation_verified_live_inference_blocked",
-  "inference_calls_made": 0,
+  "status": "local_live_inference_verified_production_pending",
+  "inference_calls_made": 5,
   "provider_access": {
     "endpoint": "https://api.meta.ai/v1/models",
     "status": 200,
@@ -9,9 +9,8 @@
     "note": "Authenticated discovery, not an inference trial."
   },
   "automated": {
-    "node_api_runtime_tests": 71,
+    "node_api_runtime_tests": 72,
     "jest_ui_tests": 52,
-    "python_allocation_tests": 2,
     "source_manifest": "passed",
     "next_production_build": "passed"
   },
@@ -23,17 +22,15 @@
   },
   "cloudflare": {
     "worker": "modulate-discovery",
-    "deployed_version": "7b500342-295e-4e24-8815-cdb7684fea63",
-    "budget_limit_microdollars": 0,
-    "budget_charged_microdollars": 0,
+    "deployed_version": "42f7f48f-658e-4516-8da7-51cf217c0412",
+    "budget_limit_microdollars": 25000000,
+    "budget_charged_microdollars": 86049,
     "discovery_resolve": "authenticated 200"
   },
-  "blocker": "Authoritative $50 ledger is on Pi. Raspberry Pi Connect timed out; device tunnel unavailable. No allocation taken from halted Mac backup.",
+  "blocker": null,
   "pending": [
-    "Connect Pi; run idempotent $5 allocation against authoritative ledger",
-    "Activate matching Cloudflare allowance",
-    "Run actual Meta create/edit flow and exercise generated controls",
-    "Deploy verified commit to production and repeat live smoke test"
+    "Deploy final verified commit to production",
+    "Generate a fresh app on the published page and exercise it"
   ],
   "production": "Previous explicitly labeled preset demo remains deployed; this implementation is not promoted.",
   "sources": [
@@ -48,5 +45,42 @@
     "state": "READY",
     "url": "https://modulate-connect-n9hmok0zk-divyesh-thirukondas-projects.vercel.app",
     "note": "Build verification only; not promoted and no live inference trial."
-  }
+  },
+  "budget": {
+    "authorized_total_dollars": 25,
+    "independent_of_pi": true,
+    "charged_dollars": 0.086049,
+    "unknown_holds": 0
+  },
+  "local_live_runs": [
+    {
+      "title": "Pearl Constellations: Reef Sky",
+      "input_mode": "typed",
+      "calls": 3,
+      "seconds": 65.4,
+      "revision": "0ea1894a6d68c5e4881e9a3b2667d8b9da34726d27ae9d7fce6581b78e95e205",
+      "source": "reef-generated.js",
+      "evidence": "reef-checks.txt"
+    },
+    {
+      "request": "Pink pearl and double speed",
+      "input_mode": "typed",
+      "calls": 2,
+      "seconds": 25.6,
+      "revision": "b97992fa63ee9ee22b6250cb96614f0ccc98bda75616a6788fcf6796f6d2722c",
+      "source": "reef-edited.js",
+      "evidence": "reef-edit-checks.txt"
+    }
+  ],
+  "behavior": {
+    "browser": "A starts, joystick moves pearl, edited pearl pink, missing joystick disables play, restore returns original revision, reload retains two apps",
+    "same_input_ten_frames": {
+      "original_dx": 28.333333333333357,
+      "edited_dx": 56.66666666666667,
+      "original_color": "#FFFFFF",
+      "edited_color": "#FF4DD2"
+    },
+    "restore_added_calls": 0
+  },
+  "prior_blocker_resolution": "User explicitly authorized an independent $25 demo budget; no Pi allocation was required or made."
 }

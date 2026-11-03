@@ -32,24 +32,40 @@ apply to the whole device, and macOS still owns its native permission dialogs.
 
 ## Online demo
 
-The homepage's **Online demo** button opens `/demo`, a separate browser-only
-playground with the same Studio / App library / Device organization. Visitors
-can attach or remove virtual Pi modules, play Orbit Catch and Pixel Rally,
-make sounds with Pocket Synth, and remix the built-in examples with color and
-speed requests. The knob can replace the joystick for steering. Missing required
-modules pause play and prevent activation; cancellation keeps the previous app.
+The homepage's **Online demo** button opens `/demo`, with Studio, App library and
+Device views. Visitors attach virtual Pi components and type a request. The server
+calls Meta `muse-spark-1.3` to generate original JavaScript, runs independent checks,
+and sends the results back to Meta for approval or repair (at most three calls).
+There are no preset apps or keyword-to-template fallback paths.
 
-Apps, names and component choices persist under `modulate.playground.v1` in
-browser local storage, bounded to 24 apps. Storage failures fall back to a
-clearly labeled session-only experience. The demo never imports the live API,
-mounts the connected layout, pairs a device, or invokes a model. Its request
-walkthrough uses local example matching and capability checks, not AI generation.
-It is a conceptual component simulator, not electrical or firmware emulation;
-no Arduino runtime is claimed. Audio is synthesized locally after a click.
+Generated apps run inside QuickJS/WASM, in a dedicated browser worker with no
+host callbacks, imports, DOM, network or privileged services. The contract allows
+only bounded drawing and sound commands and declarative input descriptions.
+Both server and browser verify 151 frames before activation. Revision-matching
+acknowledgement, cancellation and failure handling preserve the previous app.
+Playing, restarting and restoring saved apps make no model calls. The generated
+source, Meta response IDs, usage and check results are visible in Code & checks.
 
-Implementation: `src/modulate/demo/`; route: `src/app/demo/page.js`. Tests cover
-capability rejection, alternative steering, cancellation, persistence limits,
-malformed saved state, gameplay collisions/scoring, and absence of API requests.
+Hardware is conceptual, not electrical/firmware emulation or Arduino compatibility.
+No physical device, native Mac action, camera or microphone is accessed. Prompts
+and the previous app's code go to Meta; apps persist locally under
+`modulate.playground.live.v2`, capped at 24 entries. Old preset storage is not
+imported. Storage failures allow a clearly labeled session-only workspace.
+
+`/api/demo` uses the existing server-only Meta key, signed HttpOnly anonymous
+sessions, same-origin/CSRF checks, bounded requests and fixed provider/model IDs.
+The existing Cloudflare Worker supplies a separate durable allowance with daily
+visitor/network limits, per-call reservations and unknown-cost holds. **It starts
+disabled.** First reserve $5 from the authoritative Pi's existing $50 ledger using
+`scripts/allocate_demo_budget.py`; then configure the exact same reservation and
+amount in the Worker. See `deploy/discovery-worker/README.md`. This is an allocation
+inside the original ceiling, not an additional budget. Native access stays separate.
+
+Implementation: `src/modulate/demo/`, `shared/demo-runtime.mjs`, and `server/demo-*.mjs`.
+`prebuild`/`predev` bundle the pinned QuickJS browser worker; generated bundles are
+ignored. Tests cover sandbox limits, malformed/missing capabilities, review/repair,
+CSRF, concurrency, unknown billing, stale acknowledgements, cancellation and
+persistence. Tests with fixtures do not establish live Meta inference.
 
 ## Read the implementation
 

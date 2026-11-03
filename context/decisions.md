@@ -505,3 +505,24 @@ Label example matching, walkthrough stages and simulated hardware explicitly.
 This demonstrates the interaction concept, not live Meta inference, electrical
 simulation, firmware execution or Arduino compatibility. User authorized pushing
 the finished website change; retain the existing Modulate Vercel project.
+
+
+## November 3 — Live inference for virtual hardware
+
+The user's follow-up supersedes the public playground's preset-only decision:
+use the existing Meta account to generate original apps for virtual components,
+then independently check, have Meta inspect/repair, and acknowledge activation in
+the browser. Keep hardware simulation explicitly separate from real inference.
+No fallback presets. Keep the homepage entry and visitor-owned library.
+
+Reuse existing Vercel credentials and Workers Free infrastructure. Allocate $5
+inside the current Pi's $50 ledger with an idempotent, permanently held parent
+reservation, then enforce that sub-budget durably in Cloudflare. Do not use the
+halted migrated Mac ledger or activate spending without the Pi reservation.
+Unknown-cost holds remain charged. Browser sessions grant no native authority.
+
+Use QuickJS/WASM without host callbacks in both checking and browser execution;
+fixed drawing/audio commands, 16 MiB memory, 40 ms frame interruption, worker
+termination watchdog, bounded state/output and component validation. Keep model
+calls out of gameplay. This browser contract is a restricted virtual-device
+adapter and does not alter physical firmware, drivers or paired-Mac services.

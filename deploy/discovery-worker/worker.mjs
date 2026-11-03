@@ -1,4 +1,5 @@
-// Stores only a tunnel hostname and timestamp. No model keys, sessions or user content.
+// Discovery and a separate, private durable demo allowance. No model keys or user content.
+export {DemoBudget} from "./demo-budget.mjs";
 const json = (value, status=200) => Response.json(value, {status, headers:{'Cache-Control':'no-store'}});
 const encoder = new TextEncoder();
 async function signature(secret, text) {
@@ -31,6 +32,12 @@ export default {
     const secret=env.REGISTRY_SECRET;
     if(typeof secret!=='string'||secret.length<32)return json({error:'Registry not configured'},503);
     const path=new URL(request.url).pathname;
+    if(path.startsWith('/demo-budget/')) {
+      if(!equal(request.headers.get('Authorization'),'Bearer '+secret))return json({error:'Authentication required'},401);
+      if(Number(request.headers.get('Content-Length')||0)>2048)return json({error:'Too large'},413);
+      const body=await request.text(); if(body.length>2048)return json({error:'Too large'},413);
+      return env.DEMO_BUDGET.get(env.DEMO_BUDGET.idFromName('allocation-v1')).fetch(new Request(request.url,{method:request.method,body:request.method==='POST'?body:undefined}));
+    }
     if(request.method==='GET' && path==='/resolve') {
       if(!equal(request.headers.get('Authorization'),'Bearer '+secret))return json({error:'Authentication required'},401);
     } else if(request.method==='POST' && path==='/register') {

@@ -1,118 +1,411 @@
 'use client';
-
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Pause, Play, RotateCcw, Volume2 } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Pause, Play, RotateCcw } from 'lucide-react';
 import { Button } from '../ui';
-import { checkApp, COLORS, newGame, stepGame } from './model';
-
-export default function VirtualDevice({ app, modules, busy }) {
-  const [game, setGame] = useState(newGame);
-  const [playing, setPlaying] = useState(false);
-  const [dial, setDial] = useState(50);
-  const [sound, setSound] = useState('Sound starts when you press Play note.');
-  const controls = useRef({ direction: 0, boost: false, target: null });
-  const audio = useRef(null);
-  const error = checkApp(app, modules);
-  const running = playing && !error && !busy && game.lives > 0;
-  const color = COLORS[app.color];
-  const resetControls = () => { controls.current = { direction: 0, boost: false, target: null }; };
-
+import { checkApp } from './model';
+import { idleInput } from '../../../shared/demo-runtime.mjs';
+export function drawFrame(canvas, frame, audio) {
+  const c = canvas?.getContext('2d');
+  if (!c) return;
+  for (const op of frame) {
+    if (op.op === 'tone') {
+      if (audio?.state === 'running') {
+        const oscillator = audio.createOscillator(),
+          gain = audio.createGain();
+        oscillator.frequency.value = op.frequency;
+        gain.gain.setValueAtTime(0.04, audio.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + op.duration);
+        oscillator.connect(gain);
+        gain.connect(audio.destination);
+        oscillator.onended = () => {
+          oscillator.disconnect();
+          gain.disconnect();
+        };
+        oscillator.start();
+        oscillator.stop(audio.currentTime + op.duration);
+      }
+      continue;
+    }
+    c.fillStyle = op.color;
+    c.strokeStyle = op.color;
+    c.lineWidth = 1;
+    if (op.op === 'clear') c.fillRect(0, 0, 240, 135);
+    if (op.op === 'rect') c.fillRect(op.x, op.y, op.w, op.h);
+    if (op.op === 'circle') {
+      c.beginPath();
+      c.arc(op.x, op.y, op.r, 0, Math.PI * 2);
+      c.fill();
+    }
+    if (op.op === 'line') {
+      c.beginPath();
+      c.moveTo(op.x, op.y);
+      c.lineTo(op.x2, op.y2);
+      c.stroke();
+    }
+    if (op.op === 'text') {
+      c.font = `${op.size}px monospace`;
+      c.textBaseline = 'top';
+      c.fillText(op.text, op.x, op.y);
+    }
+  }
+}
+export default function VirtualDevice({ app, candidate, modules, busy, onReady, onReject }) {
+  const canvas = useRef(null),
+    worker = useRef(null),
+    input = useRef(idleInput()),
+    audio = useRef(null),
+    callbacks = useRef({ onReady, onReject }),
+    waiting = useRef(false),
+    lastFrame = useRef([]);
+  callbacks.current = { onReady, onReject };
+  const [playing, setPlaying] = useState(false),
+    [loaded, setLoaded] = useState(null),
+    [failure, setFailure] = useState(''),
+    [dial, setDial] = useState(0),
+    [restart, setRestart] = useState(0);
+  const target = candidate || app,
+    error = checkApp(target, modules),
+    revision = target?.id,
+    attached = modules.join(',');
+  const reset = () => {
+    input.current = idleInput();
+    setDial(0);
+  };
   useEffect(() => {
-    if (error || busy) { setPlaying(false); resetControls(); audio.current?.suspend().catch(() => {}); }
-  }, [error, busy]);
+    setPlaying(false);
+    reset();
+    waiting.current = false;
+    if (!target || error) {
+      if (candidate && error) callbacks.current.onReject(error);
+      return;
+    }
+    let next,
+      committed = false,
+      cancelled = false,
+      failed = false;
+    const fail = (message) => {
+      if (cancelled || failed) return;
+      failed = true;
+      setFailure(message);
+      setPlaying(false);
+      if (!committed) {
+        next?.terminate();
+        if (candidate) callbacks.current.onReject(message);
+      } else {
+        next?.terminate();
+        setLoaded(null);
+      }
+    };
+    const timeout = setTimeout(
+      () => fail('The virtual device did not acknowledge the app in time.'),
+      12000,
+    );
+    try {
+      next = new Worker('/demo-runtime.js');
+      next.onerror = () => fail('The restricted runtime could not start. Reload and try again.');
+      next.onmessage = ({ data }) => {
+        if (cancelled || failed || data.revision !== revision) return;
+        if (data.type === 'error') {
+          clearTimeout(timeout);
+          fail(data.error);
+          return;
+        }
+        if (data.type === 'ready') {
+          clearTimeout(timeout);
+          committed = true;
+          worker.current?.terminate();
+          worker.current = next;
+          setLoaded(revision);
+          setFailure('');
+          lastFrame.current = data.frame;
+          drawFrame(canvas.current, data.frame, null);
+          if (candidate) callbacks.current.onReady(candidate);
+        } else if (data.type === 'frame') {
+          waiting.current = false;
+          lastFrame.current = data.frame;
+          drawFrame(canvas.current, data.frame, audio.current);
+        }
+      };
+      next.postMessage({ type: 'stage', app: target, modules, revision });
+    } catch {
+      clearTimeout(timeout);
+      fail('This browser could not create the isolated runtime.');
+    }
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+      if (!committed) next?.terminate();
+    };
+    // An identity changes only on app activation/restart or a component change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revision, attached, restart]);
   useEffect(() => {
-    const pause = () => { resetControls(); setPlaying(false); };
-    const visibility = () => { if (document.hidden) pause(); };
+    const pause = () => {
+      setPlaying(false);
+      input.current = idleInput();
+      audio.current?.suspend().catch(() => {});
+    };
+    const visibility = () => {
+      if (document.hidden) pause();
+    };
     window.addEventListener('blur', pause);
     document.addEventListener('visibilitychange', visibility);
-    return () => { window.removeEventListener('blur', pause); document.removeEventListener('visibilitychange', visibility); audio.current?.close().catch(() => {}); };
-  }, []);
-  useEffect(() => {
-    if (!running || app.kind === 'synth') return;
-    let frame;
-    let last = 0;
-    const tick = time => {
-      if (time - last >= 32) {
-        const dt = last ? Math.min((time - last) / 1000, 0.05) : 0;
-        last = time;
-        setGame(previous => {
-          const { direction, target, boost } = controls.current;
-          const movement = target === null ? direction : Math.max(-1, Math.min(1, (target - previous.x) / 8));
-          return stepGame(previous, dt, movement, app, boost && modules.includes('buttons'));
-        });
-      }
-      frame = requestAnimationFrame(tick);
+    return () => {
+      window.removeEventListener('blur', pause);
+      document.removeEventListener('visibilitychange', visibility);
+      worker.current?.terminate();
+      audio.current?.close().catch(() => {});
     };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [running, app, modules]);
-
-  const steer = direction => { controls.current.target = null; controls.current.direction = direction; };
-  const restart = () => { resetControls(); setGame(newGame()); setPlaying(true); };
-  const note = async () => {
-    if (error || busy) return;
-    try {
-      const Audio = window.AudioContext || window.webkitAudioContext;
-      if (!Audio) { setSound('This browser cannot play audio. Try a game from the library.'); return; }
-      if (!audio.current) audio.current = new Audio();
-      const context = audio.current;
-      await context.resume();
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      oscillator.type = 'triangle';
-      oscillator.frequency.value = 130.81 * 2 ** (dial / 50);
-      gain.gain.setValueAtTime(0, context.currentTime);
-      gain.gain.linearRampToValueAtTime(0.12, context.currentTime + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.4);
-      oscillator.connect(gain); gain.connect(context.destination);
-      oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
-      oscillator.start(); oscillator.stop(context.currentTime + 0.42);
-      setSound(`Played ${Math.round(oscillator.frequency.value)} Hz through browser audio.`);
-    } catch { setSound('Audio is unavailable. Check your browser’s sound setting.'); }
-  };
-  const key = (event, down) => {
-    if (['INPUT', 'TEXTAREA', 'BUTTON', 'A'].includes(event.target.tagName) || error || busy) return;
-    const k = event.key.toLowerCase();
-    if (['arrowleft', 'arrowright', 'a', 'd'].includes(k) && modules.includes('joystick')) {
-      event.preventDefault(); steer(down ? (['arrowleft', 'a'].includes(k) ? -1 : 1) : 0);
+  }, []);
+  const running = playing && !error && !busy && loaded === app?.id;
+  useEffect(() => {
+    if (!running) return;
+    let last = performance.now(),
+      sent = 0;
+    const timer = setInterval(() => {
+      const now = performance.now();
+      if (waiting.current) {
+        if (now - sent > 1000) {
+          worker.current?.terminate();
+          setFailure('The app stopped responding. Restart or restore your previous app.');
+          setPlaying(false);
+          setLoaded(null);
+        }
+        return;
+      }
+      sent = now;
+      waiting.current = true;
+      worker.current?.postMessage({
+        type: 'frame',
+        revision: app.id,
+        input: input.current,
+        dt: Math.min(0.05, (now - last) / 1000),
+      });
+      last = now;
+    }, 33);
+    return () => {
+      clearInterval(timer);
+      waiting.current = false;
+    };
+  }, [running, app?.id]);
+  const togglePlay = async () => {
+    if (!playing && modules.includes('speaker')) {
+      try {
+        const Audio = window.AudioContext || window.webkitAudioContext;
+        if (Audio) {
+          if (!audio.current) audio.current = new Audio();
+          await audio.current.resume();
+        }
+      } catch {}
     }
-    if (k === ' ' && modules.includes('buttons')) {
-      event.preventDefault(); controls.current.boost = down;
-      if (down && !event.repeat && app.kind === 'synth') note();
-    }
+    setPlaying((v) => !v);
   };
-  const hold = direction => ({
-    onPointerDown: event => { event.currentTarget.setPointerCapture?.(event.pointerId); steer(direction); },
-    onPointerUp: () => steer(0), onPointerCancel: () => steer(0), onLostPointerCapture: () => steer(0),
-    onKeyDown: event => { if ([' ', 'Enter'].includes(event.key)) { event.preventDefault(); steer(direction); } },
-    onKeyUp: event => { if ([' ', 'Enter'].includes(event.key)) steer(0); }, onBlur: () => steer(0),
+  const setControl = (kind, value) => {
+    if (kind === 'x' || kind === 'y') input.current.joystick[kind] = value;
+    else input.current[kind] = Boolean(value);
+  };
+  const hold = (kind, value) => ({
+    onPointerDown: (e) => {
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+      setControl(kind, value);
+    },
+    onPointerUp: () => setControl(kind, 0),
+    onPointerCancel: () => setControl(kind, 0),
+    onLostPointerCapture: () => setControl(kind, 0),
+    onKeyDown: (e) => {
+      if ([' ', 'Enter'].includes(e.key)) {
+        e.preventDefault();
+        setControl(kind, value);
+      }
+    },
+    onKeyUp: () => setControl(kind, 0),
+    onBlur: () => setControl(kind, 0),
   });
-  return <div className="md-device-area">
-    <div className="md-device" tabIndex={0} aria-label="Virtual device. Arrow keys steer, space boosts. Focus here to use the keyboard." onKeyDown={e => key(e, true)} onKeyUp={e => key(e, false)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) resetControls(); }} style={{ '--app-color': color }}>
-      <div className="md-device-label"><span>MODULATE / 01</span><span><i />VIRTUAL PI</span></div>
-      <div className="md-display">
-        {modules.includes('display') ? <svg viewBox="0 0 240 135" role="img" aria-label={`${app.title}. Score ${game.score}. ${game.lives} lives.`}>
-          <rect width="240" height="135" fill={app.kind === 'rally' ? '#0c1722' : '#080e1c'} />
-          {app.kind === 'orbit' && <>{Array.from({ length: 26 }, (_, i) => <rect key={i} x={(i * 43 + 11) % 240} y={(i * 29 + game.elapsed * 4) % 135} width={i % 4 ? 1 : 2} height={i % 4 ? 1 : 2} fill={i % 4 ? '#49617c' : '#a8bfd5'} />)}<circle cx="190" cy="38" r="22" fill="#162948" /><ellipse cx="190" cy="38" rx="35" ry="8" fill="none" stroke="#314d76" strokeWidth="3" transform="rotate(-25 190 38)" /></>}
-          {app.kind === 'rally' && <><rect x="22" y="0" width="196" height="135" fill="#1b2935" /><path d="M22 0V135 M218 0V135" stroke={color} strokeWidth="2" />{[86, 154].map(x => <path key={x} d={`M${x} -30V170`} stroke="#69818e" strokeWidth="1" strokeDasharray="12 12" strokeDashoffset={-game.elapsed * app.speed * 55 % 24} />)}</>}
-          {app.kind !== 'synth' && <>
-            {game.objects.map(object => app.kind === 'orbit' ? <path key={object.id} d="M0 -6 2 -2 6 0 2 2 0 6 -2 2 -6 0 -2 -2Z" transform={`translate(${object.x} ${object.y})`} fill="#f0eb5b" /> : <g key={object.id} transform={`translate(${object.x} ${object.y})`}><rect x="-7" y="-10" width="14" height="20" rx="3" fill="#f0b777" /><rect x="-5" y="-5" width="10" height="5" fill="#334453" /></g>)}
-            <g transform={`translate(${game.x} 112)`}>{app.kind === 'orbit' ? <><path d="M0 -10 11 6 5 3 -5 3 -11 6Z" fill={color} /><path d="M-3 5 0 11 3 5" fill="#f0b777" /></> : <><rect x="-8" y="-11" width="16" height="22" rx="3" fill={color} /><rect x="-5" y="-6" width="10" height="6" fill="#183049" /><path d="M-10 -6V0 M10 -6V0 M-10 6V10 M10 6V10" stroke="#05080e" strokeWidth="3" /></>}</g>
-            <rect x="0" y="0" width="240" height="17" fill="#080e1ce6" /><text x="8" y="11" fill="#e1efff" fontSize="6" fontFamily="monospace">{app.kind === 'orbit' ? 'ORBIT CATCH' : 'PIXEL RALLY'}</text><text x="232" y="11" fill={color} fontSize="6" textAnchor="end" fontFamily="monospace">{String(game.score).padStart(4, '0')} / {'♥'.repeat(game.lives)}</text>
-          </>}
-          {app.kind === 'synth' && <><text x="120" y="28" fill={color} fontSize="8" textAnchor="middle" fontFamily="monospace">POCKET SYNTH</text><polyline fill="none" stroke={color} strokeWidth="2" points={Array.from({ length: 120 }, (_, i) => `${i * 2},${67 + Math.sin(i * (0.1 + dial / 300)) * 21}`).join(' ')} /><text x="120" y="115" fill="#c6d3e5" fontSize="8" textAnchor="middle" fontFamily="monospace">{Math.round(130.81 * 2 ** (dial / 50))} Hz · TRIANGLE</text></>}
-        </svg> : <div className="md-no-display">Display disconnected</div>}
-        {modules.includes('display') && app.kind !== 'synth' && !running && <div className="md-screen-overlay"><strong>{game.lives <= 0 ? `${game.score} points. Again?` : error ? 'Waiting for a module' : busy ? 'Preparing example…' : playing ? 'Paused' : 'Ready when you are.'}</strong><span>{game.lives <= 0 ? 'Hit restart for another run.' : 'Connect. Create. Play.'}</span></div>}
+  const key = (event, down) => {
+    if (['INPUT', 'BUTTON', 'A', 'TEXTAREA'].includes(event.target.tagName) || error || busy)
+      return;
+    const map = {
+      ArrowLeft: ['x', -1],
+      ArrowRight: ['x', 1],
+      ArrowUp: ['y', -1],
+      ArrowDown: ['y', 1],
+      ' ': ['button_a', true],
+      b: ['button_b', true],
+    };
+    const entry = map[event.key];
+    if (!entry) return;
+    if (!modules.includes(entry[0].startsWith('button') ? 'buttons' : 'joystick')) return;
+    event.preventDefault();
+    setControl(entry[0], down ? entry[1] : 0);
+  };
+  const disabled = !app || Boolean(error) || busy || loaded !== app?.id;
+  return (
+    <div className="md-device-area">
+      <div
+        className="md-device"
+        tabIndex={0}
+        aria-label="Virtual device. Arrow keys move, Space is A, B is B."
+        onKeyDown={(e) => key(e, true)}
+        onKeyUp={(e) => key(e, false)}
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget)) input.current = idleInput();
+        }}
+        style={{ '--app-color': '#a8b8ff' }}
+      >
+        <div className="md-device-label">
+          <span>MODULATE / 01</span>
+          <span>
+            <i />
+            VIRTUAL PI
+          </span>
+        </div>
+        <div className="md-display">
+          <canvas
+            ref={canvas}
+            width={240}
+            height={135}
+            role="img"
+            aria-label={app ? `${app.title}: live generated app` : 'Empty virtual device'}
+            style={{
+              width: '100%',
+              height: '100%',
+              imageRendering: 'pixelated',
+              background: '#080e1c',
+            }}
+          />
+          {(!app || !modules.includes('display') || !running) && (
+            <div className="md-screen-overlay">
+              <strong>
+                {!modules.includes('display')
+                  ? 'Display disconnected'
+                  : !app
+                    ? 'What will you make?'
+                    : busy
+                      ? 'Creating your next app…'
+                      : error
+                        ? 'Waiting for a module'
+                        : failure
+                          ? 'App paused'
+                          : loaded === app.id
+                            ? 'Ready to play.'
+                            : 'Checking app…'}
+              </strong>
+              <span>
+                {!app ? 'Describe an idea below.' : 'Your generated code. Your controls.'}
+              </span>
+            </div>
+          )}
+        </div>
+        <div className="md-device-footer">
+          <span>240 × 135</span>
+          <span>VIRTUAL HARDWARE</span>
+          <span>● ●</span>
+        </div>
+        <div className="md-controls">
+          <div className={`md-control-module ${modules.includes('joystick') ? '' : 'is-detached'}`}>
+            <div
+              className="md-joystick"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3,28px)',
+                gap: 0,
+                height: 'auto',
+              }}
+            >
+              {[
+                ['Up', 'y', -1, ArrowUp, 2],
+                ['Left', 'x', -1, ArrowLeft, 1],
+                ['Down', 'y', 1, ArrowDown, 2],
+                ['Right', 'x', 1, ArrowRight, 3],
+              ].map(([label, axis, value, Icon, col], i) => (
+                <button
+                  key={label}
+                  style={{ gridColumn: col, gridRow: i === 0 ? 1 : 2 }}
+                  aria-label={`Joystick ${label.toLowerCase()}`}
+                  disabled={disabled || !modules.includes('joystick')}
+                  {...hold(axis, value)}
+                >
+                  <Icon size={17} />
+                </button>
+              ))}
+            </div>
+            <span>JOYSTICK</span>
+          </div>
+          <div className={`md-control-module ${modules.includes('encoder') ? '' : 'is-detached'}`}>
+            <div className="md-knob" style={{ transform: `rotate(${dial * 270 - 135}deg)` }}>
+              <i />
+            </div>
+            <label className="mc-sr-only" htmlFor="demo-knob">
+              Rotary knob
+            </label>
+            <input
+              id="demo-knob"
+              type="range"
+              min="0"
+              max="100"
+              value={Math.round(dial * 100)}
+              disabled={disabled || !modules.includes('encoder')}
+              onChange={(e) => {
+                const v = Number(e.target.value) / 100;
+                setDial(v);
+                input.current.encoder = v;
+              }}
+            />
+            <span>ROTARY KNOB</span>
+          </div>
+          <div className={`md-control-module ${modules.includes('buttons') ? '' : 'is-detached'}`}>
+            <div className="md-buttons">
+              {['a', 'b'].map((b) => (
+                <button
+                  key={b}
+                  aria-label={`Button ${b.toUpperCase()}`}
+                  disabled={disabled || !modules.includes('buttons')}
+                  {...hold(`button_${b}`, true)}
+                >
+                  {b.toUpperCase()}
+                </button>
+              ))}
+            </div>
+            <span>ACTION BUTTONS</span>
+          </div>
+        </div>
       </div>
-      <div className="md-device-footer"><span>240 × 135</span><span>SOFTWARE SIMULATION</span><span>● ●</span></div>
-      <div className="md-controls">
-        <div className={`md-control-module ${modules.includes('joystick') ? '' : 'is-detached'}`}><div className="md-joystick"><button type="button" aria-label="Steer left" disabled={!modules.includes('joystick') || Boolean(error) || busy} {...hold(-1)}><ArrowLeft size={19} /></button><i /><button type="button" aria-label="Steer right" disabled={!modules.includes('joystick') || Boolean(error) || busy} {...hold(1)}><ArrowRight size={19} /></button></div><span>JOYSTICK</span></div>
-        <div className={`md-control-module ${modules.includes('encoder') ? '' : 'is-detached'}`}><div className="md-knob" style={{ transform: `rotate(${dial * 2.7 - 135}deg)` }}><i /></div><label className="mc-sr-only" htmlFor="demo-knob">Rotary knob</label><input id="demo-knob" type="range" min="0" max="100" value={dial} disabled={!modules.includes('encoder') || Boolean(error) || busy} onChange={event => { const value = Number(event.target.value); setDial(value); controls.current.target = 26 + value * 1.88; }} /><span>ROTARY KNOB</span></div>
-        <div className={`md-control-module ${modules.includes('buttons') ? '' : 'is-detached'}`}><div className="md-buttons"><button type="button" aria-label={app.kind === 'synth' ? 'Button A: play note' : 'Button A: hold to boost'} disabled={!modules.includes('buttons') || Boolean(error) || busy} onClick={app.kind === 'synth' ? note : undefined} onPointerDown={e => { e.currentTarget.setPointerCapture?.(e.pointerId); controls.current.boost = true; }} onPointerUp={() => { controls.current.boost = false; }} onPointerCancel={() => { controls.current.boost = false; }} onLostPointerCapture={() => { controls.current.boost = false; }} onKeyDown={e => { if ([' ', 'Enter'].includes(e.key)) controls.current.boost = true; }} onKeyUp={() => { controls.current.boost = false; }} onBlur={() => { controls.current.boost = false; }}>A</button><button type="button" aria-label="Button B: pause" disabled={!modules.includes('buttons') || busy} onClick={() => { setPlaying(false); resetControls(); if (app.kind === 'synth') { audio.current?.suspend().catch(() => {}); setSound('Sound paused. Press Play note to resume.'); } }}>B</button></div><span>ACTION BUTTONS</span></div>
+      {(error || failure) && (
+        <p className="md-hardware-error" role="status">
+          {error || failure} Your saved app is kept.
+        </p>
+      )}
+      <div className="md-playbar">
+        <Button primary icon={running ? Pause : Play} disabled={disabled} onClick={togglePlay}>
+          {running ? 'Pause' : 'Play app'}
+        </Button>
+        <Button
+          quiet
+          icon={RotateCcw}
+          disabled={!app || busy || Boolean(error)}
+          onClick={() => {
+            setLoaded(null);
+            setRestart((n) => n + 1);
+          }}
+        >
+          Restart
+        </Button>
+        <span>{app ? 'Generated by Meta · runs locally' : 'No app loaded yet'}</span>
       </div>
+      <p className="md-control-help">
+        {app
+          ? Object.entries(app.controls)
+              .filter(([id]) => id !== 'display')
+              .map(([id, text]) => `${MODULE_LABELS[id]}: ${text}`)
+              .join(' · ')
+          : 'Attach components, describe an idea, and Meta will write the app.'}
+      </p>
     </div>
-    {error && <p className="md-hardware-error" role="status">{error} Your saved app is kept.</p>}
-    <div className="md-playbar">{app.kind === 'synth' ? <Button primary icon={Volume2} disabled={Boolean(error) || busy} onClick={note}>Play note</Button> : <><Button primary icon={running ? Pause : Play} disabled={Boolean(error) || busy} onClick={() => game.lives <= 0 ? restart() : setPlaying(!running)}>{running ? 'Pause' : game.lives <= 0 ? 'Play again' : 'Play game'}</Button><Button quiet icon={RotateCcw} disabled={Boolean(error) || busy} onClick={restart}>Restart</Button><output aria-label="Game score">{game.score} points · {game.lives} lives</output></>}</div>
-    <p className="md-control-help">{app.kind === 'synth' ? sound : 'Hold the joystick arrows or drag the knob to steer. A boosts, B pauses. Click the device to use ← → and Space.'}</p>
-  </div>;
+  );
 }
+const MODULE_LABELS = {
+  joystick: 'Joystick',
+  encoder: 'Knob',
+  buttons: 'A / B',
+  speaker: 'Speaker',
+};

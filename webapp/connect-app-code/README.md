@@ -82,6 +82,16 @@ concurrency, unknown billing, stale acknowledgements, cancellation, allowances a
 persistence. Tests with fixtures do not establish live Meta inference; see
 `context/evidence/online-demo/scenes-2026-11-03.json` for live runs.
 
+**Spoken replies (opt-in).** `src/modulate/demo/speech.js` runs Meta's open-weight
+MMS English voice, as the Pi does, entirely in the visitor's browser: the 38 MB
+8-bit ONNX port `Xenova/mms-tts-eng` (pinned commit) of `facebook/mms-tts-eng`, via
+`@huggingface/transformers` 4.3.1 and onnxruntime-web WASM in ORT's same-origin
+proxy worker. Nothing downloads until the visitor enables it; reply text never
+leaves the browser and the Cache API serves later visits. `prebuild`/`predev` copy
+the ORT runtime into ignored `public/ort/` (no CDN scripts), and only `/demo` adds
+`https://huggingface.co` and Hugging Face's regional `https://*.cdn.hf.co` to
+`connect-src`. The checkpoint is third-party and licensed CC-BY-NC-4.0 (noncommercial).
+
 ## Read the implementation
 
 | Code | Responsibility |

@@ -11,12 +11,13 @@ The user's later scope replaces separate Chrome grants with connected paired-Mac
 ### Pi-owned agent
 
 The installed standalone mode runs trusted `Product` and `Orchestrator`, the app
-library and speech coordinator on the Pi, alongside capture/Whisper and the
+library and speech coordinator on the Pi, alongside capture/Meta wav2vec 2.0 and the
 isolated physical runtime. Device transport remains authenticated and TLS-pinned,
 now through loopback. `--standalone` pins Studio/device listeners to loopback;
 it does not expose an unauthenticated LAN Studio.
 
-Meta and ElevenLabs requests use the existing fixed Vercel provider gateway.
+Meta requests use the existing fixed Vercel provider gateway; current spoken
+replies use local Meta MMS. Historical external speech accounting is retained.
 Provider API keys stay in Vercel. The trusted Pi holds only gateway transport
 credentials, isolated from generated packages and browser code. This is cloud
 inference orchestrated by the Pi, not offline inference or a Vercel-hosted agent.
@@ -39,7 +40,7 @@ See [deployment and evidence](standalone.md).
 
 ```mermaid
 flowchart LR
-    V[USB microphone and local Whisper] --> Q[Transcript or disclosed typed request]
+    V[USB microphone and local Meta wav2vec 2.0] --> Q[Transcript or disclosed typed request]
     C[Current controls and paired device permissions] --> M[Meta-powered tool agent]
     Q --> M
     M --> G[Generated JavaScript and sprite package]
@@ -67,7 +68,7 @@ The model generates application code for a fixed runtime, not new firmware, shel
 
 | Component | Current implementation and boundary |
 | --- | --- |
-| Voice | Native 48 kHz USB capture, PyAV resampling and local faster-whisper tiny.en. Installed repair uses Silero VAD bundled in pinned faster-whisper 1.2.1 instead of RMS silence detection, without a new model download. Wake probes follow 0.5 s non-speech; requests end after 3 s silence and discard at 25 s. Negative probes can retry after later speech, with results bound to their originating buffer. Pi tests passed; the user confirmed bare wake acknowledgement and a spoken request → audible reply → successful wake again trial. |
+| Voice | Native 48 kHz capture and PyAV resampling; local Meta wav2vec 2.0 recognizes wake/cancellation and local-mode commands. Invoked requests can use Muse ASR through the existing gateway. Standalone Silero remains the explicitly non-Meta activity detector. Bounded worker, pinned weights, offline loading, epoch rejection and 25-second limit. New local model verified on the development Mac; physical wake/noise reliability remains unmeasured. See [speech contract](meta-speech.md). |
 | Orchestration | Host-side model/tool loop; credentials remain on the host. Current provider adapters are Meta, Fireworks and local Ollama. No silent provider/preset fallback. |
 | Verification | Fixed Python checks plus actual isolated worker execution. A model-written assertion cannot mark a package passed. |
 | Game execution | Maintained QuickJS-NG binding in a persistent subprocess, bounded engine resources, parent wall timeout and platform OS restrictions. No generated host callbacks or I/O. |
@@ -76,7 +77,7 @@ The model generates application code for a fixed runtime, not new firmware, shel
 | Native bridge | Fixed macOS volume scripts and native brightness helper, validated values, revocable hashed-token sessions, serialized actions and sequence rejection. Volume is demonstrated; a native brightness 46 → 47 → 46 trial restored the starting level. DisplayServices is a private macOS API and may vary across systems. |
 | Computer tasks | New paired-Mac helper covers the primary display and app actions, with fresh screenshots and bounded input. Earlier Chrome-window trials succeeded; the expanded scope is installed; a live native Calculator task completed and was independently verified. |
 | Live camera | New local AVFoundation capture produces 240×135 JPEGs for the trusted Pi renderer, combined with generated drawing/controls. A native probe succeeded; after a transport deadlock repair, the user confirmed the generated live camera/effects on the Pi. No camera pixels enter model requests or game inputs. |
-| Spoken replies | Installed host-side ElevenLabs Flash v2.5/Roger synthesis and transient 24 kHz mono PCM delivery over enrolled TLS to Pi playback. Single-worker cancellation/replacement, microphone pause and physical interruption remain. The user confirmed the new natural voice and good volume at 75%; device telemetry reports delivered without error. |
+| Spoken replies | Local Meta MMS is the default, using a separate isolated CPU worker and enrolled 24 kHz PCM transport. Cancellation, microphone pause, expiry and physical interruption remain. Historical external speech ledgers are retained; that provider is no longer selectable for product replies. See [Meta MMS](meta-mms.md). |
 
 The joystick at `0x20` has user-confirmed steering, with X reaching −1 and 1 in live samples. Encoder deltas at `0x36` were subsequently captured while changing native Mac volume; the user confirmed direction. Green `0x6E` and red `0x6F` buttons independently reported firmware 259 after power cycling and worked in the game. Green OR PiTFT A supplies logical `button_a`; red OR PiTFT B supplies `button_b`. Pairing/PTT use physical PiTFT buttons only. Bluetooth microphone and gesture sensing remain unverified. The October 30 update adds read-backed LSM6DS3TR-C acceleration, angular velocity and gravity inclination, plus background rediscovery of supported missing drivers. Unknown peripherals are not inferred from an address alone. See [adaptive controls](adaptive-controls.md) for the live evidence and limits.
 

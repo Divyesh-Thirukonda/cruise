@@ -33,15 +33,12 @@ class AssistantIO(MacAccess):
         self.speech_pending = None
         self.speech_cancel = None
         self.speech_worker = None
-        self.tts_provider = os.environ.get("MODULATE_TTS_PROVIDER") or "local"
-        if self.tts_provider == "elevenlabs":
-            from .tts import ElevenLabsTTS
-            self.tts = ElevenLabsTTS(self.directory, max_chars=int(os.environ.get("MODULATE_TTS_CHARACTER_LIMIT", "5000")))
-        elif self.tts_provider == "meta_mms":
+        self.tts_provider = os.environ.get("MODULATE_TTS_PROVIDER") or "meta_mms"
+        if self.tts_provider == "meta_mms":
             from .mms_tts import MMSTTS
             self.tts = MMSTTS()
         elif self.tts_provider != "local":
-            raise ValueError("Unsupported speech provider; choose local, meta_mms or elevenlabs")
+            raise ValueError("Unsupported speech provider; use meta_mms or local diagnostic speech")
 
     def computer_status(self):
         self._sync_computer_pairing()

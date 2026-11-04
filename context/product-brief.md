@@ -37,7 +37,7 @@ The first game uses the joystick and large green/red buttons, physically confirm
 
 ## Voice is part of the product
 
-The intended entry point is a microphone. The attached USB microphone and local Whisper transcription worked in the number prototype; the owned Bluetooth speaker/microphone remains untested. The new product voice worker uses the Pi microphone and local recognition, with push-to-talk and optional transcript-based wake matching. Typed text is a debug fallback; the companion does not capture browser microphone audio. A successful typed demo alone does not prove the voice experience.
+The intended entry point is a microphone. The attached USB microphone and the prior local recognizer worked in the number prototype; the owned Bluetooth speaker/microphone remains untested. The new product voice worker uses the Pi microphone and local recognition, with push-to-talk and optional transcript-based wake matching. Typed text is a debug fallback; the companion does not capture browser microphone audio. A successful typed demo alone does not prove the voice experience.
 
 “Hey Meta” is the chosen wake phrase, matched in local transcripts with a listening gap during inference. Native 16 kHz capture and early stream-overflow attempts failed; 48 kHz resampling plus buffering/retry fixes preceded successful PTT and hands-free refinements. The user explicitly confirmed no buttons for the wake reversal. These successes are not a reliability benchmark or official Meta assistant integration. Show actual voice/error states, provide mute/cancel and keep recordings out of saved artifacts.
 

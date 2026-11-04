@@ -102,11 +102,12 @@ flowchart TD
 | --- | --- | --- | --- |
 | **Muse Spark** `muse-spark-1.3` | Meta API, called by the Pi agent through the key-holding gateway, and by the `/demo` server | Orchestrator and coder/artist/reviewer subagents: reads capabilities, writes and repairs apps and mappings, reads check reports, drives the Mac from screenshots | [First game](context/evidence/first-live-game.json) · [online demo](context/evidence/online-demo/live/verification.json) |
 | **Muse Voice Transcribe** `muse-voice-transcribe-1.0` | Meta API, same gateway | Transcribes invoked commands, push-to-talk and clarification answers after a local wake check | [Integration](context/muse-voice-transcribe.md): synthetic command transcribed end to end in 1.18 s; not yet tested with a person speaking |
+| **wav2vec 2.0** `facebook/wav2vec2-base-960h` | Local CPU worker, pinned open weights (Apache-2.0) | Wake recognition, cancellation and local-mode command transcription | [Development-host inference](context/evidence/meta-speech.json); physical wake verification pending |
 | **MMS-TTS** `facebook/mms-tts-eng` | Pi 5 CPU, and the visitor's browser (WASM) in the online demo; open weights (CC-BY-NC-4.0) | Spoken replies without a cloud call | [Setup](context/meta-mms.md): user confirmed clear speech; 8.3 s cold synthesis for 3.6 s of audio |
 | **Muse** custom connector | Muse → Modulate Connect API → Pi agent | Sends requests and follow-up answers to the Pi agent under a revocable seven-day grant | [Connector](context/muse-connector.md) |
 | **Llama 3.2 1B** via Ollama | Pi 5, on device | First voice-to-number prototype only (Oct 28) | [Prototype](context/number-prototype.md) |
 
-Local Whisper `tiny.en` still handles wake detection. Spoken replies can also use an ElevenLabs voice (Flash v2.5) through the same gateway, and the November 2 rehearsal did. A failed synthesis never switches providers silently. [Voice options](context/product-runtime.md#elevenlabs-upgrade-and-conversation-validation) · [rehearsal](context/demo-readiness.md)
+Current source uses pinned local Meta wav2vec 2.0 for wake recognition and cancellation, and defaults spoken replies to Meta MMS. Silero remains the explicitly non-Meta speech-activity detector. The new recognizer has development-host inference evidence but has not been installed or tested on the physical Pi; synthesized wake phrases were misheard. Earlier physical voice trials used the prior recognition stack. [Speech setup and limitations](context/meta-speech.md) · [Meta MMS](context/meta-mms.md)
 
 ## Evidence
 
@@ -140,7 +141,7 @@ One recorded trial per row on the physical Pi unless noted. Sanitized traces are
 | UI rollback −10 → −1 → −10 | Studio button | Exact earlier revisions restored with 0 model calls | [Record](context/evidence/live-rollback.json) |
 | Full Pi reboot | Reboot | Services restarted and the exact game revision returned with 0 model calls | [Record](context/evidence/standalone-runtime.json) |
 
-Saved frames and device acknowledgments are software evidence, not optical photos; "user-confirmed" means a person checked the physical result. These are individual runs, not reliability rates. Latest recorded test runs: 1,176 host tests with 13 platform skips ([build log](context/build-log.md)), plus 78 API/runtime and 66 UI tests for the web app on this branch.
+Saved frames and device acknowledgments are software evidence, not optical photos; "user-confirmed" means a person checked the physical result. These are individual runs, not reliability rates. Latest combined-source verification: 1,182 Python tests passed with the speech dependencies installed, plus 78 API/runtime tests, 66 UI tests and the web production build ([build log](context/build-log.md)).
 
 ## Built during the hackathon vs. reused
 
@@ -150,7 +151,7 @@ Everything in the middle column was built during the event (October 27 to Novemb
 | --- | --- | --- |
 | Agent | Tool loop, eight skills, subagent delegation, clarification, recent context, budget ledgers | Meta Muse Spark API |
 | App runtime | Package contract, verifier and hostile probes, staged activation and rollback, renderer | QuickJS-NG Python binding, Pillow, macOS sandbox and Linux libseccomp |
-| Voice and speech | Wake matching, transcript review, cancellation, Muse ASR adapter, MMS worker | faster-whisper with Whisper `tiny.en` and Silero VAD, PyAV, sounddevice, MMS weights via PyTorch and Transformers; Muse Voice Transcribe API; ElevenLabs (optional) |
+| Voice and speech | Wake matching, transcript review, cancellation, Muse ASR adapter, bounded local ASR and MMS workers | Meta wav2vec 2.0 and MMS weights via PyTorch and Transformers; Muse Voice Transcribe API; standalone Silero VAD, ONNX Runtime, PyAV and sounddevice |
 | Hardware | Device service, input contracts, hardware debugger, catalog driver installer, component setup | Raspberry Pi OS; Adafruit Blinka, RGB display, seesaw, LSM6DS and Register; SparkFun Qwiic Joystick and Button libraries |
 | Mac | Bridge, native helper app, computer-use loop, camera and system-audio paths | PyAutoGUI, MSS, PyObjC; macOS DisplayServices, AVFoundation, ScreenCaptureKit and CoreAudio |
 | Web and cloud | Studio, Modulate Connect, online demo, Muse connector API, setup plugin, discovery and budget Worker | Next.js, React, Lucide, Jest, esbuild, quickjs-emscripten; Vercel, Cloudflare Workers, cloudflared |
@@ -202,7 +203,7 @@ Provider API keys never go to the browser or the Pi. The Pi agent reaches Meta t
 
 - **Generation takes time and can fail.** Fresh apps took about 30–150 s in recorded trials, edits about 15–30 s, and reopening a saved app under 15 s. Some attempts fail checks; the previous app keeps running. New requests need internet; installed apps run locally.
 - **About 13 fps on the Pi.** Generated games ran at 13–14 fps in recorded runs; no sustained minimum is established.
-- **Voice reliability is unmeasured.** Wake and push-to-talk trials succeeded individually, but noisy rooms and false triggers were not benchmarked. "Hey Meta" is matched in local transcripts; it is not an official Meta assistant integration.
+- **The new local recognizer needs physical validation.** Historical wake and push-to-talk trials predate the Meta wav2vec replacement. The replacement misheard synthesized wake phrases; noisy rooms and false triggers have not been benchmarked. Install the [new speech assets](context/meta-speech.md) before upgrading the Pi. "Hey Meta" is matched in local transcripts; it is not an official Meta assistant integration.
 - **Mac brightness depends on the display.** It uses a private macOS API that may fail on other displays.
 - **The online demo's hardware is virtual.** Its components are conceptual, with no electrical or firmware emulation.
 - **The driver catalog has one pack.** Only the LSM6DS3TR-C installs automatically. Unknown I²C devices need a reviewed driver, and the full Qwiic-button address repair has only run on a simulated bus.

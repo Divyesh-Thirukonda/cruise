@@ -116,6 +116,11 @@ class AssistantIOTests(unittest.TestCase):
         self.assertEqual(self.computer.observations, 1)
 
     def setUp(self):
+        # These tests exercise the explicit device-side speech transport;
+        # model synthesis and Meta defaults have separate coverage.
+        voice = patch.dict("os.environ", {"MODULATE_TTS_PROVIDER": "local"})
+        voice.start()
+        self.addCleanup(voice.stop)
         self.temp = TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.directory = Path(self.temp.name)

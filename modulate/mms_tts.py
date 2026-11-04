@@ -27,8 +27,8 @@ class MMSError(TTSError):
 
 class MMSTTS:
     def __init__(self, *, python=None, model_dir=None, timeout=90, command=None):
-        self.python = python or os.environ.get("MODULATE_MMS_PYTHON", "")
-        self.model_dir = model_dir or os.environ.get("MODULATE_MMS_MODEL_DIR", "")
+        self.python = python or os.environ.get("MODULATE_MMS_PYTHON") or str(Path(__file__).resolve().parents[1] / ".venv-mms/bin/python")
+        self.model_dir = model_dir or os.environ.get("MODULATE_MMS_MODEL_DIR") or str(Path(__file__).resolve().parents[1] / "brain/models/mms-tts-eng")
         self.timeout = timeout
         self.command = command  # Dependency injection for process-boundary tests.
         self.process = None

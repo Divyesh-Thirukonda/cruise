@@ -13,13 +13,13 @@ For later entries, include the commit or PR, person responsible, actual test/dem
 
 ## October 28: first live voice-to-generated-number program
 
-Implemented original Python-subset AST interpreter, model adapters, trusted SPI display/ALSA capture adapters, local Whisper transcription, bounded repair, immutable source revisions, atomic active pointer and rollback. Default generation uses Meta Llama 3.2:1b on the Pi's existing Ollama installation. This is application regeneration, not firmware flashing. The [prototype guide](number-prototype.md) documents setup and limitations.
+Implemented original Python-subset AST interpreter, model adapters, trusted SPI display/ALSA capture adapters, the prior local recognizer, bounded repair, immutable source revisions, atomic active pointer and rollback. Default generation uses Meta Llama 3.2:1b on the Pi's existing Ollama installation. This is application regeneration, not firmware flashing. The [prototype guide](number-prototype.md) documents setup and limitations.
 
 Physical evidence: user confirmed the display diagnostic; a live typed request activated 24 in 4.69 s. Two voice attempts followed: the first model response hit its output limit and left24 active; the second generated new source and activated 1008 in blue in 12.65 s including 6 s recording, confirmed by the user. USB capture, local speech, local Meta inference and physical rendering all participated in that successful trial. [Sanitized hashes/timings/source](evidence/number-prototype-2026-10-28.json). Earlier untuned local generations were rejected; no failed inference was replaced with a preset.
 
 Validation: 44 focused unit tests passed locally and on the Pi, covering interpreter containment/bounds, provider parsing/errors, stale activation, failed driver/pointer writes, immutable-source integrity and interrupted rollback. Existing Pi software and files were retained; a dedicated venv and transient user service were created. Temporary SSH access was explicitly approved, then removed; a fresh connection was rejected after cleanup. Unused Google credentials were removed from both machines. No microphone audio or credential is committed. Google authentication/model discovery succeeded, but generation returned high-demand errors; Google audio remains unverified and is not used by the working default path. Implementation and sanitized evidence are pushed as commit `99c8202` on `codex/voice-number-prototype`; pre-existing planning edits remain in the working tree.
 
-Pre-existing references/dependencies: hardware settings and capture patterns from Viktor Radev/LaboriouslyExquisite's Interactive-Lab-Hub at `3ef4fa566cd6881db97dc44d36090905f650b0ee` (fork of IRL-CT); independently written adapters, not copied application code. Adafruit Blinka 10.0.0/RGB-display 3.14.6, Pillow 9.4.0, faster-whisper 1.2.1/OpenAI Whisper tiny.en, existing Ollama 0.40.11 and downloaded Meta Llama 3.2:1b weights. Their code, models and licenses are third-party work, not new event contributions.
+Pre-existing references/dependencies: hardware settings and capture patterns from Viktor Radev/LaboriouslyExquisite's Interactive-Lab-Hub at `3ef4fa566cd6881db97dc44d36090905f650b0ee` (fork of IRL-CT); independently written adapters, not copied application code. Adafruit Blinka 10.0.0/RGB-display 3.14.6, Pillow 9.4.0, retired local ASR dependencies, existing Ollama 0.40.11 and downloaded Meta Llama 3.2:1b weights. Their code, models and licenses are third-party work, not new event contributions.
 
 ## October 28: product runtime, companion and offline verification
 
@@ -29,7 +29,7 @@ Offline evidence: all 160 local unit tests passed at this implementation snapsho
 
 Limited live integration evidence: the launched studio rendered in the browser against the actual API. Pi-to-Mac transport with a pinned TLS certificate and peer allowlist reached the endpoint; an invalid heartbeat was rejected with HTTP 400. A live Meta `muse-spark-1.3` text probe succeeded: 14 prompt tokens, 56 completion tokens, 70 total; 46 reasoning tokens were included within completion. Estimated probe cost was $0.000256 under the approved $5 ceiling. The credential remains private on the host. These facts establish UI rendering, transport and account access; full voice/game/pairing/volume execution remains pending.
 
-New contributions are the original runtime contracts, verification/activation orchestration, tool schemas/agent loop, adapters and companion interface. Pre-existing dependencies: [QuickJS-NG Python binding](https://github.com/genotrance/quickjs-ng) 0.17.0.2 and its engine, Pillow 12.3.0 on the Mac/9.4.0 on the Pi, existing Adafruit Blinka/RGB-display, Adafruit seesaw 1.18.2, SparkFun Qwiic Joystick 2.0.0, sounddevice 0.5.6, faster-whisper 1.2.1 and cached OpenAI Whisper tiny.en weights. System isolation uses macOS sandbox APIs or Linux libseccomp. Fixed macOS volume actions use the existing OS `osascript` utility. These dependencies/models and their licenses are third-party work. The test-only game fixtures are handwritten originals; there is no bundled preset production game or imported game art.
+New contributions are the original runtime contracts, verification/activation orchestration, tool schemas/agent loop, adapters and companion interface. Pre-existing dependencies: [QuickJS-NG Python binding](https://github.com/genotrance/quickjs-ng) 0.17.0.2 and its engine, Pillow 12.3.0 on the Mac/9.4.0 on the Pi, existing Adafruit Blinka/RGB-display, Adafruit seesaw 1.18.2, SparkFun Qwiic Joystick 2.0.0, sounddevice 0.5.6, retired local ASR dependencies and the prior recognition weights. System isolation uses macOS sandbox APIs or Linux libseccomp. Fixed macOS volume actions use the existing OS `osascript` utility. These dependencies/models and their licenses are third-party work. The test-only game fixtures are handwritten originals; there is no bundled preset production game or imported game art.
 
 See [product runtime setup and limits](product-runtime.md) for installed-version pins, actual execution boundaries, private enrollment requirements, pending acceptance evidence and reproduction commands. Future live results should add their own sanitized source hashes, provider identity, timing and physical confirmation rather than retroactively upgrading this offline evidence.
 
@@ -43,7 +43,7 @@ The user confirmed the game visible on the physical PiTFT, steering working and 
 
 Hardware configuration advanced beyond the earlier pending snapshot: green `0x6E` and red `0x6F` Qwiic boards independently returned firmware value 259 after power cycling; all input-device statuses reported ready. This resolves the earlier address-collision blocker for those boards. Pairing/PTT still use physical PiTFT buttons; generated logical A/B also accept the large green/red buttons.
 
-The product microphone initially rejected direct native 16 kHz capture. The deployed fix now captures 48 kHz mono int16 and uses third-party PyAV 12.3.0 to resample to 16 kHz for VAD/Whisper. All 29 voice tests passed on the Pi with synthetic audio, including anti-alias and exact-duration cases; deployed telemetry reports `wake_listening`. This does not establish a successful live spoken request/refinement or noise reliability. The Pi service is installed/enabled as user `pi` with `NoNewPrivileges=yes`. The companion now displays actual device voice state/errors and derives request outcome only from request lifecycle events, so an unrelated device event cannot falsely relabel a successful request as failed.
+The product microphone initially rejected direct native 16 kHz capture. The deployed fix now captures 48 kHz mono int16 and uses third-party PyAV 12.3.0 to resample to 16 kHz for activity detection and local recognition. All 29 voice tests passed on the Pi with synthetic audio, including anti-alias and exact-duration cases; deployed telemetry reports `wake_listening`. This does not establish a successful live spoken request/refinement or noise reliability. The Pi service is installed/enabled as user `pi` with `NoNewPrivileges=yes`. The companion now displays actual device voice state/errors and derives request outcome only from request lifecycle events, so an unrelated device event cannot falsely relabel a successful request as failed.
 
 Remaining physical acceptance: spoken request/refinement, captured encoder motion, actual paired Mac system-volume changes and revocation, plus broader recovery/performance trials. Preserve those as separate evidence when they occur.
 
@@ -87,7 +87,7 @@ The initial three-second wake timing felt unresponsive to the user. The repair b
 
 Local validation ran **313 tests with three PyAV-dependent Mac skips**; **164 focused Pi tests passed without skips**. Tests cover ambient UI behavior, silence/cap bounds, simultaneous wake recognition/capture, retained corrections, stale inference, job-specific cancellation, editable drafts and repeated clarification context. A disclosed synthetic transcript elicited the live Meta question “What would you like me to change it to?” A separate held synthetic draft was edited in Chrome Studio and discarded, preserving the game with zero new model calls. Cancelling during an actual provider call is covered by local tests; this physical voice cancellation trial targeted a held draft.
 
-Implementation commits: `081dd8d`, `fcdc99c`, `b714cac`. Pi source was updated through the existing Raspberry Pi Connect shell from pinned public commit archives; no new SSH grant was created. Recorded usage is **64 model calls / $0.510322** against the approved $5 ceiling. [Sanitized evidence](evidence/voice-review-cancellation.json) distinguishes synthetic transcripts, actual speech and software telemetry. No new dependency or model was added; existing sounddevice, PyAV and faster-whisper remain third-party work. Room-noise reliability remains unmeasured.
+Implementation commits: `081dd8d`, `fcdc99c`, `b714cac`. Pi source was updated through the existing Raspberry Pi Connect shell from pinned public commit archives; no new SSH grant was created. Recorded usage is **64 model calls / $0.510322** against the approved $5 ceiling. [Sanitized evidence](evidence/voice-review-cancellation.json) distinguishes synthetic transcripts, actual speech and software telemetry. No new dependency or model was added; existing sounddevice, PyAV and prior local recognition remain third-party work. Room-noise reliability remains unmeasured.
 
 ## October 28: computer actions and spoken replies
 
@@ -125,7 +125,7 @@ A subsequent spoken question about API use received an explanation of the native
 
 After the user reported wake listening broken, a six-second microphone sample measured RMS percentiles **p10 0.00488, p50 0.00829, p90 0.02077 and p99 0.03882**, compared with the old fixed **0.015** threshold. This was an actual sample, not a controlled quiet-room trial or a recognition-rate measurement; no audio was saved. Synthetic reproductions are being used to investigate the wake/capture failures.
 
-The installed repair replaces production RMS silence classification with Silero VAD bundled in pinned faster-whisper 1.2.1, requiring no additional model download. It preserves the 0.5-second wake probe, three-second request-ending silence and 25-second discard limit; negative ambient probes may retry after later speech, and results stay bound to their originating buffer. Speaker-unavailable retries no longer invalidate wake capture, and status callbacks are ordered.
+The installed repair replaces production RMS silence classification with Silero VAD bundled in pinned retired local ASR dependencies, requiring no additional model download. It preserves the 0.5-second wake probe, three-second request-ending silence and 25-second discard limit; negative ambient probes may retry after later speech, and results stay bound to their originating buffer. Speaker-unavailable retries no longer invalidate wake capture, and status callbacks are ordered.
 
 Pushed commit `dc5c213ec0113adb6435cfd1b21647131a4d72fa` was installed on the Pi through the existing Connect shell using its pinned archive, SHA256 `57a52725faabca2953d1b129ab0e2e86d06b1e9bdd26741ff7dc0a36bf0bde28`; no SSH key was added. **164 focused Pi tests passed without skips in 3.260 s**. The host ran **435 tests with 11 skips** (eight NumPy-dependent and three PyAV-dependent); all eight SpeechActivity tests separately passed under host system Python with NumPy. The actual Pi's bundled ONNX adapter processed **1,000 synthetic zero-PCM 25 ms blocks**, yielding **zero speech labels in 0.229 s excluding model construction**. This verifies adapter compatibility/execution performance, not live audio or wake accuracy.
 
@@ -368,7 +368,7 @@ are unchanged. No new dependency or account is involved.
 
 Improved soft wake onset capture using the already bundled Silero model: .35/.20
 speech thresholds and 600 ms pre-roll. Retained anchored wake matching and made
-Whisper's existing joint silence/low-confidence rejection explicit. The USB mic
+the prior recognizer's existing joint silence/low-confidence rejection explicit. The USB mic
 reported capture enabled at 75% with automatic gain control; no gain adjustment
 was made. A synthetic delayed-onset regression reproduces loss of the first
 syllable with 250 ms and recovery with 600 ms. Ordinary-conversation, three-second
@@ -810,7 +810,7 @@ Implemented `--standalone`, local TLS transport, service startup, accounting
 validation, Pi-aware setup/browser copy and optional dashboard tunnel on the Pi.
 Migrated both cumulative ledgers securely without a reset; froze the stopped
 Mac's copies. Provider keys remain in Vercel. Reused the existing agent, isolated
-QuickJS runtime, Whisper, ElevenLabs gateway and UI; no preset game or new external
+QuickJS runtime, prior local recognition, ElevenLabs gateway and UI; no preset game or new external
 art assets were substituted. Cloudflare's official ARM64 cloudflared 2026.10.6
 release was hash-verified. Preserved the pre-existing display/brand work.
 
@@ -1110,7 +1110,7 @@ public website URL afterward. Native Mac pairing remains separate.
 Built bounded invoked-command ASR with a pinned device TLS route, existing
 server-held Meta key, canonical WAV multipart provider gateway, shared-ledger
 reservation/settlement and permission/epoch rejection of late results. Reused
-Meta hosted ASR, existing Whisper/Silero/MMS, TLS gateway and ledger; no copied
+Meta hosted ASR, the prior local recognizer, Silero and MMS, TLS gateway and ledger; no copied
 cookbook source, new dependency, account or credential. Pi source 5a88f5c plus
 398070f frame fix; production website 398070f, deployment
 dpl_6NLqm84RJSQSbyywpvZExwWVfW9c.
@@ -1124,7 +1124,7 @@ normalized integer-string durations and matched Meta's no-filename JSON multipar
 part. Previous uncertain holds were retained; no limit was reset.
 
 Three in-memory MMS synthetic clips, never played or executed: Muse 1.448/1.000/
-1.100s including network, versus cached Whisper 0.955/0.895/0.939s excluding model
+1.100s including network, versus the cached prior local recognizer 0.955/0.895/0.939s excluding model
 load. Cost delta $0.000400. Both models misheard the synthesized wake phrase; no
 physical wake/noise, accuracy or speed improvement claim. Enabled meta_muse in
 the existing private Pi provider file and restarted the agent. A complete
@@ -1333,3 +1333,54 @@ services and the physical ledger. Production server credentials remained
 server-side. Code, durable safeguards and public behavior are now verified;
 actual Meta generation is demonstrated, while the hardware remains explicitly
 virtual. No Arduino firmware or physical-device behavior is claimed.
+
+
+## November 3 — Local Meta speech replacement
+
+Replaced the retired recognition runtime with pinned Meta wav2vec 2.0 in a
+persistent subprocess. Added bounded PCM/JSON framing, a 30-second deadline,
+cancellable nonblocking pipe I/O, offline model loading, checksum verification,
+credential-free worker environment, installation tooling and CTC confidence
+checks. Preserved voice capture, strict wake matching, cancellation and epoch
+rejection. Removed the retired dependency/references across current source,
+requirements, setup docs and test fixtures; earlier evidence retains its timings
+under a clearly historical recognizer label. No shared Git history was rewritten.
+
+Made Meta MMS the default spoken-reply provider and disabled selection of the
+external voice provider; retained historical ledger/migration code. Removed the
+legacy Gemini prototype adapter and limited local/partner agent model families to
+Meta. Silero VAD remains an explicitly disclosed non-Meta boundary detector,
+installed independently with a pinned upstream asset and MIT license.
+
+Validation: **1,182 Python tests passed**, with NumPy, PyAV, ONNX Runtime,
+PyTorch and Transformers available in the isolated verification environment.
+Actual local Meta inference recognized command words in Meta MMS synthetic clips;
+silence and deterministic low-level white noise returned empty transcripts. Both
+the selected base checkpoint and a trial larger checkpoint misheard synthesized
+wake words. These results do not establish physical wake recognition, cancellation
+latency or room-noise reliability. The Pi was not installed or tested. No paid
+provider calls, live microphone capture, playback, pairing changes or ledger
+modifications occurred. [Sanitized evidence](evidence/meta-speech.json).
+
+Reused work: Meta wav2vec 2.0 (Apache-2.0), Meta MMS (CC-BY-NC-4.0), Silero VAD
+(MIT), PyTorch, Transformers, NumPy, ONNX Runtime and PyAV. The project supplies
+the worker protocol, resource/lifecycle boundaries, installer and integration;
+no model training is claimed. Full pins and license links are in
+[Meta speech](meta-speech.md).
+
+
+## November 3 — Integrate Meta speech with the current main branch
+
+Resolved the README merge conflict against `37eedb5` while preserving the updated
+project presentation, online-demo scenes, in-browser Meta MMS voice and evidence.
+Updated its model table, dependency attribution, installation link and limits to
+match the new local Meta recognizer. The current tracked tree contains no retired
+recognizer references; historical measured outcomes retain their input-mode and
+hardware limitations.
+
+Combined-source validation: `.venv-asr/bin/python -m unittest discover -s tests`
+passed **1,182 tests**. In `webapp/connect-app-code`, `npm ci` followed by
+`npm run check` passed source-manifest verification, **78 API/runtime tests**, **66
+UI tests**, and the Next.js production build. No paid model calls, new physical
+trials, external assets or additional dependencies were introduced by this merge.
+The documented physical speech-installation and wake-verification limits remain.

@@ -1,13 +1,35 @@
-"""Bounded streaming adapter for faster-whisper 1.2.1's bundled Silero VAD.
+"""Streaming adapter for the independently installed Silero 6.2 activity model.
 
-The recurrent ONNX interface follows the dependency's implementation:
-https://github.com/SYSTRAN/faster-whisper/blob/v1.2.1/faster_whisper/vad.py
-Its public array callable resets state for each call. We retain independent
-h/c state and 64 context samples across 512-sample windows instead, so each
-audio sample is inferred once. Model loading uses the installed asset only.
-No audio or model output is logged or persisted. Construct on the capture
-worker, never in the PortAudio callback or game/heartbeat thread.
+MIT model: https://github.com/snakers4/silero-vad/tree/v6.2
+This detector remains an explicit non-Meta dependency, separate from recognition.
+Only installation downloads assets; inference is local with bounded recurrent state.
 """
+import functools
+import hashlib
+from pathlib import Path
+
+MODEL_SHA256 = "7ed98ddbad84ccac4cd0aeb3099049280713df825c610a8ed34543318f1b2c49"
+
+
+@functools.lru_cache(maxsize=1)
+def _load_session():
+    import numpy as np
+    import onnxruntime as ort
+    path = Path(__file__).resolve().parents[1] / "brain/models/silero-vad.onnx"
+    model = path.read_bytes()
+    if hashlib.sha256(model).hexdigest() != MODEL_SHA256:
+        raise ValueError("Speech detector checksum mismatch")
+    options = ort.SessionOptions()
+    options.inter_op_num_threads = options.intra_op_num_threads = 1
+    session = ort.InferenceSession(model, sess_options=options, providers=["CPUExecutionProvider"])
+
+    class StreamingSession:
+        def run(self, _, inputs):
+            output, state = session.run(None, {"input": inputs["input"],
+                "state": np.concatenate((inputs["h"], inputs["c"])), "sr": np.array(16000, dtype=np.int64)})
+            return [output, state[:1], state[1:]]
+
+    return StreamingSession()
 
 
 class SpeechActivityError(RuntimeError):
@@ -36,12 +58,11 @@ class SpeechActivity:
         try:
             import numpy as np
             if session is None:
-                from faster_whisper.vad import get_vad_model
-                session = get_vad_model().session
+                session = _load_session()
             if not callable(getattr(session, "run", None)):
                 raise ValueError
         except Exception:
-            raise SpeechActivityError("Local speech detector unavailable; check the bundled faster-whisper model") from None
+            raise SpeechActivityError("Local speech detector unavailable; run scripts/install_meta_asr.py and install the device dependencies") from None
         self._np = np
         self._session = session
         # Compare values in the ONNX output's float32 precision at boundaries.

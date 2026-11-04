@@ -46,6 +46,7 @@ Demonstrated on our Raspberry Pi 5 with live Meta models. Input modes are labele
 - **Real agent, virtual parts.** Your request and the attached virtual parts go to Meta `muse-spark-1.3`. An orchestrator call picks a skill and one action. For apps, a coder subagent writes original JavaScript and a reviewer subagent approves it or repairs it against the check report. The trace streams onto the page as it happens.
 - **The same verification idea as the device.** Generated code runs in a QuickJS/WASM worker with no DOM, network, imports or host callbacks. The server and your browser each run 151 frames before activation; sandbox errors name the failing line so the reviewer can repair it. A rejected candidate leaves the previous app running.
 - **Scenes:** a Doom-style game that turns with tilt; unplug the joystick and ask it to update the controls; break the simulated I²C bus (an IMU without its driver, or a third button at 0x6F) and ask it to check your hardware; map the knob to a virtual Mac's brightness from a Muse-style message, then reverse it; a webcam Halloween mirror; the app library with favorites, Trash and knob or joystick scrolling; an unsafe request it declines.
+- **Spoken replies, optional.** Turn on the voice and Meta's open-weight MMS-TTS runs in your browser through WebAssembly, as it runs on the Pi's CPU. It's a one-time download of about 42 MB, and reply text never leaves the tab.
 - **Honest labels.** The Pi parts, I²C bus, driver installer and paired Mac are simulations; the Meta inference, the generated code and its checks are real. The "Message from Muse" channel is typed on the page, not sent from the Muse app. Webcam frames, if you allow them, stay in the tab and never reach the model or the generated code.
 - **Bounded spend.** An independent, capped $25 demo budget reserves worst-case cost before every call, and each visitor has a small daily allowance. Saved apps, knob mappings and the library work without it.
 
@@ -101,7 +102,7 @@ flowchart TD
 | --- | --- | --- | --- |
 | **Muse Spark** `muse-spark-1.3` | Meta API, called by the Pi agent through the key-holding gateway, and by the `/demo` server | Orchestrator and coder/artist/reviewer subagents: reads capabilities, writes and repairs apps and mappings, reads check reports, drives the Mac from screenshots | [First game](context/evidence/first-live-game.json) · [online demo](context/evidence/online-demo/live/verification.json) |
 | **Muse Voice Transcribe** `muse-voice-transcribe-1.0` | Meta API, same gateway | Transcribes invoked commands, push-to-talk and clarification answers after a local wake check | [Integration](context/muse-voice-transcribe.md): synthetic command transcribed end to end in 1.18 s; not yet tested with a person speaking |
-| **MMS-TTS** `facebook/mms-tts-eng` | Pi 5 CPU, open weights (CC-BY-NC-4.0) | Spoken replies without a cloud call | [Setup](context/meta-mms.md): user confirmed clear speech; 8.3 s cold synthesis for 3.6 s of audio |
+| **MMS-TTS** `facebook/mms-tts-eng` | Pi 5 CPU, and the visitor's browser (WASM) in the online demo; open weights (CC-BY-NC-4.0) | Spoken replies without a cloud call | [Setup](context/meta-mms.md): user confirmed clear speech; 8.3 s cold synthesis for 3.6 s of audio |
 | **Muse** custom connector | Muse → Modulate Connect API → Pi agent | Sends requests and follow-up answers to the Pi agent under a revocable seven-day grant | [Connector](context/muse-connector.md) |
 | **Llama 3.2 1B** via Ollama | Pi 5, on device | First voice-to-number prototype only (Oct 28) | [Prototype](context/number-prototype.md) |
 
@@ -139,7 +140,7 @@ One recorded trial per row on the physical Pi unless noted. Sanitized traces are
 | UI rollback −10 → −1 → −10 | Studio button | Exact earlier revisions restored with 0 model calls | [Record](context/evidence/live-rollback.json) |
 | Full Pi reboot | Reboot | Services restarted and the exact game revision returned with 0 model calls | [Record](context/evidence/standalone-runtime.json) |
 
-Saved frames and device acknowledgments are software evidence, not optical photos; "user-confirmed" means a person checked the physical result. These are individual runs, not reliability rates. Latest recorded test runs: 1,176 host tests with 13 platform skips ([build log](context/build-log.md)), plus 78 API/runtime and 57 UI tests for the web app on this branch.
+Saved frames and device acknowledgments are software evidence, not optical photos; "user-confirmed" means a person checked the physical result. These are individual runs, not reliability rates. Latest recorded test runs: 1,176 host tests with 13 platform skips ([build log](context/build-log.md)), plus 78 API/runtime and 66 UI tests for the web app on this branch.
 
 ## Built during the hackathon vs. reused
 

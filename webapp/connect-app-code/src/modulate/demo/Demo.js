@@ -27,11 +27,13 @@ import {
   Trash2,
   Undo2,
   Volume2,
+  VolumeX,
   Wrench,
   X,
 } from 'lucide-react';
 import { Badge, Brand, Button } from '../ui';
 import VirtualDevice from './VirtualDevice';
+import { createMmsVoice, isMmsVoiceSupported } from './speech';
 import {
   checkApp,
   COMPUTER,
@@ -107,6 +109,11 @@ export default function Demo() {
   const [rename, setRename] = useState(null);
   const [showReset, setShowReset] = useState(false);
   const [purge, setPurge] = useState(null);
+  const [voiceOn, setVoiceOn] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState({ state: 'idle' });
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  const voice = useRef(null);
+  const spoken = useRef('');
   const generation = useRef(null);
   const benchRun = useRef(0);
   const main = useRef(null);
@@ -137,6 +144,28 @@ export default function Demo() {
     }
   }, [workspace, ready]);
   useEffect(() => () => generation.current?.abort(), []);
+  useEffect(() => {
+    setVoiceSupported(isMmsVoiceSupported());
+    return () => voice.current?.stop();
+  }, []);
+  // Speak each new reply once the visitor has turned the Meta voice on.
+  useEffect(() => {
+    if (!voiceOn || !say || say === spoken.current) return;
+    if (!['ready', 'speaking'].includes(voiceStatus.state)) return;
+    spoken.current = say;
+    voice.current?.speak(say);
+  }, [say, voiceOn, voiceStatus.state]);
+  const toggleVoice = () => {
+    if (voiceOn) {
+      voice.current?.stop();
+      setVoiceOn(false);
+      return;
+    }
+    voice.current ||= createMmsVoice({ onStatus: setVoiceStatus });
+    setVoiceOn(true);
+    // load() must start inside the click so the browser lets later replies play.
+    voice.current.load();
+  };
   useEffect(() => {
     if (!say) return;
     const timer = setTimeout(() => setSay(''), 9000);
@@ -679,8 +708,9 @@ export default function Demo() {
               Real Meta inference. Virtual hardware.{' '}
               <span>
                 Your request goes to Meta Muse Spark (orchestrator, coder and reviewer). Generated
-                apps run sandboxed in this tab. The Pi parts, I²C bus and paired Mac are
-                simulated; your camera, if you allow it, never leaves this tab.
+                apps run sandboxed in this tab. Optional spoken replies use Meta MMS-TTS running
+                in your browser. The Pi parts, I²C bus and paired Mac are simulated; your camera,
+                if you allow it, never leaves this tab.
               </span>
             </p>
           </div>
@@ -719,9 +749,35 @@ export default function Demo() {
                         {menu.open ? 'App library' : active?.title || 'Your next idea'}
                       </h2>
                     </div>
-                    <span className="md-pi-chip">
-                      <Cpu size={14} />
-                      Raspberry Pi
+                    <span className="md-bench-chips">
+                      {voiceSupported && (
+                        <button
+                          type="button"
+                          className={`md-voice ${voiceOn ? 'is-on' : ''}`}
+                          aria-pressed={voiceOn}
+                          title="Spoken replies use Meta MMS-TTS running in your browser (one-time download of about 42 MB)"
+                          onClick={toggleVoice}
+                        >
+                          {voiceOn && voiceStatus.state === 'loading' ? (
+                            <Loader2 className="md-spin" size={13} />
+                          ) : voiceOn ? (
+                            <Volume2 size={13} />
+                          ) : (
+                            <VolumeX size={13} />
+                          )}
+                          {!voiceOn
+                            ? 'Voice off'
+                            : voiceStatus.state === 'loading'
+                              ? `Loading Meta voice ${Math.round((voiceStatus.progress || 0) * 100)}%`
+                              : voiceStatus.state === 'error'
+                                ? 'Voice unavailable'
+                                : 'Meta voice on'}
+                        </button>
+                      )}
+                      <span className="md-pi-chip">
+                        <Cpu size={14} />
+                        Raspberry Pi
+                      </span>
                     </span>
                   </div>
                   <VirtualDevice

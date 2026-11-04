@@ -7,6 +7,7 @@
     "node": ">=22"
   },
   "dependencies": {
+    "@huggingface/transformers": "4.3.1",
     "@jitl/quickjs-singlefile-browser-release-sync": "0.32.0",
     "lucide-react": "0.511.0",
     "next": "16.4.3",
@@ -30,7 +31,7 @@
     "verify:source": "node scripts/verify-source.cjs",
     "check": "npm run verify:source && npm run test:api && npm test && npm run build",
     "dev": "next dev",
-    "prebuild": "node scripts/build-demo-worker.mjs",
-    "predev": "node scripts/build-demo-worker.mjs"
+    "prebuild": "node scripts/build-demo-worker.mjs && node scripts/copy-ort-wasm.mjs",
+    "predev": "node scripts/build-demo-worker.mjs && node scripts/copy-ort-wasm.mjs"
   }
 }

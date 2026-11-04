@@ -556,3 +556,12 @@ MIT attribution. The new recognizer requires installation and physical retesting
 synthetic wake phrases failed in both evaluated Meta checkpoints. Preserve strict
 wake matching, prior physical evidence and both spending ledgers. No Git history
 or existing device installation was rewritten. See [contract and evidence](meta-speech.md).
+
+## November 4 — optional Baseten and Modal code paths
+
+Add a Baseten Model APIs adapter and a separately invoked Modal verifier job as
+optional developer integrations. Keep Meta as the default provider and all physical
+activation local. Baseten prices remain unknown, so the existing ledger blocks
+agent dispatch. No account access or cloud execution is claimed. Modal is outside
+the model ledger and requires an explicit operator invocation. See
+[scope and sources](baseten-modal.md).

@@ -1,6 +1,8 @@
 import io
 import json
 import os
+from pathlib import Path
+import tempfile
 import unittest
 import urllib.error
 from unittest.mock import MagicMock, Mock, patch
@@ -75,6 +77,53 @@ class AgentProviderTests(unittest.TestCase):
         self.assertEqual(body["max_tokens"], 4096)
         self.assertEqual(body["reasoning_effort"], "low")
         self.assertEqual(body["temperature"], 0.4)
+
+    def test_baseten_auth_tool_roundtrip_and_unknown_cost(self):
+        model = "meta-llama/Llama-test-fixture"
+        adapter = AgentProvider(ProviderConfig("baseten", model))
+        adapter._opener = MagicMock()
+        response = cloud_response(arguments='{"component":"screen"}')
+        response["model"] = model
+        self.reply(adapter, response)
+        with patch.dict(os.environ, {"BASETEN_API_KEY": "test-token"}):
+            result = adapter.complete(MESSAGES, TOOLS)
+        request, body = self.sent(adapter)
+        self.assertEqual(request.full_url, ENDPOINTS["baseten"])
+        self.assertEqual(request.get_header("Authorization"), "Bearer test-token")
+        self.assertEqual(body["model"], model)
+        self.assertEqual(body["max_tokens"], 4096)
+        self.assertEqual(result["provider"], "baseten")
+        self.assertEqual(result["tool_calls"][0]["arguments"], {"component": "screen"})
+        self.assertIsNone(adapter.request_budget(MESSAGES, TOOLS)["reserved_cost_microdollars"])
+        self.assertIsNone(cost_microdollars("baseten", model, result["usage"]))
+        from modulate.agent import AgentError, Ledger
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = Ledger(Path(directory) / "ledger.json", 50)
+            with self.assertRaisesRegex(AgentError, "cost is unknown"):
+                ledger.reserve(adapter.request_budget(MESSAGES, TOOLS)["reserved_cost_microdollars"])
+            self.assertEqual(ledger.data["calls"], [])
+
+    def test_baseten_fails_closed_before_credentials_leave_host(self):
+        config = {"provider": "baseten", "model": "meta-llama/Llama-test-fixture"}
+        for changes in ({"endpoint": "https://inference.baseten.co.evil.example/v1/chat/completions"},
+                        {"model": "other/model"}, {"reasoning_effort": "low"}):
+            with self.subTest(changes=changes), self.assertRaises(AgentProviderError):
+                AgentProvider({**config, **changes})
+        adapter = AgentProvider(config)
+        adapter._opener = MagicMock()
+        with self.assertRaisesRegex(AgentProviderError, "credential is missing"):
+            adapter.complete(MESSAGES, TOOLS)
+        adapter._opener.open.assert_not_called()
+
+    def test_baseten_rejects_unadvertised_tools_without_known_billing(self):
+        adapter = AgentProvider(ProviderConfig("baseten", "meta-llama/Llama-test-fixture"))
+        adapter._opener = MagicMock()
+        self.reply(adapter, cloud_response(name="run_shell"))
+        with patch.dict(os.environ, {"BASETEN_API_KEY": "test-token"}):
+            with self.assertRaises(AgentProviderError) as caught:
+                adapter.complete(MESSAGES, TOOLS)
+        self.assertIsNone(caught.exception.billed_cost_microdollars)
+        self.assertFalse(caught.exception.repairable)
 
     def test_content_only_turn_does_not_force_tools(self):
         adapter = self.make()

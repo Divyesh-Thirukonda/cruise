@@ -109,6 +109,14 @@ flowchart TD
 
 Current source uses pinned local Meta wav2vec 2.0 for wake recognition and cancellation, and defaults spoken replies to Meta MMS. Silero remains the explicitly non-Meta speech-activity detector. The new recognizer has development-host inference evidence but has not been installed or tested on the physical Pi; synthesized wake phrases were misheard. Earlier physical voice trials used the prior recognition stack. [Speech setup and limitations](context/meta-speech.md) · [Meta MMS](context/meta-mms.md)
 
+## Optional Baseten and Modal integrations
+
+[Baseten transport](modulate/agent_provider.py) supports Meta-model chat and tool
+calls; the [Modal job](integrations/modal_verify.py) runs the existing game verifier
+on an explicitly submitted package. Both have local tests. Neither has cloud-run
+evidence, Baseten agent dispatch remains blocked pending verified pricing, and
+Modal results cannot authorize device activation. [Setup and limits](context/baseten-modal.md).
+
 ## Evidence
 
 One recorded trial per row on the physical Pi unless noted. Sanitized traces are in [`context/evidence/`](context/evidence). Times run from request submission (after transcription, for spoken rows) to agent completion; they exclude microphone capture and speech playback.

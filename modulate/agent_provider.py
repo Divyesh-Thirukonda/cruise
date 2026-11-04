@@ -9,6 +9,9 @@ https://docs.ollama.com/capabilities/tool-calling
 https://dev.meta.ai/docs/pricing-rate-limits
 https://dev.meta.ai/docs/cookbook/vision-input
 
+Baseten wire contract checked November 4, 2026 (no live account validation):
+https://docs.baseten.co/reference/inference-api/chat-completions
+
 History uses text messages and bounded inline user screenshots for Meta.
 Assistant tool_calls may use normalized
 {id, name, arguments: object} entries or OpenAI function entries. Tool replies
@@ -34,13 +37,15 @@ ENDPOINTS = {
     "meta": "https://api.meta.ai/v1/chat/completions",
     "fireworks": "https://api.fireworks.ai/inference/v1/chat/completions",
     "ollama": "http://localhost:11434/api/chat",
+    "baseten": "https://inference.baseten.co/v1/chat/completions",
 }
 _ALLOWED_ENDPOINTS = {
     "meta": {ENDPOINTS["meta"]},
     "fireworks": {ENDPOINTS["fireworks"]},
+    "baseten": {ENDPOINTS["baseten"]},
     "ollama": {ENDPOINTS["ollama"], "http://127.0.0.1:11434/api/chat", "http://[::1]:11434/api/chat"},
 }
-_KEY_ENVS = {"meta": "MODEL_API_KEY", "fireworks": "FIREWORKS_API_KEY"}
+_KEY_ENVS = {"meta": "MODEL_API_KEY", "fireworks": "FIREWORKS_API_KEY", "baseten": "BASETEN_API_KEY"}
 MAX_REQUEST_BYTES = 1024 * 1024
 MAX_RESPONSE_BYTES = 1024 * 1024
 MAX_CONTENT_CHARS = 128 * 1024
@@ -399,7 +404,7 @@ class AgentProvider:
             except TypeError:
                 raise AgentProviderError("Invalid provider configuration.") from None
         if not isinstance(config, ProviderConfig) or not isinstance(config.provider, str) or config.provider not in ENDPOINTS:
-            raise AgentProviderError("Select meta, fireworks, or ollama explicitly.")
+            raise AgentProviderError("Select meta, fireworks, baseten, or ollama explicitly.")
         model = _identifier(config.model.strip() if isinstance(config.model, str) else config.model)
         # Hosting adapters are not permission to select a different model family.
         # Keep the project's local/partner paths limited to Meta checkpoints.
@@ -408,6 +413,11 @@ class AgentProvider:
         if config.provider == "fireworks" and not re.fullmatch(
                 r"(?:accounts/fireworks/models/)?(?:llama-v3[A-Za-z0-9._-]*|muse-spark[A-Za-z0-9._-]*)", model):
             raise AgentProviderError("The partner adapter requires a Meta Llama or Muse model.")
+        if config.provider == "baseten" and not re.fullmatch(
+                r"(?:meta-llama/[Ll]lama[A-Za-z0-9._-]+|meta-models/muse-spark[A-Za-z0-9._-]*)", model):
+            raise AgentProviderError("Baseten requires an explicit Meta model slug verified in your account.")
+        if config.provider == "baseten" and config.reasoning_effort is not None:
+            raise AgentProviderError("Baseten reasoning options require model-specific verification.")
         endpoint = ENDPOINTS[config.provider] if config.endpoint is None else config.endpoint
         if not isinstance(endpoint, str) or endpoint not in _ALLOWED_ENDPOINTS[config.provider]:
             raise AgentProviderError("Provider endpoint is not allowlisted.")

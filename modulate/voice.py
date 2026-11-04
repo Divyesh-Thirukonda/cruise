@@ -2,21 +2,21 @@
 
 Audio stays in bounded memory buffers and is never written to disk. This is a
 prototype transcript matcher, not a dedicated wake-word model. It also accepts
-Whisper's spelling "Hey Metta". A wake-only probe follows 500 ms of silence
+the alternate spelling "Hey Metta". A wake-only probe follows 500 ms of silence
 while capture continues; final recognition may pause capture. Ambient inference
-stays visually passive. Cached faster-whisper tiny.en weights must already exist.
+stays visually passive. Pinned Meta wav2vec 2.0 weights must already be installed.
 During computer-audio playback, bounded rolling wake probes do not require a
 silence gap. This remains transcript matching, not acoustic echo cancellation.
 Soft onsets retain 600 ms of pre-roll so delayed speech detection does not cut
 the "Hey" off the front of an otherwise recognizable wake phrase.
 
 The selected USB microphone captures native 48 kHz mono int16 in 25-ms blocks.
-PyAV/FFmpeg resamples on the worker to 16 kHz for bundled Silero VAD and Whisper; the microphone
+PyAV/FFmpeg resamples on the worker to 16 kHz for standalone Silero VAD and Meta recognition; the microphone
 is never replaced by a default device. Requests end after three seconds of
 silence; audio reaching the 25-second cap is discarded, never auto-submitted.
 
 Driver APIs: https://python-sounddevice.readthedocs.io/en/0.5.3/api/raw-streams.html
-Recognition: https://github.com/SYSTRAN/faster-whisper
+Recognition: https://huggingface.co/facebook/wav2vec2-base-960h
 """
 
 from array import array
@@ -29,6 +29,7 @@ import threading
 import time
 
 from .speech_activity import SpeechActivity
+from .speech import LocalSpeech, SpeechError
 
 
 SAMPLE_RATE = 16_000
@@ -46,9 +47,6 @@ WAKE_PATTERN = re.compile(r"^[\W_]*hey[\s,!.:;\-–—]*met(?:a|ta)\b", re.IGNOR
 PLAYBACK_WAKE_PATTERN = re.compile(r"(?<!\w)hey[\s,!.:;\-–—]*met(?:a|ta)\b", re.IGNORECASE)
 PLAYBACK_PROBE_BLOCKS = 120  # At most three seconds of recent 16 kHz audio.
 PLAYBACK_PROBE_INTERVAL_BLOCKS = 80  # No more than one start per two seconds.
-VOCABULARY_PROMPT = "Modulate, Meta, kart, knob, coins."
-NO_SPEECH_THRESHOLD = .6
-LOG_PROB_THRESHOLD = -1.0
 INPUT_LATENCY_SECONDS = 0.25
 CANCEL_PATTERN = re.compile(r"(?:cancel(?: (?:the )?(?:rebuild|build))?|stop(?: building)?)[.!?]*", re.IGNORECASE)
 INCOMPLETE_REQUESTS = frozenset({"oh", "um", "uh", "hmm", "ah", "make a", "make an",
@@ -174,7 +172,7 @@ class EnergyVAD:
             raise VoiceError("Speech reached the 25-second limit; nothing submitted. Try a shorter request")
         if self.silence < END_SILENCE_BLOCKS:
             return None
-        # Isolated clicks should not trigger Whisper or arm a request.
+        # Isolated clicks should not trigger recognition or arm a request.
         result = Utterance(b"".join(self.chunks)[:MAX_AUDIO_BYTES], self.started_at) if self.voiced >= 3 else None
         self.reset()
         return result
@@ -477,46 +475,15 @@ class VoiceListener:
 
     def _load_model(self):
         if self._model is None:
-            from faster_whisper import WhisperModel
-            self._emit("idle", "Loading cached local speech model; microphone is closed")
-            self._model = WhisperModel("tiny.en", device="cpu", compute_type="int8", cpu_threads=2,
-                                       local_files_only=True)
+            self._model = LocalSpeech()
 
     def _transcribe(self, audio):
-        # A wake-only probe runs while capture continues; final recognition
-        # uses the same model serially, never two concurrent engine calls.
+        # Wake and final recognition share one persistent offline CPU worker.
         with self._model_lock:
-            return self._recognize(audio)
-
-    def _recognize(self, audio):
-        import numpy as np
-
-        waveform = np.frombuffer(audio, dtype=np.int16).astype(np.float32) / 32768
-        segments, _ = self._model.transcribe(
-            waveform, language="en", beam_size=1, temperature=0,
-            condition_on_previous_text=False, vad_filter=False,
-            initial_prompt=VOCABULARY_PROMPT,
-            no_speech_threshold=NO_SPEECH_THRESHOLD, log_prob_threshold=LOG_PROB_THRESHOLD,
-        )
-        # Consume lazily generated segments here, on the single model owner.
-        parts, size = [], 0
-        for segment in segments:
-            # Keep Whisper's existing joint silence/low-confidence rejection
-            # explicit as capture sensitivity increases. A decoded wake string
-            # alone must not override a result the recognizer calls silence.
-            no_speech, log_prob = segment.no_speech_prob, segment.avg_logprob
-            if (type(no_speech) not in (int, float) or not math.isfinite(no_speech)
-                    or not 0 <= no_speech <= 1 or type(log_prob) not in (int, float)
-                    or not math.isfinite(log_prob)):
-                raise VoiceError("Local recognition confidence unavailable; recording discarded")
-            if no_speech > NO_SPEECH_THRESHOLD and log_prob <= LOG_PROB_THRESHOLD:
-                continue
-            value = segment.text.strip()
-            size += len(value) + 1
-            if size > 2000:
-                raise VoiceError("Local transcript exceeded the request limit")
-            parts.append(value)
-        return " ".join(parts).strip()
+            try:
+                return self._model.transcribe_pcm(audio, self._stop)
+            except SpeechError as error:
+                raise VoiceError(str(error)) from None
 
     def _start_probe(self, audio, voiced):
         if self._probe_thread is not None and self._probe_thread.is_alive():
@@ -870,7 +837,7 @@ class VoiceListener:
                         self._transcribing = True
                     if utterance.transcript is None:
                         if ptt or utterance.invoked or self._gate.armed(utterance.started_at):
-                            self._emit("transcribing", "Transcribing locally; microphone is paused")
+                            self._emit("transcribing", "Transcribing with local Meta speech; microphone is paused")
                         else:
                             self._emit("wake_listening", "Checking locally for Hey Meta; microphone is paused")
                     text = self._command_text(utterance, ptt, epoch)
@@ -883,7 +850,7 @@ class VoiceListener:
                         if self._stop.is_set() or epoch != self._epoch:
                             continue
                     message = str(error) if isinstance(error, VoiceError) else (
-                        "Local speech or selected microphone unavailable; check cached tiny.en weights and the chosen input")
+                        "Meta speech or selected microphone unavailable; check the installed speech assets and chosen input")
                     self._feedback_message(message)
                     self._emit("error", message)
                     with self._lock:
@@ -899,4 +866,10 @@ class VoiceListener:
         finally:
             self._clear_audio()
             self._gate.reset()
+            if self._probe_thread is not None:
+                self._probe_thread.join(timeout=2)
+            with self._model_lock:
+                if self._model is not None:
+                    self._model.close()
+                    self._model = None
             self._emit("muted", "Voice listener stopped; microphone is closed")

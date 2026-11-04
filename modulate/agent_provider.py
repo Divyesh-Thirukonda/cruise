@@ -401,6 +401,13 @@ class AgentProvider:
         if not isinstance(config, ProviderConfig) or not isinstance(config.provider, str) or config.provider not in ENDPOINTS:
             raise AgentProviderError("Select meta, fireworks, or ollama explicitly.")
         model = _identifier(config.model.strip() if isinstance(config.model, str) else config.model)
+        # Hosting adapters are not permission to select a different model family.
+        # Keep the project's local/partner paths limited to Meta checkpoints.
+        if config.provider == "ollama" and not re.fullmatch(r"llama3(?:\.[0-9]+)?(?::[A-Za-z0-9._-]+)?", model):
+            raise AgentProviderError("The local adapter requires a Meta Llama 3 model.")
+        if config.provider == "fireworks" and not re.fullmatch(
+                r"(?:accounts/fireworks/models/)?(?:llama-v3[A-Za-z0-9._-]*|muse-spark[A-Za-z0-9._-]*)", model):
+            raise AgentProviderError("The partner adapter requires a Meta Llama or Muse model.")
         endpoint = ENDPOINTS[config.provider] if config.endpoint is None else config.endpoint
         if not isinstance(endpoint, str) or endpoint not in _ALLOWED_ENDPOINTS[config.provider]:
             raise AgentProviderError("Provider endpoint is not allowlisted.")

@@ -1,5 +1,9 @@
 # Modulate product runtime
 
+> Current source speech setup: follow [Meta speech](meta-speech.md) and
+> [Meta MMS](meta-mms.md). Historical voice provider configuration below is
+> superseded; physical validation of the new recognizer is still required.
+>
 > Current installation: the trusted agent now runs on the Pi. The Mac-hosted
 > procedures and trials below are historical/legacy mode. Use
 > [standalone setup and current limits](standalone.md) for this device. The user
@@ -61,13 +65,14 @@ python3 -m venv --system-site-packages .venv
 
 Recorded direct package versions are pinned in that requirements file; unrelated OS Python packages are deliberately not copied into it. The tested Pi uses Python 3.11.2, Pillow 9.4.0 from the OS, libseccomp 2.5.4 and PortAudio 19.6.0. The runtime fails closed if its operating-system sandbox cannot be installed.
 
-The voice worker uses cached faster-whisper `tiny.en` weights, CPU/int8 and two CPU threads. Prepare that cache once while online using the same Pi user and virtual environment:
-
-```sh
-.venv/bin/python -c "from faster_whisper import WhisperModel; WhisperModel('tiny.en', device='cpu', compute_type='int8')"
-```
-
-This downloads third-party model weights when absent. The product voice worker itself requires the cache and does not download models during a spoken request. It chooses a single USB microphone only when selection is unambiguous; inspect device indices with `.venv/bin/python -m sounddevice` if needed. Bluetooth audio is not established by the working USB path.
+Current source uses Meta wav2vec 2.0 for local wake recognition and cancellation,
+and the existing Muse gateway for invoked commands when selected. Run
+`python3.11 scripts/install_meta_asr.py` once during installation, alongside the
+updated `requirements-product-pi.txt`. Runtime loading stays offline and uses a
+separate bounded CPU worker. See [Meta speech setup and limits](meta-speech.md).
+The replacement has development-host model evidence; the historical physical
+trials below used the prior speech stack and do not validate this replacement.
+Select one explicit USB microphone with `--microphone N` when needed.
 
 Transfer only the studio's `device-enrollment.json` and public `device-cert.pem` to a private directory on the Pi through an authenticated channel. Keep the certificate alongside the enrollment file because its `ca_file` is relative. Do not transfer `meta.env` or the host's TLS private key. Keep both computers' state directories outside public artifacts.
 
@@ -103,13 +108,13 @@ For development only, the device CLI also accepts `--pair-code CODE` with the sa
 
 The voice worker starts muted, but the product requests wake listening automatically after the Pi connects. Use the companion's Wake listening switch to turn it off. Local transcription uses an anchored “Hey Meta”/“Hey Metta” match, not an official Meta assistant integration or dedicated wake-word model. Hold both PiTFT screen buttons for at least 0.75 seconds to start push-to-talk. Wake/PTT requests end after three seconds of non-speech, preserving shorter pauses and corrections. Audio reaching the 25-second cap is discarded; PTT with no speech ends after eight seconds. Ambient recognition stays in passive `wake_listening`. A local wake-only probe follows 0.5 seconds of non-speech while capture continues. Bare/repeated wake phrases arm a six-second window to begin speaking; they never become a model request. Final recognition may still pause capture.
 
-**Wake repair installed:** commit `dc5c213ec0113adb6435cfd1b21647131a4d72fa` replaces the fixed RMS threshold with Silero VAD bundled in pinned `faster-whisper==1.2.1`; no additional model download is needed. A negative ambient wake probe can retry after subsequent speech instead of blocking a later wake phrase until a full three-second quiet interval. Results stay bound to their originating buffer. Speaker-unavailable retries no longer invalidate capture, and status callbacks are ordered. The user confirmed bare “Hey Meta” produced Listening, then confirmed the requested short joke was audible and a second “Hey Meta” worked afterward. Telemetry independently showed speaking → delivered → wake_listening → listening. Audio remains in bounded memory. A later ambient segment still reached the 25-second discard limit; these successful trials do not establish noisy-room or false-trigger reliability.
+**Wake repair installed:** commit `dc5c213ec0113adb6435cfd1b21647131a4d72fa` replaces the fixed RMS threshold with the then-bundled Silero VAD. Current source installs Silero independently through the speech setup script. A negative ambient wake probe can retry after subsequent speech instead of blocking a later wake phrase until a full three-second quiet interval. Results stay bound to their originating buffer. Speaker-unavailable retries no longer invalidate capture, and status callbacks are ordered. The user confirmed bare “Hey Meta” produced Listening, then confirmed the requested short joke was audible and a second “Hey Meta” worked afterward. Telemetry independently showed speaking → delivered → wake_listening → listening. Audio remains in bounded memory. A later ambient segment still reached the 25-second discard limit; these successful trials do not establish noisy-room or false-trigger reliability.
 
 **Quiet-onset update installed:** `272c938` lowers Silero onset/end thresholds from
 .50/.35 to .35/.20 and retains 600 ms instead of 250 ms before detected speech.
-The explicit anchored wake phrase and Whisper's joint silence/low-confidence
+The explicit anchored wake phrase and the prior recognizer's joint silence/low-confidence
 rejection remain. The capture fix preserves a synthetic 350 ms delayed onset;
-it does not make Whisper a dedicated wake-word model. The USB microphone was
+it does not make prior local recognition a dedicated wake-word model. The USB microphone was
 enabled at 75% with automatic gain control and was not adjusted. All 217 focused
 Pi checks passed without skips. The user then confirmed the requested normal-volume
 “Hey Meta, reverse the knob here” trial was heard and physical menu scrolling
@@ -117,7 +122,7 @@ reversed. This single successful trial does not establish general wake accuracy.
 
 Validation: **164 focused Pi tests passed without skips in 3.260 s**. The host ran **435 tests with 11 skips** (eight lacking NumPy and three lacking PyAV); the eight SpeechActivity tests separately passed under a host Python with NumPy. On the actual Pi, the bundled ONNX adapter labeled **0 of 1,000 synthetic zero-PCM 25 ms blocks** as speech in **0.229 s**, excluding model construction. This checks compatibility and execution time, not live audio or wake accuracy. The latest user program, revision `2d24f9ab84e5cd66881f2f6972fc1c29cbf361520173a81278af84b872b510da`, survived restart. The host was not restarted, preserving its current Chrome grant.
 
-The USB microphone supports native 44.1/48 kHz capture but rejected the product's direct 16 kHz stream. The deployed worker captures 48,000 Hz mono int16 in 1,200-sample/25 ms blocks and uses PyAV 12.3.0 to resample to 16,000 Hz, 400-sample blocks for VAD/Whisper. Initial PTT/wake attempts then hit stream overflows. A 0.25-second capture-latency setting and retry/buffering fixes preceded the successful spoken trials below; retain those failures in the evidence. All 34 focused voice tests passed on the Pi with actual PyAV, including synthetic audio and duration/filtering checks. The companion displays actual device voice state/errors. The earlier number prototype used ALSA conversion and retains separate evidence.
+The USB microphone supports native 44.1/48 kHz capture but rejected the product's direct 16 kHz stream. The deployed worker captures 48,000 Hz mono int16 in 1,200-sample/25 ms blocks and uses PyAV 12.3.0 to resample to 16,000 Hz, 400-sample blocks for activity detection and local recognition. Initial PTT/wake attempts then hit stream overflows. A 0.25-second capture-latency setting and retry/buffering fixes preceded the successful spoken trials below; retain those failures in the evidence. All 34 focused voice tests passed on the Pi with actual PyAV, including synthetic audio and duration/filtering checks. The companion displays actual device voice state/errors. The earlier number prototype used ALSA conversion and retains separate evidence.
 
 Logical game `button_a` is PiTFT A or the green Qwiic button at `0x6E`; `button_b` is PiTFT B or the red Qwiic button at `0x6F`. Both external boards were independently identified after a power cycle with firmware value 259, and the user confirmed their game input. Pairing confirmation and the push-to-talk chord use the physical PiTFT buttons only.
 

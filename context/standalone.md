@@ -2,7 +2,9 @@
 
 The Pi owns the agent, app library, conversation state and speaker coordinator.
 Wi-Fi connects it to the existing Modulate Vercel provider gateway for live Meta
-and ElevenLabs requests. A Mac is no longer required for normal device AI.
+requests. Current source defaults to local Meta MMS for replies; historical
+external speech evidence below predates this selection. A Mac is no longer
+required for normal device AI.
 Inference still needs internet; installed games run in the isolated local runtime.
 
 ## Installed layout
@@ -23,8 +25,9 @@ Inference still needs internet; installed games run in the isolated local runtim
   provider URL directly and does not depend on this tunnel.
 
 These service files assume the existing provisioned Pi environment and paths.
-They are not a fresh-image installer. Preserve the existing audio session,
-Whisper model, hardware dependencies and fixed isolated runtime.
+They are not a fresh-image installer. Preserve the existing audio session, hardware dependencies and fixed isolated
+runtime. Install the new [Meta speech assets](meta-speech.md) before running this
+source; historical installed-state evidence below predates that replacement.
 
 ## Accounting and migration
 

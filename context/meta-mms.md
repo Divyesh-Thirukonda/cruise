@@ -18,9 +18,9 @@ uses safetensors, with two CPU threads. No remote model code is loaded.
 Configure the private Pi provider file with `MODULATE_TTS_PROVIDER=meta_mms`,
 `MODULATE_MMS_PYTHON=/home/pi/modulate-product/.venv-mms/bin/python` and
 `MODULATE_MMS_MODEL_DIR=/home/pi/modulate-product/brain/models/mms-tts-eng`.
-Restart the agent and device after installing the updated modules. Existing
-`elevenlabs` and `local` providers remain explicit rollback choices; errors never
-silently switch voice providers.
+Restart the agent and device after installing the updated modules. Current source defaults to `meta_mms` and rejects the retired external voice
+provider selection. Explicit `local` diagnostic OS speech remains available;
+errors never silently switch providers. Historical billing ledgers stay intact.
 
 The persistent isolated worker produces native 16 kHz speech and resamples it to
 the existing authenticated 24 kHz mono PCM transport. Text/audio stay in memory.

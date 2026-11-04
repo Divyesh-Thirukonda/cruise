@@ -11,29 +11,16 @@ from pathlib import Path
 
 from .activation import Store
 from .hardware import Screen, record
-from .provider import ProviderError, generate, transcribe
+from .provider import ProviderError, generate
 from .runtime import ValidationError, run
-
-
-def load_env(path):
-    if not path:
-        return
-    path = Path(path).expanduser()
-    if path.stat().st_mode & 0o077:
-        raise ValueError("Credential file must have owner-only permissions (chmod 600)")
-    for line in path.read_text().splitlines():
-        if line.startswith("GEMINI_API_KEY="):
-            os.environ.setdefault("GEMINI_API_KEY", line.split("=", 1)[1].strip())
 
 
 def main():
     parser = argparse.ArgumentParser(description="Voice -> generated screen program; application hot reload, not firmware flashing")
     parser.add_argument("--state-dir", default="context/private/runtime")
-    parser.add_argument("--env-file")
-    parser.add_argument("--provider", choices=["ollama", "google"], default="ollama")
-    parser.add_argument("--model", help="Defaults to llama3.2:1b locally or gemini-3.8-flash for Google")
-    parser.add_argument("--transcription-model", default="gemini-3.8-flash")
-    parser.add_argument("--speech", choices=["local", "google"], default="local")
+    parser.add_argument("--provider", choices=["ollama"], default="ollama")
+    parser.add_argument("--model", help="Local Meta Llama model; defaults to llama3.2:1b")
+    parser.add_argument("--speech", choices=["local"], default="local")
     parser.add_argument("--audio-device", default="plughw:CARD=Device,DEV=0")
     parser.add_argument("--seconds", type=int, choices=range(1, 11), default=6)
     parser.add_argument("--trigger", choices=["button", "enter"], default="button")
@@ -43,7 +30,6 @@ def main():
     parser.add_argument("--display-test", action="store_true", help="Driver diagnostic only; no model request")
     args = parser.parse_args()
     os.umask(0o077)
-    load_env(args.env_file)
     store = Store(args.state_dir)
     lock = (store.directory / "service.lock").open("w")
     try:
@@ -51,11 +37,11 @@ def main():
     except BlockingIOError:
         parser.error("Another Modulate process owns this state directory")
     screen = Screen(store.directory / "screen.png", simulate=args.simulate)
-    model = args.model or ("llama3.2:1b" if args.provider == "ollama" else "gemini-3.8-flash")
+    model = args.model or "llama3.2:1b"
     speech = None
     if args.speech == "local" and not args.prompt and not args.display_test:
         from .speech import LocalSpeech
-        screen.status("Loading speech...", "Whisper tiny.en / local")
+        screen.status("Loading speech...", "Meta wav2vec 2.0 / local")
         speech = LocalSpeech()
     signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(KeyboardInterrupt()))
 
@@ -80,8 +66,8 @@ def main():
                 screen.status("Listening...", f"Speak now: {args.seconds} seconds\nUSB microphone")
                 event("recording", seconds=args.seconds)
                 wav = record(args.seconds, args.audio_device)
-                screen.status("Transcribing...", "Whisper / local" if speech else "Google audio API")
-                prompt = speech.transcribe(wav) if speech else transcribe(wav, model=args.transcription_model)
+                screen.status("Transcribing...", "Meta wav2vec 2.0 / local")
+                prompt = speech.transcribe(wav)
                 del wav
                 if not prompt.strip():
                     raise ValueError("No intelligible speech")
@@ -93,7 +79,7 @@ def main():
             current = store.current_code()
             feedback = ""
             for attempt in range(2):
-                screen.status("Generating..." if not attempt else "Repairing...", f"{'Meta Llama / local' if args.provider == 'ollama' else 'Google / cloud'}\n{model[:30]}")
+                screen.status("Generating..." if not attempt else "Repairing...", f"Meta Llama / local\n{model[:30]}")
                 event("generating", provider=args.provider, model=model, attempt=attempt + 1)
                 candidate = generate(prompt, provider=args.provider, model=model,
                                      previous_code=current, feedback=feedback)
@@ -155,6 +141,8 @@ def main():
         event("stopped")
         return 0
     finally:
+        if speech is not None:
+            speech.close()
         screen.close()
         lock.close()
 

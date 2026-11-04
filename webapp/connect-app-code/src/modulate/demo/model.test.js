@@ -26,6 +26,14 @@ test('browser library rejects legacy presets and malformed packages', () => {
   });
 });
 test('removing a required component blocks saved-app activation', () => {
-  expect(checkApp(app, ['display'])).toMatch(/Attach buttons/);
+  expect(checkApp(app, ['display'])).toBe('Attach the action buttons to run this app.');
   expect(checkApp(app, ['display', 'buttons'])).toBeNull();
+});
+
+test('version 2 workspaces keep their apps and gain the sensor and virtual computer once', () => {
+  const v2 = { version: 2, modules: ['display', 'buttons'], apps: [app], activeId: app.id };
+  const restored = restoreWorkspace(JSON.stringify(v2));
+  expect(restored).toMatchObject({ version: 3, apps: [{ ...app, favorite: false }] });
+  expect(restored.modules).toEqual(['display', 'buttons', 'imu', 'computer']);
+  expect(restored.hardware).toEqual({ imuDriver: 'ready', extraButton: null });
 });

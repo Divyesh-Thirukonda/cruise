@@ -45,14 +45,20 @@ test('infinite loops are interrupted; generated code has no network, DOM or proc
     'function init(){if(typeof fetch!=="undefined"||typeof document!=="undefined"||typeof process!=="undefined"||typeof require!=="undefined")throw Error("host leak");return {}} function update(s){return s}function draw(){return [{op:"clear",color:"#000000"}]}';
   assert.equal(verifyPackage(Q, { ...app, code }, app.requires).passed, true);
 });
-test('Meta receives actual check results and must approve before activation', async () => {
-  const { generateApp } = await import('../server/demo-generation.mjs');
+const reply = (content, n) =>
+  Response.json({
+    id: 'meta-' + n,
+    usage: { prompt_tokens: 100, completion_tokens: 80 },
+    choices: [{ message: { content: JSON.stringify(content) } }],
+  });
+async function agent(replies, extra = {}) {
+  const { runAgent } = await import('../server/demo-generation.mjs');
   const calls = [],
     events = [],
     ledger = [];
-  const result = await generateApp({
-    prompt: 'counter',
-    modules: app.requires,
+  const result = await runAgent({
+    prompt: 'test request',
+    modules: [...app.requires, 'computer', 'encoder'],
     id: 'test',
     apiKey: 'test',
     budget: async (a, b) => {
@@ -62,61 +68,95 @@ test('Meta receives actual check results and must approve before activation', as
     emit: (e) => events.push(e),
     fetchImpl: async (url, options) => {
       calls.push(JSON.parse(options.body));
-      return Response.json({
-        id: 'meta-' + calls.length,
-        usage: { prompt_tokens: 100, completion_tokens: 80 },
-        choices: [
-          {
-            message: {
-              content: JSON.stringify(
-                calls.length === 1
-                  ? app
-                  : { approved: true, reason: 'Input counter matches request' },
-              ),
-            },
-          },
-        ],
-      });
+      return reply(replies[calls.length - 1], calls.length);
     },
+    ...extra,
   });
-  assert.equal(calls.length, 2);
-  assert.match(calls[1].messages.at(-1).content, /"frames":151/);
+  return { result, calls, events, ledger };
+}
+const plan = (action, rest = {}) => ({ action, skill: 'games', say: 'On it.', why: 'test', ...rest });
+test('orchestrator, coder and reviewer each get one bounded call; reviewer sees real checks', async () => {
+  const { result, calls, events, ledger } = await agent([
+    plan('build', { brief: 'counter on A' }),
+    app,
+    { approved: true, reason: 'Counter increments on A' },
+  ]);
+  assert.equal(calls.length, 3);
+  assert.match(calls[0].messages[0].content, /orchestrator/);
+  assert.match(calls[1].messages[0].content, /coder subagent/);
+  assert.match(calls[2].messages.at(-1).content, /"frames":151/);
+  assert.equal(result.kind, 'app');
   assert.equal(result.app.code, app.code);
-  assert.equal(result.inference.calls[0].responseId, 'meta-1');
-  assert.equal(ledger.filter(([a]) => a === 'reserve').length, 2);
-});
-test('failed checks trigger bounded repair; no approval or malformed usage cannot activate', async () => {
-  const { generateApp } = await import('../server/demo-generation.mjs');
-  const messages = [];
-  await assert.rejects(
-    generateApp({
-      prompt: 'test',
-      modules: app.requires,
-      id: 'x',
-      apiKey: 'test',
-      budget: async () => ({}),
-      emit: () => {},
-      fetchImpl: async (u, o) => {
-        messages.push(JSON.parse(o.body));
-        return Response.json({
-          usage: { prompt_tokens: 1, completion_tokens: 1 },
-          choices: [
-            {
-              message: {
-                content: JSON.stringify({ ...app, code: 'while(true){} /* infinite loop */' }),
-              },
-            },
-          ],
-        });
-      },
-    }),
-    /three calls/,
+  assert.deepEqual(
+    result.inference.calls.map((c) => c.role),
+    ['orchestrator', 'coder', 'reviewer'],
   );
-  assert.equal(messages.length, 3);
-  assert.match(messages[1].messages.at(-1).content, /"passed":false/);
+  assert.deepEqual(
+    result.trace.map((t) => t.role),
+    ['orchestrator', 'coder', 'verifier', 'reviewer'],
+  );
+  assert.ok(events.some((e) => e.type === 'trace'));
+  assert.equal(ledger.filter(([a]) => a === 'reserve').length, 3);
+});
+test('a failed check goes to the reviewer, whose repair must pass the same checks', async () => {
+  const broken = { ...app, code: 'while(true){} /* infinite loop */' };
+  const { result, calls } = await agent([plan('build'), broken, app]);
+  assert.match(calls[2].messages.at(-1).content, /"passed":false/);
+  assert.equal(result.app.code, app.code);
+  assert.match(result.review, /repaired/);
+  await assert.rejects(agent([plan('build'), broken, broken]), /still failed/);
+  await assert.rejects(agent([plan('build'), broken, { approved: true }]), /not approved/);
+});
+test('bindings, refusals, questions and library actions need no generated code', async () => {
+  const bound = await agent([
+    plan('bind', {
+      skill: 'hardware-controls',
+      title: 'Knob brightness',
+      bindings: [{ control: 'encoder', target: 'computer.brightness', step: -2 }],
+    }),
+  ]);
+  assert.equal(bound.calls.length, 1);
+  assert.equal(bound.result.kind, 'controls');
+  assert.deepEqual(bound.result.app.requires, ['display', 'computer', 'encoder']);
+  assert.equal(bound.result.app.bindings[0].step, -2);
+  await assert.rejects(
+    agent([plan('bind', { bindings: [{ control: 'encoder', target: 'os.shell', step: 2 }] })]),
+    /Invalid control binding/,
+  );
+  const declined = await agent([plan('decline', { say: 'I can not clone badges.' })]);
+  assert.equal(declined.result.kind, 'decline');
+  assert.equal(declined.calls.length, 1);
+  const asked = await agent([plan('ask', { question: 'Which game?' })]);
+  assert.equal(asked.result.question, 'Which game?');
+  const id = 'c'.repeat(64);
+  const library = { open: true, entries: [{ id, title: 'Rust corridor', favorite: false }] };
+  const fav = await agent([plan('library', { op: 'favorite', entry: 'cccccccc' })], { library });
+  assert.deepEqual(fav.result.library, { op: 'favorite', entry: id, control: null });
+  assert.match(fav.calls[0].messages[1].content, /"ref":"cccccccc"/);
+  await assert.rejects(
+    agent([plan('library', { op: 'trash', entry: 'deadbeef' })], { library }),
+    /could not match/,
+  );
+});
+test('the trusted bench, not the model, decides whether a driver install is allowed', async () => {
+  const healthy = await agent([plan('debug', { op: 'install_driver', driver: 'lsm6ds3trc' })], {
+    hardware: { imu: { attached: true, driver: 'ready' }, conflict: false },
+  });
+  assert.deepEqual(healthy.result.debug, { op: 'inspect', driver: null });
+  const missing = await agent([plan('debug', { op: 'install_driver', driver: 'lsm6ds3trc' })], {
+    hardware: { imu: { attached: true, driver: 'missing' }, conflict: false },
+  });
+  assert.deepEqual(missing.result.debug, { op: 'install_driver', driver: 'lsm6ds3trc' });
+  const unknown = await agent([plan('debug', { op: 'install_driver', driver: 'rfid_cloner' })], {
+    hardware: { imu: { attached: true, driver: 'missing' }, conflict: false },
+  });
+  assert.equal(unknown.result.debug.op, 'inspect');
+});
+test('missing usage or an unreadable plan cannot activate anything', async () => {
+  const { runAgent } = await import('../server/demo-generation.mjs');
   let settled = false;
   await assert.rejects(
-    generateApp({
+    runAgent({
       prompt: 'x',
       modules: app.requires,
       id: 'x',
@@ -127,11 +167,48 @@ test('failed checks trigger bounded repair; no approval or malformed usage canno
       },
       emit: () => {},
       fetchImpl: async () =>
-        Response.json({ choices: [{ message: { content: JSON.stringify(app) } }] }),
+        Response.json({ choices: [{ message: { content: JSON.stringify(plan('build')) } }] }),
     }),
     /usage was missing/,
   );
   assert.equal(settled, false);
+  await assert.rejects(agent(['not json at all']), /unreadable plan/);
+});
+test('camera, tilt and control-mapping contracts are enforced by the shared verifier', async () => {
+  const { Q, verifyPackage, validateFrame, applyBinding } = await setup();
+  const tilt = {
+    ...app,
+    requires: ['display', 'imu'],
+    controls: { imu: 'Tilt to move' },
+    code: 'function init(){return {x:0}} function update(s,i){return {x:i.tilt.x}} function draw(s){return [{op:"clear",color:"#000000"},{op:"text",x:1,y:1,size:8,text:String(s.x),color:"#ffffff"}]}',
+  };
+  assert.equal(verifyPackage(Q, tilt, tilt.requires).passed, true);
+  const cam = { op: 'camera', x: 0, y: 0, w: 240, h: 135, mirror: true, pixelate: 2, palette: 'neon' };
+  const clear = { op: 'clear', color: '#000000' };
+  assert.doesNotThrow(() => validateFrame([clear, cam], ['display', 'camera']));
+  assert.throws(() => validateFrame([clear, cam], ['display']), /camera/);
+  assert.throws(() => validateFrame([clear, cam, cam], ['display', 'camera']), /camera/);
+  assert.throws(() => validateFrame([clear, { ...cam, palette: 'raw' }], ['display', 'camera']));
+  const controls = {
+    kind: 'controls',
+    title: 'Knob',
+    description: '',
+    requires: ['display', 'computer', 'encoder'],
+    controls: { encoder: 'Knob: brightness +2' },
+    bindings: [{ control: 'encoder', target: 'computer.brightness', step: 2 }],
+  };
+  assert.equal(verifyPackage(Q, controls, controls.requires).passed, true);
+  assert.throws(() => verifyPackage(Q, controls, ['display', 'encoder']), /Attach computer/);
+  for (const bad of [
+    { ...controls, bindings: [{ control: 'encoder', target: 'computer.brightness', step: 0 }] },
+    { ...controls, bindings: [{ control: 'encoder', target: 'computer.fans', step: 1 }] },
+    { ...controls, code: 'function init(){}' },
+  ])
+    assert.throws(() => verifyPackage(Q, bad, controls.requires));
+  assert.deepEqual(applyBinding({ brightness: 99, volume: 5 }, controls.bindings[0], 3), {
+    brightness: 100,
+    volume: 5,
+  });
 });
 test('API blocks cross-origin, forged sessions and invalid bodies before inference', async () => {
   const { demoHandler } = await import('../server/demo-api.mjs');
@@ -186,4 +263,13 @@ test('API blocks cross-origin, forged sessions and invalid bodies before inferen
     400,
   );
   assert.equal(calls, 0);
+});
+test('syntax and runtime failures name the generated line for the repair loop', async () => {
+  const { Q, verifyPackage } = await setup();
+  const code =
+    'function init(){return {n:0}}\nfunction update(s){return {n:(s.n+1}}\nfunction draw(s){return [{op:"clear",color:"#000000"}]}';
+  assert.throws(() => verifyPackage(Q, { ...app, code }, app.requires), /line 2.*update/);
+  const crash =
+    'function init(){return {}}\nfunction update(s){return s}\nfunction draw(s){return s.missing.value}';
+  assert.throws(() => verifyPackage(Q, { ...app, code: crash }, app.requires), /line 3/);
 });

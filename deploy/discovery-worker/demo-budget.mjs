@@ -1,5 +1,9 @@
 // Independent $25 public-demo budget. No Pi, prompts, code, keys or raw IPs.
 export const CALL_HOLD = 1345536; // microdollars: full 1,048,576-token context + 8,192 output.
+// Per UTC day: one visitor can follow the ten-scene tour with retries; the $25 cap is unchanged.
+export const SESSION_DAILY = 15,
+  NETWORK_DAILY = 60,
+  SPACING_MS = 5000;
 const json = (body, status = 200) =>
   Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 export class DemoBudget {
@@ -77,7 +81,10 @@ export class DemoBudget {
           if (value.day !== day) delete ledger.rates[key];
         for (const key of [body.session, body.network]) {
           const rate = ledger.rates[key] || { day, count: 0, last: 0 };
-          if (rate.count >= (key === body.session ? 6 : 24) || now - rate.last < 10000)
+          if (
+            rate.count >= (key === body.session ? SESSION_DAILY : NETWORK_DAILY) ||
+            now - rate.last < SPACING_MS
+          )
             return result(
               {
                 error:

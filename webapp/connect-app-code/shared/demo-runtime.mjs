@@ -1,44 +1,114 @@
 // Generated code executes only inside QuickJS/WASM, with no host callbacks or module loader.
-export const MODULE_IDS = ['display', 'joystick', 'encoder', 'buttons', 'speaker'];
+// "computer" is the virtual paired computer; it is a host capability, not a Pi peripheral.
+export const MODULE_IDS = [
+  'display',
+  'joystick',
+  'encoder',
+  'buttons',
+  'speaker',
+  'imu',
+  'camera',
+  'computer',
+];
+export const CONTROL_INPUTS = {
+  encoder: 'encoder',
+  joystick_x: 'joystick',
+  joystick_y: 'joystick',
+  button_a: 'buttons',
+  button_b: 'buttons',
+};
+export const CONTROL_TARGETS = ['computer.brightness', 'computer.volume'];
+export const CAMERA_PALETTES = ['natural', 'mono', 'neon', 'warm'];
+const text = (value, max, empty = false) =>
+  typeof value === 'string' && value.length <= max && (empty || Boolean(value.trim()));
+function validateControls(app) {
+  if (
+    !Array.isArray(app.bindings) ||
+    app.bindings.length < 1 ||
+    app.bindings.length > 4 ||
+    'code' in app
+  )
+    throw Error('A control mapping needs 1–4 bindings and no code.');
+  const seen = new Set();
+  for (const b of app.bindings) {
+    if (
+      !b ||
+      typeof b !== 'object' ||
+      Object.keys(b).some((k) => !['control', 'target', 'step'].includes(k)) ||
+      !CONTROL_INPUTS[b.control] ||
+      !CONTROL_TARGETS.includes(b.target) ||
+      !Number.isInteger(b.step) ||
+      b.step === 0 ||
+      Math.abs(b.step) > 10
+    )
+      throw Error('Invalid control binding.');
+    if (seen.has(b.control)) throw Error('Each control can have only one binding.');
+    seen.add(b.control);
+    if (!app.requires.includes(CONTROL_INPUTS[b.control]))
+      throw Error(`List ${CONTROL_INPUTS[b.control]} in requires to bind ${b.control}.`);
+  }
+  if (!app.requires.includes('computer')) throw Error('Pair a computer to map controls to it.');
+}
 export function validatePackage(app, modules = MODULE_IDS) {
   if (!app || typeof app !== 'object' || Array.isArray(app)) throw Error('Invalid app package.');
+  const kind = app.kind ?? 'app';
   if (
-    typeof app.title !== 'string' ||
-    !app.title.trim() ||
-    app.title.length > 80 ||
-    typeof app.description !== 'string' ||
-    app.description.length > 400 ||
-    typeof app.code !== 'string' ||
-    app.code.length < 20 ||
-    app.code.length > 40000
+    !['app', 'controls'].includes(kind) ||
+    !text(app.title, 80) ||
+    !text(app.description, 400, true) ||
+    (kind === 'app' &&
+      (typeof app.code !== 'string' || app.code.length < 20 || app.code.length > 40000)) ||
+    (app.say !== undefined && !text(app.say, 200, true))
   )
     throw Error('Invalid title, description or source size.');
   if (
     !Array.isArray(app.requires) ||
     !app.requires.includes('display') ||
+    new Set(app.requires).size !== app.requires.length ||
     app.requires.some((m) => !MODULE_IDS.includes(m))
   )
     throw Error('Invalid required components.');
   const missing = app.requires.filter((m) => !modules.includes(m));
   if (missing.length) throw Error(`Attach ${missing.join(', ')} to run this app.`);
-  if (
-    !app.controls ||
-    typeof app.controls !== 'object' ||
-    Array.isArray(app.controls) ||
-    Object.entries(app.controls).some(
-      ([k, v]) => !app.requires.includes(k) || typeof v !== 'string' || v.length > 160,
-    )
-  )
-    throw Error('Invalid control descriptions.');
+  if (!app.controls || typeof app.controls !== 'object' || Array.isArray(app.controls))
+    throw Error('controls must be an object of short strings.');
+  for (const [k, v] of Object.entries(app.controls)) {
+    // Precise messages let the reviewer repair the right field.
+    if (!app.requires.includes(k))
+      throw Error(`controls.${k.slice(0, 30)} names a component missing from requires.`);
+    if (typeof v !== 'string' || v.length > 160)
+      throw Error(`controls.${k} must be a string of at most 160 characters.`);
+  }
+  if (kind === 'controls') validateControls(app);
   return app;
+}
+// Copy only the supported contract; never forward model metadata as trusted evidence.
+export function contractOf(app) {
+  const base = {
+    title: app.title,
+    description: app.description,
+    requires: app.requires,
+    controls: app.controls,
+    ...(typeof app.say === 'string' ? { say: app.say } : {}),
+  };
+  return app.kind === 'controls'
+    ? {
+        kind: 'controls',
+        ...base,
+        bindings: app.bindings.map(({ control, target, step }) => ({ control, target, step })),
+      }
+    : { ...base, code: app.code };
 }
 const color = (value) => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
 const number = (value) =>
   typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= 4096;
 export function validateFrame(frame, modules) {
-  if (!Array.isArray(frame) || frame.length < 1 || frame.length > 160 || frame[0]?.op !== 'clear')
-    throw Error('Each frame must begin with clear and contain 1–160 commands.');
-  let tones = 0;
+  if (!Array.isArray(frame) || frame.length < 1) throw Error('draw must return a command array.');
+  if (frame.length > 160)
+    throw Error(`A frame had ${frame.length} drawing commands; the limit is 160.`);
+  if (frame[0]?.op !== 'clear') throw Error('Each frame must begin with {op:"clear"}.');
+  let tones = 0,
+    cameras = 0;
   for (const c of frame) {
     if (!c || typeof c !== 'object') throw Error('Invalid drawing command.');
     const fields = {
@@ -60,6 +130,21 @@ export function validateFrame(frame, modules) {
         c.duration > 0.12
       )
         throw Error('Invalid audio command.');
+    } else if (c.op === 'camera') {
+      // The host paints local camera pixels here; generated code never receives them.
+      if (
+        !modules.includes('camera') ||
+        ++cameras > 1 ||
+        ['x', 'y', 'w', 'h'].some((k) => !number(c[k])) ||
+        c.w < 1 ||
+        c.h < 1 ||
+        typeof c.mirror !== 'boolean' ||
+        !Number.isInteger(c.pixelate) ||
+        c.pixelate < 1 ||
+        c.pixelate > 16 ||
+        !CAMERA_PALETTES.includes(c.palette)
+      )
+        throw Error('Invalid camera command.');
     } else if (
       !fields ||
       !color(c.color) ||
@@ -78,9 +163,11 @@ export const idleInput = () => ({
   encoder: 0,
   button_a: false,
   button_b: false,
+  tilt: { x: 0, y: 0 },
 });
 export function createMachine(QuickJS, app, modules) {
   validatePackage(app, modules);
+  if (app.kind === 'controls') throw Error('Control mappings have no code to run.');
   const rt = QuickJS.newRuntime();
   rt.setMemoryLimit(16 * 1024 * 1024);
   rt.setMaxStackSize(256 * 1024);
@@ -89,11 +176,21 @@ export function createMachine(QuickJS, app, modules) {
   const vm = rt.newContext();
   let dispatch,
     disposed = false;
+  const lines = app.code.split('\n');
+  // Point repairs at the generated line; the wrapper adds three lines before the code.
+  const locate = (error) => {
+    const match = /generated-app\.js:(\d+)(?::(\d+))?/.exec(error?.stack || '');
+    const line = (match ? Number(match[1]) : error?.lineNumber) - 3;
+    if (!Number.isInteger(line) || line < 1 || line > lines.length) return '';
+    const column = match?.[2] ? `, column ${match[2]}` : '';
+    return ` (app code line ${line}${column}: ${lines[line - 1].trim().slice(0, 120)})`;
+  };
   const unwrap = (result) => {
     if (result.error) {
-      const message = vm.dump(result.error)?.message || 'Runtime rejected the app';
+      const error = vm.dump(result.error);
       result.error.dispose();
-      throw Error(String(message).slice(0, 240));
+      const message = `${error?.message || 'Runtime rejected the app'}${locate(error)}`;
+      throw Error(String(message).slice(0, 300));
     }
     return result.value;
   };
@@ -147,7 +244,34 @@ export function createMachine(QuickJS, app, modules) {
     },
   };
 }
+// Apply one physical detent or press locally; no model call is involved.
+export function applyBinding(levels, binding, detents = 1) {
+  const key = binding.target.split('.')[1];
+  const next = Math.max(0, Math.min(100, levels[key] + binding.step * detents));
+  return { ...levels, [key]: next };
+}
+function verifyControls(app) {
+  let levels = { brightness: 50, volume: 50 };
+  for (let i = 0; i < 150; i++)
+    for (const binding of app.bindings)
+      levels = applyBinding(levels, binding, i % 2 ? 1 : -1);
+  if (Object.values(levels).some((v) => !Number.isInteger(v) || v < 0 || v > 100))
+    throw Error('Binding produced an out-of-range setting.');
+  return {
+    passed: true,
+    frames: 0,
+    distinctFrames: 0,
+    checks: [
+      'control mapping contract',
+      'controls and paired-computer targets attached',
+      'bounded steps',
+      '150 simulated detents in both directions',
+    ],
+  };
+}
 export function verifyPackage(QuickJS, app, modules) {
+  validatePackage(app, modules);
+  if (app.kind === 'controls') return verifyControls(app);
   const machine = createMachine(QuickJS, app, modules);
   let count = 0;
   const signatures = new Set();
@@ -161,6 +285,7 @@ export function verifyPackage(QuickJS, app, modules) {
         input.button_a = i % 30 < 3;
         input.button_b = i % 51 < 2;
       }
+      if (modules.includes('imu')) input.tilt = { x: Math.sin(i / 11), y: Math.cos(i / 13) };
       signatures.add(JSON.stringify(machine.frame(input)));
       count++;
     }
@@ -172,7 +297,7 @@ export function verifyPackage(QuickJS, app, modules) {
         'package and component contract',
         'isolated initialization',
         '150 input frames',
-        'bounded state, drawing and audio',
+        'bounded state, drawing, camera and audio',
       ],
     };
   } finally {

@@ -1384,3 +1384,18 @@ passed **1,182 tests**. In `webapp/connect-app-code`, `npm ci` followed by
 UI tests**, and the Next.js production build. No paid model calls, new physical
 trials, external assets or additional dependencies were introduced by this merge.
 The documented physical speech-installation and wake-verification limits remain.
+
+## November 4 — Baseten adapter and Modal verifier wrapper
+
+Added optional Baseten bearer-authenticated chat/tool transport, Studio provider
+selection and credential loading, and a Modal Function around the existing fixed
+QuickJS verifier. The Modal image mounts only four named runtime files and has a
+60-second timeout, no retries, and one-container maximum. Reused Modal SDK 1.6.3
+and existing QuickJS-NG 0.17.0.2; no external assets added.
+
+Local validation: 80 provider, error-handling, Modal SDK/function-body, game runtime
+and Studio tests plus five ledger tests passed on macOS. Modal CLI help also loaded
+the entry point without a cloud call. Baseten responses were mocked; Modal function
+execution used `.local()` with the real local verifier. These are not remote or
+physical-device evidence. No credentials, cloud deployments, or live device
+settings changed. [Details and reproducible command](baseten-modal.md).

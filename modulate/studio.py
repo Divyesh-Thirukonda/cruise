@@ -56,7 +56,7 @@ def load_credentials(path):
     path = Path(path).expanduser()
     if path.stat().st_mode & 0o077:
         raise ValueError("Credential file must have mode600")
-    allowed = {"MODEL_API_KEY", "FIREWORKS_API_KEY", "ELEVENLABS_API_KEY",
+    allowed = {"MODEL_API_KEY", "FIREWORKS_API_KEY", "BASETEN_API_KEY", "ELEVENLABS_API_KEY",
                "ELEVENLABS_VOICE_ID", "ELEVENLABS_MODEL_ID", "MODULATE_TTS_PROVIDER", "MODULATE_TTS_CHARACTER_LIMIT",
                "MODULATE_MMS_PYTHON", "MODULATE_MMS_MODEL_DIR", "MODULATE_ASR_PROVIDER",
                "MODULATE_REMOTE_SECRET", "MODULATE_CLOUD_KEY", "MODULATE_CLOUD_URL"}
@@ -337,7 +337,7 @@ def handler_for(product, *, device=False, device_key="", csrf="", cookie="", por
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Modulate companion studio")
     parser.add_argument("--state-dir", default="context/private/product")
-    parser.add_argument("--provider", choices=["meta", "ollama", "fireworks"], default="meta")
+    parser.add_argument("--provider", choices=["meta", "ollama", "fireworks", "baseten"], default="meta")
     parser.add_argument("--model", default="muse-spark-1.3")
     parser.add_argument("--env-file")
     parser.add_argument("--connect-env-file", help="Optional private public-connection gateway configuration")

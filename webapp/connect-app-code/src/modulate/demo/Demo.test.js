@@ -2,6 +2,15 @@ import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import Demo from './Demo';
 import { freshWorkspace, STORAGE_KEY } from './model';
+const mockVoice = { load: jest.fn(), speak: jest.fn(), stop: jest.fn(), state: 'idle' };
+let mockVoiceStatus;
+jest.mock('./speech', () => ({
+  isMmsVoiceSupported: () => true,
+  createMmsVoice: ({ onStatus }) => {
+    mockVoiceStatus = onStatus;
+    return mockVoice;
+  },
+}));
 let deviceProps;
 jest.mock(
   './VirtualDevice',
@@ -233,4 +242,26 @@ test('a driver install runs only through the trusted bench and readies the senso
   expect(JSON.parse(localStorage.getItem(STORAGE_KEY)).hardware.imuDriver).toBe('ready');
   expect(deviceProps.modules).toContain('imu');
   jest.useRealTimers();
+});
+
+test('replies are spoken only after the visitor turns on the in-browser Meta voice', async () => {
+  answer({
+    type: 'result',
+    kind: 'reply',
+    say: 'I can build games for the parts you attach.',
+    inference: meta,
+    trace: [],
+  });
+  render(<Demo />);
+  fireEvent.click(screen.getByRole('button', { name: 'Voice off' }));
+  expect(mockVoice.load).toHaveBeenCalledTimes(1);
+  act(() => mockVoiceStatus({ state: 'loading', progress: 0.5 }));
+  expect(screen.getByRole('button', { name: /Loading Meta voice 50%/ })).toBeInTheDocument();
+  act(() => mockVoiceStatus({ state: 'ready' }));
+  submit();
+  await waitFor(() =>
+    expect(mockVoice.speak).toHaveBeenCalledWith('I can build games for the parts you attach.'),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Meta voice on' }));
+  expect(mockVoice.stop).toHaveBeenCalled();
 });

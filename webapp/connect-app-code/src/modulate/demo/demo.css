@@ -273,3 +273,8 @@
 @media (max-width: 700px) { .md-channels { grid-template-columns: 1fr; } .md-bus { font-size: 10px; } .md-trace li { padding: 8px; } }
 @media (max-width: 470px) { .md-controls { grid-template-columns: 1fr 1fr; row-gap: 12px; } .md-tilt { width: 42px; height: 42px; } }
 @media (prefers-reduced-motion: reduce) { .md-say, .md-buttons button.is-flaky { animation: none; } .md-knob, .md-tilt i, .md-mac-shade { transition: none; } }
+
+.md-bench-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.md-voice { display: flex; align-items: center; gap: 6px; padding: 5px 9px; border-radius: 5px; font-size: 9px; color: #9fb0c0; border: 1px solid #333d45; background: #1a2026; }
+.md-voice:hover { border-color: #7dbbdc; color: #e2f2ff; }
+.md-voice.is-on { color: #e6e0ff; border-color: #6e5df0; background: #221f44; }

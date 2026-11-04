@@ -122,6 +122,7 @@ One recorded trial per row on the physical Pi unless noted. Sanitized traces are
 | Online demo: joystick unplugged → "update the game" | Typed, browser | 29.8 s, 3 calls, $0.029; edit moved walking to the knob, kept tilt; approved first time | Same |
 | Online demo: knob → virtual Mac brightness, then "reverse the knob" | Muse-style message, then typed | 3.6 s and 4.3 s, one call each; step +2 → −2, applied locally per detent | Same |
 | Online demo: missing IMU driver, "check my hardware" | Typed, browser | 4.4 s decision → trusted simulated install; game resumed | Same |
+| Online demo: button conflict at 0x6F, "check my hardware" | Typed, browser | 3.8 s decision → guided re-address to 0x6D after three human confirmations | Same |
 | Online demo: Halloween mirror | Typed, browser | 63.1 s, 3 calls, $0.037; check failed, reviewer repaired; camera path checked with a synthetic stream | Same |
 | Online demo: RFID badge cloner | Typed, browser | Declined in 3.7 s with a harmless alternative; nothing changed | Same |
 | Knob → Mac system volume | Typed | 6.6 s, 6 calls; direction user-confirmed; OS volume read back natively | [Runtime log](context/product-runtime.md#live-volume-and-spoken-refinements--october-28) |
@@ -138,7 +139,7 @@ One recorded trial per row on the physical Pi unless noted. Sanitized traces are
 | UI rollback −10 → −1 → −10 | Studio button | Exact earlier revisions restored with 0 model calls | [Record](context/evidence/live-rollback.json) |
 | Full Pi reboot | Reboot | Services restarted and the exact game revision returned with 0 model calls | [Record](context/evidence/standalone-runtime.json) |
 
-Saved frames and device acknowledgments are software evidence, not optical photos; "user-confirmed" means a person checked the physical result. These are individual runs, not reliability rates. Latest recorded test runs: 1,176 host tests with 13 platform skips ([build log](context/build-log.md)), plus 79 API/runtime and 57 UI tests for the web app on this branch.
+Saved frames and device acknowledgments are software evidence, not optical photos; "user-confirmed" means a person checked the physical result. These are individual runs, not reliability rates. Latest recorded test runs: 1,176 host tests with 13 platform skips ([build log](context/build-log.md)), plus 78 API/runtime and 57 UI tests for the web app on this branch.
 
 ## Built during the hackathon vs. reused
 

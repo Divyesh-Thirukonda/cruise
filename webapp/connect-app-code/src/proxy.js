@@ -5,12 +5,18 @@ import { NextResponse } from 'next/server';
 export function proxy(request) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
   const development = process.env.NODE_ENV === 'development';
+  const demo = request.nextUrl.pathname === '/demo' || request.nextUrl.pathname === '/demo-runtime.js';
+  // Opt-in browser MMS voice on the demo page only (not its sandbox worker): the
+  // Hub serves small files and redirects weights to its regional CDN hosts, all
+  // under cdn.hf.co (https://huggingface.co/.well-known/meta.json).
+  const voice = request.nextUrl.pathname === '/demo' ? ' https://huggingface.co https://*.cdn.hf.co' : '';
   const policy = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${development ? " 'unsafe-eval'" : ''}`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${development ? " 'unsafe-eval'" : ''}${demo ? " 'wasm-unsafe-eval'" : ''}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data:",
-    `connect-src 'self'${development ? ' ws: wss:' : ''}`,
+    `connect-src 'self'${voice}${development ? ' ws: wss:' : ''}`,
+    "worker-src 'self'",
     "font-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",

@@ -267,7 +267,7 @@ class SpeakerTests(unittest.TestCase):
                 self.speaker.start()
                 self.speaker.speak("PRIVATE_NEVER_LOCAL_FALLBACK", valid)
                 wait_until(lambda: self.speaker.snapshot()["last_delivery"] == "failed")
-                self.assertIn("ElevenLabs", self.speaker.snapshot()["error"])
+                self.assertIn("Speech audio", self.speaker.snapshot()["error"])
                 self.assertEqual(self.backend.calls, [])
                 self.assertNotIn("PRIVATE", str(self.statuses))
 

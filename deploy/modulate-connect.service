@@ -1,0 +1,20 @@
+# Development dashboard tunnel only. AI requests call Vercel directly and do
+# not depend on this tunnel. The wrapper registers changing Quick Tunnel URLs
+# with the fixed website using the device's existing scoped gateway credential.
+[Unit]
+Description=Modulate optional browser dashboard tunnel
+After=network-online.target modulate-agent.service
+Wants=network-online.target modulate-agent.service
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/modulate-product
+ExecStart=/home/pi/modulate-product/.venv/bin/python -m modulate.connect_tunnel --env-file /home/pi/modulate-product/brain/provider.env --cloudflared /home/pi/.local/bin/cloudflared
+UMask=0077
+NoNewPrivileges=yes
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

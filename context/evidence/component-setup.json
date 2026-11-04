@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-30",
+  "runtime_commit": "c400c7b",
+  "followup_commit": "f5cd377",
+  "live_trial": {
+    "mode": "controlled missing managed driver; no typed or spoken repair request",
+    "physical_new_attachment": false,
+    "success": true,
+    "seconds_including_service_startup": 18.34,
+    "model_calls": 5,
+    "cost_or_holds_dollars": 0.067437,
+    "driver": "lsm6ds3trc",
+    "used_cached_verified_pack": true,
+    "live_input_ready": true,
+    "active_before": null,
+    "active_after": null,
+    "summary": "Motion sensor ready with live tilt and acceleration."
+  },
+  "tests": {
+    "initial_full_python": 1128,
+    "skipped": 13,
+    "pi_focused": 232,
+    "web_api": 45,
+    "web_ui": 40,
+    "final_full_python": 1130,
+    "final_pi_focused": 38
+  },
+  "limits": [
+    "Unknown boards need identification and a trusted driver/input adapter.",
+    "Physical rewiring and address-repair confirmations remain human steps.",
+    "No arbitrary internet driver installation or USB discovery added."
+  ],
+  "restart": {
+    "imu_ready": true,
+    "additional_model_calls": 0,
+    "observation_seconds": 20
+  }
+}

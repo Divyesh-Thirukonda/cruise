@@ -83,6 +83,35 @@ class LibraryActionTests(unittest.TestCase):
         with self.product.changed:
             self.assertTrue(self.product.changed.wait_for(lambda: not self.product.running, timeout=2))
 
+    def test_reuse_catalog_excludes_trash_and_groups_versions_without_losing_source(self):
+        first = self.save("Example racer")
+        newer = copy.deepcopy(first)
+        newer["package"]["code"] += "\n// changed version"
+        newer["revision"] = digest(newer["package"])
+        newer["report"] = checks(newer["package"])
+        newer["activated_at"] = 200
+        self.manager.store.record_activation(newer)
+        other = self.save("Other app")
+        self.manager.store.trash(other["revision"])
+        catalog = self.manager.catalog()
+        self.assertEqual(catalog, [{"id": newer["revision"], "title": "Example racer", "kind": "game"}])
+        self.assertEqual(len(self.manager.store.list_items()), 2)
+        self.assertEqual(self.manager.store.get_record(first["revision"])["package"], first["package"])
+        self.assertEqual([e["id"] for e in self.manager.device_state()["entries"]], [newer["revision"]])
+
+        self.assertEqual(self.product.intent_context()["library"]["saved_apps"], catalog)
+
+    def test_reopening_active_app_leaves_speaker_mode_without_reactivation(self):
+        record = self.save(active=True)
+        with patch('modulate.library.verify', return_value=checks(record['package'])), \
+                patch.object(self.product, 'audio_status', return_value={**self.product.audio_status(), 'running':True}), \
+                patch.object(self.product, 'stop_computer_audio') as stop, \
+                patch.object(self.product, 'activate') as activate:
+            result = self.manager.launch(record['revision'])
+        self.assertTrue(result['already_active'])
+        stop.assert_called_once()
+        activate.assert_not_called()
+
     def test_stale_version_and_reopened_view_cannot_apply_device_actions(self):
         record = self.save()
         view = self.action("open")["library"]

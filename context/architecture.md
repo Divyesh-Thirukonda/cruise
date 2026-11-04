@@ -8,21 +8,34 @@ The user's later scope replaces separate Chrome grants with connected paired-Mac
 
 ## Data and control flow
 
-### Current companion dependency
+### Pi-owned agent
 
-The Pi owns capture/Whisper, physical input, checks and the current game runtime.
-The trusted `Product` and `Orchestrator` services currently run on the Mac, along
-with conversation, the library catalogue and ElevenLabs synthesis. Reaching that
-enrolled AI host is distinct from granting native Mac control: game generation
-does not require native Mac pairing, but does require the AI service online.
+The installed standalone mode runs trusted `Product` and `Orchestrator`, the app
+library and speech coordinator on the Pi, alongside capture/Whisper and the
+isolated physical runtime. Device transport remains authenticated and TLS-pinned,
+now through loopback. `--standalone` pins Studio/device listeners to loopback;
+it does not expose an unauthenticated LAN Studio.
 
-Later/Cancel now leave setup and return to the retained app or an idle screen;
-ordinary voice requests do not reopen it. This UI behavior does not implement
-standalone AI. Making Mac access truly optional for new requests requires moving
-the trusted brain to the Pi or a cloud worker, keeping a separate optional Mac
-bridge, privately provisioning provider access, and preserving the cumulative
-model/speech ledgers. The Vercel provider gateway currently proxies model/speech
-calls; it is not a cloud orchestrator, library or activation service.
+Meta and ElevenLabs requests use the existing fixed Vercel provider gateway.
+Provider API keys stay in Vercel. The trusted Pi holds only gateway transport
+credentials, isolated from generated packages and browser code. This is cloud
+inference orchestrated by the Pi, not offline inference or a Vercel-hosted agent.
+
+Both cumulative spending ledgers moved intact from the stopped Mac agent.
+Standalone startup refuses missing, public, corrupt or previously migrated
+ledgers. Unknown-cost reservations remain held. The old Mac ledger is frozen to
+prevent independent spending from two copies. The approved speech input ceiling
+is now 1,000,000 characters (explicitly raised October 30); the model ceiling remains $50 total.
+
+No Mac pairing is needed for local apps, conversations, speaker volume or browser
+linking. Speaker commands retain session/sink/epoch/revision and readback checks.
+The optional Mac helper connects outbound over pinned local TLS to the Pi on
+port 8790. Physical comparison-code confirmation grants an expiring native
+session. Fixed operations carry persisted sequences, deadlines and acknowledgements;
+unknown outcomes are never replayed. Native brightness has been demonstrated
+through the Pi Meta agent; desktop/camera/audio over this link remain unverified.
+The legacy Mac-hosted path remains in source. See [optional Mac controls](optional-mac.md).
+See [deployment and evidence](standalone.md).
 
 ```mermaid
 flowchart LR
@@ -65,7 +78,7 @@ The model generates application code for a fixed runtime, not new firmware, shel
 | Live camera | New local AVFoundation capture produces 240×135 JPEGs for the trusted Pi renderer, combined with generated drawing/controls. A native probe succeeded; after a transport deadlock repair, the user confirmed the generated live camera/effects on the Pi. No camera pixels enter model requests or game inputs. |
 | Spoken replies | Installed host-side ElevenLabs Flash v2.5/Roger synthesis and transient 24 kHz mono PCM delivery over enrolled TLS to Pi playback. Single-worker cancellation/replacement, microphone pause and physical interruption remain. The user confirmed the new natural voice and good volume at 75%; device telemetry reports delivered without error. |
 
-The joystick at `0x20` has user-confirmed steering, with X reaching −1 and 1 in live samples. Encoder deltas at `0x36` were subsequently captured while changing native Mac volume; the user confirmed direction. Green `0x6E` and red `0x6F` buttons independently reported firmware 259 after power cycling and worked in the game. Green OR PiTFT A supplies logical `button_a`; red OR PiTFT B supplies `button_b`. Pairing/PTT use physical PiTFT buttons only. Bluetooth microphone, gesture, IMU and hot swapping are not current capabilities.
+The joystick at `0x20` has user-confirmed steering, with X reaching −1 and 1 in live samples. Encoder deltas at `0x36` were subsequently captured while changing native Mac volume; the user confirmed direction. Green `0x6E` and red `0x6F` buttons independently reported firmware 259 after power cycling and worked in the game. Green OR PiTFT A supplies logical `button_a`; red OR PiTFT B supplies `button_b`. Pairing/PTT use physical PiTFT buttons only. Bluetooth microphone and gesture sensing remain unverified. The October 30 update adds read-backed LSM6DS3TR-C acceleration, angular velocity and gravity inclination, plus background rediscovery of supported missing drivers. Unknown peripherals are not inferred from an address alone. See [adaptive controls](adaptive-controls.md) for the live evidence and limits.
 
 ## Agent decisions and tools
 
@@ -97,19 +110,21 @@ The orchestrator uses `ask_user` for a short clarification, ending its current t
 
 Local filtering rejects only clear fillers and exact unfinished fragments, preserving short answers such as “blue,” “slower” and “yes.” The model is instructed to explain observed failures, ask only when information or repaired access can help, and stop when the requested capability is unavailable. A spoken “yes” answers its concrete question; it grants no unrelated consequential authority. Existing explicit authorization for the actual action still applies. Other ambiguity belongs to the model; no measured intent-confidence percentage is claimed. These changes preserve the fixed package/runtime boundary. A live space-joke question → “yes” without wake → spoken joke trial succeeded in two Meta calls; the user confirmed the direct answer was understood, and the device returned to wake listening. This is one demonstrated exchange, not a reliability benchmark.
 
-Delegation can invoke coder, artist or reviewer roles. At most two delegations are permitted; each specialist has at most five turns and cannot activate or delegate again. The orchestrator can use the remaining shared budget; all roles share a maximum of eighteen model calls per request and one persisted spending ledger. A text-only model answer does not force tool use or activation. Cancellation blocks subsequent actions; an already dispatched provider request may still incur a charge.
+Delegation can invoke coder, artist or reviewer roles. At most two delegations are permitted; each specialist has at most five turns and cannot activate or delegate again. The orchestrator and specialists share a maximum of 32 model calls per request and one persisted spending ledger. Specialists reserve up to four calls for parent verification, activation and completion; exhausting a specialist turn allocation returns partial findings and candidate IDs. Remaining-call notices discourage redundant work. A shared limit stops the attempt with an incomplete-result explanation rather than claiming full success. A text-only model answer does not force tool use or activation. Cancellation blocks subsequent actions; an already dispatched provider request may still incur a charge.
 
 The host reserves conservative request costs before dispatch and settles known usage afterward. Unknown charges remain reserved; corrupted accounting or reported usage above reservation halts further calls. This bounds this service's planned usage, not external account charges. The first live `muse-spark-1.3` game request used 11 calls, recovered from a malformed package-write tool call through a model-chosen coder delegation, and reached activation in about 49 seconds. The adapter's primary documentation references are recorded in [`agent_provider.py`](../modulate/agent_provider.py).
 
-The latest update allows at most two repairs of a malformed model response per request, within the existing shared turn/call/budget limits. No action from a rejected response is executed. Validated billing can settle that call even if its response is malformed; missing or unknown usage leaves the full reservation held. This does not silently change providers or reset the budget.
+The latest update allows at most two repairs of a malformed model response per request, within the existing shared turn/call/budget limits. No action from a rejected response is executed. Validated billing can settle that call even if its response is malformed; missing or unknown usage leaves the full reservation held. This does not silently change providers or reset the budget. Transient inference transport and HTTP 429/502/503/504 failures also permit at most two cancellable retries within the same shared call and spending limits. Each retry has a new reservation; unknown-cost holds remain. Already dispatched tool effects are not replayed. See [demo reliability](demo-reliability.md).
 
 ## Hardware diagnosis and guided setup
 
 The fifth bundled skill, `hardware-debugger`, handles missing modules, wiring and device faults separately from `hardware-controls` settings/mappings. The root agent chooses `hardware_debug` inspect/scan/reinitialize or a persistent guided Qwiic-button repair. Inspection adds driver status, bus addresses, checked button identity and voice/speaker/display/connection metadata. Unknown hardware remains unidentified; an ACK cannot count boards sharing one address.
 
+The October 30 driver installer adds `install_driver` for the verified LSM6DS3TR-C catalog entry. Downloads run outside the input lock; a second identity check and three valid samples precede atomic publication under the cancellation lock. Restart verifies the saved pack before loading it. The agent refreshes capabilities and discards earlier candidates after installation. Generated apps and automatic missing-control adaptation cannot invoke this installer. See [driver setup](driver-setup.md).
+
 The host saves setup phases in private `hardware-repair.json`; physical-step confirmations are direct user input, bound to the current workflow step, Pi session and boot, and expire after 120 seconds. Studio retains the instructions while the Pi is offline. The Pi worker serializes I2C operations with input reads and accepts only fixed diagnostic commands or the supported factory-button address change. It durably consumes each mutation ID before the write, checks identity/firmware and singleton-bus evidence, and never replays an uncertain write. Both isolated power-cycle readback and reconnected-bus verification precede completion. A boot change is evidence of reboot, not proof of physical isolation or unplugging.
 
-Hardware command delivery and withdrawal run on the network thread; cached capability reads do not block on the I2C lock. Missing required controls suspend the saved app without replacing its active/previous records. Once controls return, the app is reverified before resuming; malformed code and actual runtime failures still use the established rollback path. New activation is rejected while suspended. See [hardware debugger procedure and manufacturer sources](hardware-debugger.md) for supported firmware, physical instructions, scan limits and the distinction between a uniquely addressed third button and a new logical game input.
+Hardware command delivery and withdrawal run on the network thread; cached capability reads do not block on the I2C lock. Missing required controls suspend the saved app without replacing its active/previous records. Once controls return, the app is reverified before resuming; malformed code and actual runtime failures still use the established rollback path. A checked replacement can activate over a suspended app; rollback preserves the suspended predecessor. See [hardware debugger procedure and manufacturer sources](hardware-debugger.md) for supported firmware, physical instructions, scan limits and the distinction between a uniquely addressed third button and a new logical game input.
 
 ## Connection setup before computer access
 
@@ -117,7 +132,7 @@ Hardware command delivery and withdrawal run on the network thread; cached capab
 
 The host's `connection_setup(status|show|start_pairing|create_browser_code)` tool is orchestrator-only and bundled in the `connection-setup` skill. It reads safe status or prepares an offer; it does not grant native access. `/device/setup` is a fixed enrolled-device endpoint for the same physical screen actions. The heartbeat carries safe `setup_status` plus an optional short-lived `setup` offer. Browser codes occur only in that enrolled-device offer; model/tool results and normal state omit them. Native pairing continues through its separate fresh-press confirmation. A code is invalidated when claimed/replaced/revoked/expired, and stale companion responses cannot keep a setup code visible offline.
 
-The model lives on the Mac companion. Without that connection the Pi provides deterministic guidance, not inference. OS/Wi-Fi bootstrap, a companion installer, enrollment provisioning and native macOS permission grants still require user setup; this feature does not imply autonomous installation.
+In standalone mode the agent runs on the Pi and uses cloud inference; a disconnected local agent shows a restarting message rather than a Mac setup demand. OS/Wi-Fi bootstrap and credential provisioning still require trusted setup. The legacy Mac-hosted mode still uses separate native macOS permission grants.
 
 ## Packages and verification
 
@@ -248,3 +263,101 @@ Explicit pairing actions reuse valid pending offers, check current device
 online/native pairing/gateway state and retain physical confirmation. No
 credential is passed in a return URL. The reviewed public destination remains
 fixed; a missing gateway is a visible incomplete step, not a successful web link.
+
+## Pi MMS speech and website Mac comparison — October 30
+
+The current speech provider is local Meta MMS English VITS in an isolated, persistent CPU worker. The existing in-memory 24 kHz PCM contract, delivery digest, mic pause, cancellation and physical stop remain. Provider identity is carried separately from the exact audio descriptor and appears as `meta_mms/paplay` in device telemetry. Historical ElevenLabs ledger state is retained but MMS does not reserve characters. See [pinned weights, license, bounds and live timings](meta-mms.md).
+
+An authenticated browser state response adds only the currently pending Mac comparison code. Public session metadata and model/tool context never contain it. Reading the code cannot approve native access; the Pi small-A action remains the only authorization path. The normal comparison UI is the Vercel setup page. The native AppKit Modulate app owns the optional helper and presents human-operated OS permission controls; its child helper retains the pinned LAN link, eight-hour pairing, sequence consumption and lease watchdog.
+
+
+## Background component setup
+
+The trusted Pi hardware worker refreshes the observed I²C inventory about every
+15 seconds. A readiness-aware component list enters Meta context and capabilities;
+unknown addresses never add runtime control IDs. A persistent, debounced host
+scheduler may start one setup attempt for a new unready component, gated by hardware
+permission and idle state. The restricted component-setup agent has at most eight
+model calls and only inspection, verified catalog installation, reinitialization
+and necessary human questions. No app replacement, native actions or address writes
+are authorized by discovery. See [scope and live trial](component-setup.md).
+
+
+## Muse custom connector — October 30
+
+Muse is an additional text input channel to the existing Pi agent. A sealed
+full-request credential binds to a dedicated persisted seven-day Pi authorization
+and fixed HTTPS API; the old speaker credential remains speaker-only. Browser
+expiry/revocation does not revoke the new connector grant. Authenticated browsers
+can list expiry and revoke a specific grant, including its running job; connector
+credentials cannot administer grants. Old eight-hour grants retain their expiry.
+The API permits bounded
+text submission, owned job status/clarification, cancellation and speaker read/set.
+It cannot administer pairing, permissions or budgets. Native Mac access and
+hardware/app safety checks remain inside the existing trusted runtime.
+
+A Pi-side durable reservation precedes request dispatch. Reusing the same client
+request ID/payload returns the same job; uncertain dispatch remains unknown, and
+status replaced by another job is explicitly superseded. No blind write replay
+or unconfirmed app-success claim is allowed. Status projects only the owned
+result, clarification and current-app summary, without raw events, screenshots
+or source. Requested private task results may be returned to Muse under the
+user-approved full scope. See `muse-connector.md` for access, revocation and live
+evidence; this is a private custom connector rather than a public listing.
+
+## Muse invoked-command transcription — October 30
+
+The optional `meta_muse` command recognizer keeps ambient wake probes and busy
+cancellation local. Only invoked commands/PTT/clarification audio uses the
+pinned device `/device/transcribe` route and trusted agent's existing budget
+ledger. The fixed provider gateway sends bounded canonical WAV multipart audio
+to Meta's `muse-voice-transcribe-1.0` endpoint. Provider keys stay server-side.
+Voice permission is checked before and after dispatch; device epochs reject
+late results. Cloud failure discards the command without a hidden fallback or
+retry. Native capture, review/clarification/activation and local MMS speech
+remain separate. See [fit, limits and validation](muse-voice-transcribe.md).
+
+
+## Checked incremental edits and optional Mac initialization — November 3
+
+The runtime agent may use `edit_package(base_revision, changes)` to avoid
+repeating a large package for a small edit. Each of at most sixteen edits names
+an existing JSON path and expected old/new value, or an exact substring and
+occurrence count. Edits apply to a detached package; a mismatch creates no
+candidate and leaves the active app untouched. The resulting full package passes
+normal schema/capability validation and independent verification. Its exact
+check report is returned to Meta before the separate acknowledged activation.
+`write_package(verify=true)` offers the same combined write/check path for full
+packages. Private computer tasks and automatic component setup cannot use edits.
+
+Local job acceptance no longer calls the optional Mac's begin-task RPC. The
+first actual desktop observation initializes that task; a busy helper keeps
+initialization retryable. A fresh job cannot act using an observation from an
+earlier job. This removes a live failure where a rejected Mac initialization
+left a local request marked running against the preceding completed job.
+Successful app activation and saved-app reopening leave speaker mode so its
+overlay cannot mask the selected experience. Failed activation preserves it.
+
+
+### Public virtual-device generation (November 3)
+
+`/demo` → same-origin `/api/demo` → private Cloudflare allowance → fixed Meta
+chat-completions endpoint (`muse-spark-1.3`). The model writes an app package
+(title, description, required virtual modules, control descriptions, JS source).
+A QuickJS checker evaluates init/update/draw over 151 frames and returns bounded
+results to Meta for review/repair, up to three calls. Only a checked candidate
+with explicit model approval returns to the browser. A separate QuickJS worker
+checks the same package and acknowledges its exact revision before UI activation.
+
+Generated JS has no DOM, network, filesystem, module loader, host callbacks or
+native actions. Drawing is a bounded command list; audio is a bounded oscillator
+command enabled by a user gesture. Virtual inputs are joystick axes, normalized
+encoder position and held A/B buttons. Real-time input never calls Meta. Restores
+reverify locally. Cancellation ignores late results; failed staging preserves the
+previous library entry. API keys and private allowance credentials stay server-side.
+
+The anonymous signed session is independent of device pairing. Durable rate
+limits and worst-case per-call holds draw from a separate user-authorized $25
+cloud ledger. No Pi, tunnel, physical discovery or native budget is consulted;
+missing configuration, transport, checks, review or acknowledgement fail closed.
+No inference or physical capabilities are inferred from mocked tests.

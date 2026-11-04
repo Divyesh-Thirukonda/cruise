@@ -19,6 +19,7 @@ import sys
 import tempfile
 import threading
 import time
+from .imu import IMU_DEFAULTS
 
 WIDTH, HEIGHT = 240, 135
 MAX_CODE_BYTES = 40 * 1024
@@ -35,9 +36,9 @@ STARTUP_WALL_SECONDS = 4.0
 ENGINE_VERSION = "0.17.0.2"
 _COLOR = re.compile(r"#[0-9a-fA-F]{6}\Z")
 _ID = re.compile(r"[A-Za-z][A-Za-z0-9_-]{0,31}\Z")
-_CONTROLS = {"joystick", "encoder", "button_a", "button_b", "encoder_pressed"}
+_CONTROLS = {"joystick", "encoder", "button_a", "button_b", "encoder_pressed", "imu"}
 DEFAULT_INPUT = {"joystick_x": 0.0, "joystick_y": 0.0, "encoder_delta": 0,
-                 "button_a": False, "button_b": False, "encoder_pressed": False}
+                 "button_a": False, "button_b": False, "encoder_pressed": False, **IMU_DEFAULTS}
 
 
 class GameError(ValueError):
@@ -51,9 +52,16 @@ def _json(value: object) -> str:
         raise GameError("Value must be finite JSON") from error
 
 
-def _keys(value: object, required: set[str], optional: set[str] | None = None) -> dict:
-    if type(value) is not dict or not required <= value.keys() or value.keys() - required - (optional or set()):
-        raise GameError("Object has missing or unsupported fields")
+def _keys(value: object, required: set[str], optional: set[str] | None = None, *, location="Object") -> dict:
+    if type(value) is not dict:
+        raise GameError(f"{location} must be an object with fields {sorted(required)}")
+    missing = required - value.keys()
+    extra = value.keys() - required - (optional or set())
+    if missing or extra:
+        # Report the failing structure, never its values. A generic rejection
+        # caused repeated full rewrites without telling the agent what to fix.
+        unexpected = sorted(repr(str(key)[:40]) for key in extra)[:8]
+        raise GameError(f"{location} has missing fields {sorted(missing)}; unsupported fields {unexpected}")
     return value
 
 
@@ -85,7 +93,7 @@ def _color(value: object, transparent: bool = False) -> str:
 
 def validate_package(package: object) -> dict:
     """Return an independent normalized package; validate assets before spawn."""
-    package = _keys(package, {"kind", "title", "code", "assets", "controls"}, {"camera"})
+    package = _keys(package, {"kind", "title", "code", "assets", "controls"}, {"camera"}, location="package")
     if package["kind"] != "game":
         raise GameError("Package kind must be game")
     title = _text(package["title"], 80, "title", empty=False)
@@ -103,7 +111,7 @@ def validate_package(package: object) -> dict:
             or any(type(item) is not str or item not in _CONTROLS for item in controls)
             or len(set(controls)) != len(controls)):
         raise GameError("controls must be unique supported control names")
-    assets = _keys(package["assets"], {"sprites"})
+    assets = _keys(package["assets"], {"sprites"}, location="package.assets")
     sprites = assets["sprites"]
     if type(sprites) is not dict or not 1 <= len(sprites) <= 16:
         raise GameError("Supply 1–16 generated pixel sprites")
@@ -113,7 +121,7 @@ def validate_package(package: object) -> dict:
     for name, sprite in sprites.items():
         if type(name) is not str or not _ID.fullmatch(name):
             raise GameError("Sprite IDs must be simple names of at most 32 characters")
-        sprite = _keys(sprite, {"width", "height", "palette", "pixels"})
+        sprite = _keys(sprite, {"width", "height", "palette", "pixels"}, location=f"sprite {name}")
         width = _integer(sprite["width"], 1, 32, "sprite width")
         height = _integer(sprite["height"], 1, 32, "sprite height")
         pixel_count += width * height
@@ -139,7 +147,7 @@ def validate_package(package: object) -> dict:
     result = {"kind": "game", "title": title, "code": code,
               "assets": {"sprites": normalized}, "controls": list(controls)}
     if "camera" in package:
-        camera = _keys(package["camera"], {"target"})
+        camera = _keys(package["camera"], {"target"}, location="package.camera")
         target = _text(camera["target"], 128, "camera target", empty=False)
         result["camera"] = {"target": target}
     if len(_json(result).encode("utf-8")) > MAX_PACKAGE_BYTES:
@@ -151,8 +159,10 @@ def validate_input(value: object) -> dict:
     value = _keys(value, set(), set(DEFAULT_INPUT))
     result = dict(DEFAULT_INPUT)
     result.update(value)
-    for name in ("joystick_x", "joystick_y"):
+    for name in ("joystick_x", "joystick_y", "tilt_x", "tilt_y"):
         _number(result[name], -1, 1, name)
+    for name in ("imu_ax", "imu_ay", "imu_az", "imu_gx", "imu_gy", "imu_gz"):
+        _number(result[name], -40, 40, name)
     _integer(result["encoder_delta"], -100, 100, "encoder_delta")
     for name in ("button_a", "button_b", "encoder_pressed"):
         if type(result[name]) is not bool:
@@ -204,7 +214,7 @@ def validate_commands(commands: object, sprites: dict, allow_camera=False) -> li
         if type(command) is not dict or type(command.get("op")) is not str or command["op"] not in fields:
             raise GameError("Unknown drawing command")
         op = command["op"]
-        _keys(command, fields[op])
+        _keys(command, fields[op], location=f"{op} drawing command")
         if "color" in command:
             _color(command["color"])
         for key in ("x", "y", "x1", "x2", "y1", "y2"):
@@ -376,6 +386,10 @@ def verify(package: object) -> dict:
             samples = [{}, {"joystick_x": -1}, {"joystick_x": 1}, {"joystick_y": -1},
                        {"joystick_y": 1}, {"encoder_delta": -1}, {"encoder_delta": 1},
                        {"button_a": True}, {}, {"button_b": True}, {}, {"encoder_pressed": True}]
+            if "imu" in normalized["controls"]:
+                samples += [{"tilt_x": -1, "imu_ax": -9.8}, {"tilt_x": 1, "imu_ax": 9.8},
+                            {"tilt_y": -1, "imu_ay": -9.8}, {"tilt_y": 1, "imu_ay": 9.8},
+                            {"imu_gz": -2}, {"imu_gz": 2}, {}]
             for sample in samples:
                 for _ in range(4):
                     started = time.monotonic()
@@ -387,7 +401,7 @@ def verify(package: object) -> dict:
                             "distinct_states": len({_json(frame["state"]) for frame in frames}),
                             "step_median_ms": round(statistics.median(times), 3),
                             "step_max_ms": round(max(times), 3)})
-            check("representative_inputs", True, "48 updates covering joystick, encoder and button inputs")
+            check("representative_inputs", True, str(len(samples) * 4) + " updates covering declared input types")
             check("sprite_output", sprite_seen, "A supplied sprite appears in the sampled draw commands")
     except (GameError, OSError) as error:
         check("execution", False, str(error)[:600])

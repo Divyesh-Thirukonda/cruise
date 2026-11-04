@@ -1,0 +1,357 @@
+{
+  "input_mode": "typed website API through authenticated tunnel; live Meta agent; completion polled on local Pi API",
+  "timing_excludes": [
+    "microphone capture and transcription",
+    "speech playback",
+    "human physical verification"
+  ],
+  "code_commit": "f6afe3f",
+  "target_seconds": 15,
+  "universal_target_met": false,
+  "trials": [
+    {
+      "name": "library_before_new_app",
+      "seconds": 7.557,
+      "calls": 3,
+      "cost_dollars": 0.046645,
+      "tools": {
+        "load_skill": 1,
+        "app_library": 1
+      },
+      "active_revision": "330bbee8deaf8c6356c54d0893658c34b16635a6943b3d2dc14037bf0c36df7c",
+      "paired": true,
+      "controls": [
+        "joystick",
+        "button_a",
+        "button_b"
+      ],
+      "speech_error": null,
+      "agent_phase": "ready"
+    },
+    {
+      "name": "original_first_person_game",
+      "seconds": 76.773,
+      "calls": 5,
+      "cost_dollars": 0.137453,
+      "tools": {
+        "load_skill": 1,
+        "inspect_capabilities": 1,
+        "read_runtime_api": 1,
+        "write_package": 3
+      },
+      "active_revision": "330bbee8deaf8c6356c54d0893658c34b16635a6943b3d2dc14037bf0c36df7c",
+      "paired": true,
+      "controls": [
+        "joystick",
+        "button_a",
+        "button_b"
+      ],
+      "speech_error": null,
+      "agent_phase": "error"
+    },
+    {
+      "name": "original_first_person_game_retry",
+      "seconds": 148.457,
+      "calls": 13,
+      "cost_dollars": 0.412169,
+      "tools": {
+        "load_skill": 2,
+        "inspect_capabilities": 3,
+        "read_runtime_api": 2,
+        "write_package": 4,
+        "delegate_task": 1,
+        "preview_package": 1,
+        "activate_package": 1
+      },
+      "active_revision": "1eaf505366de50a2d34d33758b12e60adae45630c2abfc1b5b60dfd451d279fc",
+      "paired": true,
+      "controls": [
+        "joystick",
+        "button_a",
+        "button_b"
+      ],
+      "speech_error": null,
+      "agent_phase": "ready"
+    },
+    {
+      "name": "bubble_enemy_edit",
+      "seconds": 27.285,
+      "calls": 5,
+      "cost_dollars": 0.10849,
+      "tools": {
+        "load_skill": 1,
+        "read_current_package": 1,
+        "edit_package": 1,
+        "activate_package": 1
+      },
+      "active_revision": "67cb725fa60351803d2938838614bf2f6b8454d3acd41bb563a3bea02a32e7fe",
+      "paired": true,
+      "controls": [
+        "joystick",
+        "button_a",
+        "button_b"
+      ],
+      "speech_error": null,
+      "agent_phase": "ready"
+    },
+    {
+      "name": "library_after_edit",
+      "seconds": 6.47,
+      "calls": 3,
+      "cost_dollars": 0.048219,
+      "tools": {
+        "load_skill": 1,
+        "app_library": 1
+      },
+      "active_revision": "67cb725fa60351803d2938838614bf2f6b8454d3acd41bb563a3bea02a32e7fe",
+      "paired": true,
+      "controls": [
+        "joystick",
+        "button_a",
+        "button_b"
+      ],
+      "speech_error": null,
+      "agent_phase": "ready"
+    },
+    {
+      "name": "reuse_first_person_game",
+      "seconds": 13.082,
+      "calls": 3,
+      "cost_dollars": 0.047489,
+      "tools": {
+        "load_skill": 1,
+        "app_library": 1
+      },
+      "active_revision": "67cb725fa60351803d2938838614bf2f6b8454d3acd41bb563a3bea02a32e7fe",
+      "paired": true,
+      "controls": [
+        "joystick",
+        "button_a",
+        "button_b"
+      ],
+      "speech_error": null,
+      "agent_phase": "ready"
+    },
+    {
+      "name": "speaker_mode",
+      "seconds": 5.639,
+      "calls": 3,
+      "cost_dollars": 0.043416,
+      "tools": {
+        "load_skill": 1,
+        "computer_audio": 1
+      },
+      "active_revision": "67cb725fa60351803d2938838614bf2f6b8454d3acd41bb563a3bea02a32e7fe",
+      "paired": true,
+      "controls": [
+        "joystick",
+        "button_a",
+        "button_b"
+      ],
+      "speech_error": null,
+      "agent_phase": "ready"
+    },
+    {
+      "name": "speaker_mode_after_fix",
+      "seconds": 10.769,
+      "calls": 4,
+      "cost_dollars": 0.058418,
+      "tools": {
+        "load_skill": 1,
+        "computer_audio": 2
+      },
+      "active_revision": "67cb725fa60351803d2938838614bf2f6b8454d3acd41bb563a3bea02a32e7fe",
+      "library_open": false,
+      "paired": true,
+      "controls": [
+        "joystick",
+        "button_a",
+        "button_b"
+      ],
+      "speech_error": null,
+      "agent_phase": "ready"
+    },
+    {
+      "name": "reopen_after_speaker_fixed",
+      "seconds": 13.333,
+      "calls": 4,
+      "cost_dollars": 0.059816,
+      "tools": {
+        "load_skill": 1,
+        "app_library": 2
+      },
+      "active_revision": "67cb725fa60351803d2938838614bf2f6b8454d3acd41bb563a3bea02a32e7fe",
+      "library_open": false,
+      "paired": true,
+      "controls": [
+        "joystick",
+        "button_a",
+        "button_b"
+      ],
+      "speech_error": null,
+      "agent_phase": "ready"
+    },
+    {
+      "name": "halloween_mirror",
+      "seconds": 33.198,
+      "calls": 7,
+      "cost_dollars": 0.14119,
+      "tools": {
+        "load_skill": 1,
+        "camera_control": 3,
+        "read_runtime_api": 1,
+        "inspect_capabilities": 1,
+        "write_package": 1,
+        "activate_package": 1
+      },
+      "active_revision": "0943d269b58483a2050c738be139daf8deedefc66d2a14d79b6f51fd6a31e72a",
+      "library_open": false,
+      "paired": true,
+      "controls": [
+        "joystick",
+        "button_a",
+        "button_b"
+      ],
+      "speech_error": null,
+      "agent_phase": "ready"
+    },
+    {
+      "name": "reopen_after_mirror",
+      "seconds": 9.924,
+      "calls": 3,
+      "cost_dollars": 0.043922,
+      "tools": {
+        "load_skill": 1,
+        "app_library": 1
+      },
+      "active_revision": "67cb725fa60351803d2938838614bf2f6b8454d3acd41bb563a3bea02a32e7fe",
+      "library_open": false,
+      "paired": true,
+      "controls": [
+        "joystick",
+        "button_a",
+        "button_b"
+      ],
+      "speech_error": null,
+      "agent_phase": "ready"
+    },
+    {
+      "name": "youtube_native",
+      "seconds": 74.507,
+      "calls": 15,
+      "cost_dollars": 0.264603,
+      "tools": {
+        "load_skill": 1,
+        "computer_observe": 1,
+        "computer_act": 12
+      },
+      "active_revision": "67cb725fa60351803d2938838614bf2f6b8454d3acd41bb563a3bea02a32e7fe",
+      "library_open": false,
+      "paired": true,
+      "controls": [
+        "joystick",
+        "button_a",
+        "button_b"
+      ],
+      "speech_error": null,
+      "agent_phase": "ready",
+      "independent_outcome": "Watch page selected; independent native UI check found paused pre-roll ad. Target playback not confirmed."
+    },
+    {
+      "name": "youtube_playback_recovery",
+      "seconds": 58.249,
+      "calls": 10,
+      "cost_dollars": 0.200339,
+      "tools": {
+        "load_skill": 1,
+        "read_recent_context": 1,
+        "computer_observe": 1,
+        "computer_act": 6
+      },
+      "active_revision": "67cb725fa60351803d2938838614bf2f6b8454d3acd41bb563a3bea02a32e7fe",
+      "paired": true,
+      "controls": [
+        "joystick",
+        "button_a",
+        "button_b"
+      ],
+      "speech_error": null,
+      "agent_phase": "ready",
+      "independent_outcome": "Watch page selected; independent native UI check found paused pre-roll ad. Target playback not confirmed."
+    }
+  ],
+  "additional_failure": {
+    "name": "reopen_after_speaker_before_fix",
+    "http_status": 400,
+    "new_job_accepted": false,
+    "result": "Optional Mac begin_task failed after setting running=true; preceding completed identity retained; cleared exact stale job and installed lazy native initialization"
+  },
+  "final": {
+    "budget": {
+      "limit_dollars": 50.0,
+      "charged_or_reserved_dollars": 17.382067,
+      "calls": 957,
+      "halted": false
+    },
+    "paired": true,
+    "computer": {
+      "enabled": true,
+      "permissions": {
+        "screen_recording": true,
+        "accessibility": true
+      },
+      "error": null
+    },
+    "speech": {
+      "provider": "elevenlabs",
+      "pending": false,
+      "error": null
+    },
+    "active": {
+      "title": "Rust Pit 2.5D",
+      "kind": "game",
+      "controls": [
+        "button_a",
+        "button_b",
+        "joystick"
+      ]
+    },
+    "revision": "67cb725fa60351803d2938838614bf2f6b8454d3acd41bb563a3bea02a32e7fe",
+    "audio": {
+      "running": false,
+      "state": "stopped",
+      "error": null
+    },
+    "library_open": false,
+    "runtime_error": null
+  },
+  "verification": {
+    "host_tests": 1176,
+    "host_skips": 13,
+    "pi_checks": [
+      {
+        "tests": 120,
+        "seconds": 20.652,
+        "scope": "edit and activation integration"
+      },
+      {
+        "tests": 29,
+        "seconds": 5.326,
+        "scope": "runtime schema feedback and edits"
+      },
+      {
+        "tests": 93,
+        "seconds": 24.998,
+        "scope": "lazy computer initialization and app integration"
+      }
+    ],
+    "additional_skill_tests": 9
+  },
+  "limits": [
+    "No new physical gameplay, knob, IMU, camera-image or audibility check",
+    "Only joystick and A/B advertised during rehearsal",
+    "Fresh generated game required repair; failures retained",
+    "No known email content or game preset substituted",
+    "ElevenLabs demo configuration is private and absent from repository changes"
+  ]
+}

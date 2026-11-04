@@ -12,7 +12,7 @@ import threading
 import time
 import uuid
 
-from .agent import AgentError, Ledger, Orchestrator, digest
+from .agent import AgentError, AttemptIncomplete, Ledger, Orchestrator, digest
 from .agent_provider import AgentProviderError
 from .game_runtime import validate_commands, validate_input, validate_package
 from .host_bridge import BridgeStore, BridgeError
@@ -23,12 +23,13 @@ from .speaker_volume import SpeakerVolume, SpeakerVolumeError
 from .hardware_debug import HardwareDebug
 from .connection_setup import ConnectionSetup
 from .library import LibraryManager
+from .component_setup import ComponentSetup, SETUP_REQUEST
 from .deployment import CONNECT_URL
 
 
 _SESSION = re.compile(r"[0-9a-f]{32}\Z")
 _REVISION = re.compile(r"[0-9a-f]{64}\Z")
-_CONTROLS = {"joystick", "encoder", "button_a", "button_b", "encoder_pressed"}
+_CONTROLS = {"joystick", "encoder", "button_a", "button_b", "encoder_pressed", "imu"}
 _FOLLOWUP_SECONDS = 120
 _MAX_QUESTIONS = 4
 _PHASES = {"queued", "planning", "coding", "checking", "previewing", "activating", "ready", "error", "cancelled"}
@@ -71,7 +72,8 @@ def _save_json(path, value):
 
 
 class Product(AssistantIO):
-    def __init__(self, state_dir, provider, *, budget=0, backend=None, computer=None):
+    def __init__(self, state_dir, provider, *, budget=0, backend=None, computer=None, standalone=False):
+        self.standalone = standalone
         self.directory = Path(state_dir)
         self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.lock = threading.RLock()
@@ -83,9 +85,13 @@ class Product(AssistantIO):
         self.memory_error = None
         self.speaker_volume = SpeakerVolume()
         self.hardware = HardwareDebug(self.directory / "hardware-repair.json")
+        from .adaptation import ControlAdaptation
+        self.control_adaptation = ControlAdaptation(self.directory)
         self.event_id = 0
         self.provider = provider
         self.ledger = Ledger(self.directory / "budget.json", budget)
+        from .transcription import MuseTranscriber
+        self.transcription = MuseTranscriber(self.ledger)
         self.bridge = BridgeStore(self.directory / "bridge", backend)
         self.agent = Orchestrator(provider, self, self.directory / "requests", self.ledger)
         self.running = False
@@ -140,7 +146,16 @@ class Product(AssistantIO):
         self.setup_offer = None
         self.connection_guide = ConnectionSetup(self)
         self.app_library = LibraryManager(self)
+        self.component_setup = ComponentSetup(self.directory)
         self._init_assistant_io(computer)
+        self.mac_link = None
+        if standalone and backend is None and computer is None:
+            from .mac_link import MacLink, RemoteMacBackend, RemoteComputer, RemoteCamera, RemoteAudio
+            self.mac_link = MacLink(self.directory)
+            self.bridge.backend = RemoteMacBackend(self.mac_link)
+            self.computer = RemoteComputer(self.mac_link)
+            self.camera = RemoteCamera(self.mac_link)
+            self.system_audio = RemoteAudio(self.mac_link)
         # Permission denials survive launching the companion without its cloud
         # gateway configuration. Omitting a secret cannot restore authority.
         if (self.directory / "remote-access.json").exists():
@@ -162,6 +177,9 @@ class Product(AssistantIO):
         if not self.permission_allowed(name):
             raise AgentError(f"{name.replace('_', ' ').capitalize()} access is off in device permissions")
 
+    def transcribe_command(self, data):
+        return self.transcription.transcribe(data, lambda: self.require_permission("voice"))
+
     def check_request_access(self):
         remote = getattr(self, "remote_access", None)
         if remote is not None:
@@ -171,6 +189,7 @@ class Product(AssistantIO):
         with self.lock:
             package = (self.active or {}).get("package", {})
             return {"recent": self.intent_memory.snapshot(include_private),
+                    "components": self.component_setup.inventory(self.hardware.inspect(), self.device["devices"]),
                     "current": {"app": {key: copy.deepcopy(package[key]) for key in
                                 ("title", "kind", "controls", "bindings", "camera") if key in package},
                                 "revision": self.revision,
@@ -184,9 +203,10 @@ class Product(AssistantIO):
                     "library": {"open": self.app_library.view["open"],
                                 "tab": self.app_library.view["tab"],
                                 "selected_id": self.app_library.selected(),
-                                "preferences": self.app_library.preferences()}}
+                                "preferences": self.app_library.preferences(),
+                                "saved_apps": self.app_library.catalog()}}
 
-    def hardware_debug(self, action, label=None):
+    def hardware_debug(self, action, label=None, driver=None):
         if action != "cancel":
             self.require_permission("hardware")
         with self.lock:
@@ -194,7 +214,7 @@ class Product(AssistantIO):
                 raise AgentError("Hardware request cancelled")
         # Device acknowledgements arrive on the network thread; never wait
         # while holding Product.lock.
-        result = self.hardware.call(action, label=label)
+        result = self.hardware.call(action, label=label, driver=driver)
         with self.lock:
             return {**result, "device_health": {
                 "connected": self.connected(),
@@ -320,6 +340,8 @@ class Product(AssistantIO):
             phase, title = {"coder": ("coding", "Writing your app"), "artist": ("coding", "Creating the artwork"),
                             "reviewer": ("checking", "Reviewing your app")}.get(role, ("planning", "Planning the next step"))
             self.progress.update(phase=phase, title=title, role=role, tool=None)
+        elif kind == "model_retry":
+            self.progress.update(phase="planning", title="Reconnecting to Meta", role=role, tool=None)
         elif kind in {"tool_started", "tool_finished"}:
             tool = entry.get("tool")
             phase, title = _TOOL_PROGRESS.get(tool, ("planning", "Working on your request"))
@@ -367,12 +389,18 @@ class Product(AssistantIO):
                     self.volume_token = None
                     self.volume = None
             return {"display": {"width": 240, "height": 135}, "runtime": "modulate-game-v1",
+                    "ai_host": "pi" if self.standalone else "mac",
                     "device_connected": self.connected(), "controls": list(self.device["controls"]) if self.connected() else [],
                     "devices": copy.deepcopy(self.device["devices"]), "warnings": list(self.device["warnings"]),
                     "button_sources": dict(self.device["button_sources"]),
                     "permissions": ({key: self.permission_allowed(key) for key in
                                     ("computer", "system", "camera", "audio", "voice", "speaker", "hardware")}),
+                    "components": self.component_setup.inventory(self.hardware.inspect(), self.device["devices"]),
                     "hardware_debug": {"supported": self.permission_allowed("hardware") and self.hardware.inspect().get("supported", False),
+                                       "driver_catalog": [
+                                           {key: entry.get(key) for key in ('id', 'model', 'identity', 'installable', 'input_ready', 'managed')}
+                                           for entry in ((self.hardware.inspect().get('report') or {}).get('driver_setup') or {}).get('catalog', [])
+                                           if type(entry) is dict],
                                        "guided_button_address_repair": True},
                     "paired_host": paired,
                     "app_library": {"supported": True, "persistent": True, "voice_navigation": True,
@@ -493,6 +521,8 @@ class Product(AssistantIO):
     def _failure_guidance(error):
         """Fixed operational explanations; never echo exception payloads or invent intent."""
         message = str(error).lower()
+        if isinstance(error, AttemptIncomplete):
+            return error.guidance, None
         if isinstance(error, AgentProviderError):
             if any(word in message for word in ("credential", "http 401", "http 403", "configuration", "endpoint")):
                 return ("Meta access isn't available. Check the provider credentials and account access in the companion, then start a new request.", None)
@@ -513,11 +543,13 @@ class Product(AssistantIO):
                         "After checking the connection and current result, should I try the original request once more?")
             if "question limit" in message:
                 return ("I still need a clearer goal. Please start a new request that says what should happen and which app or device to use.", None)
-            if "limit" in message or "same operation failed" in message:
-                return ("I tried to repair the request but reached the attempt limit. Your current app is still available; the details are in Studio.", None)
+            if "same operation failed" in message:
+                return ("That action kept failing, so I stopped retrying. This is an operation error, not a usage quota. Your current app is still available.", None)
+            if "limit" in message:
+                return ("I couldn't finish this request within one attempt. This isn't a daily request allowance; your current app is still available.", None)
         return ("An unexpected error stopped this request. Your active app is still available. Check Studio and describe what happened before starting a new request.", None)
 
-    def request(self, text, source="website", followup_id=None, *, _library_entry=None):
+    def request(self, text, source="website", followup_id=None, *, _library_entry=None, _adapt_controls=False, _component_setup=False):
         if source == "microphone":
             self.require_permission("voice")
         if not isinstance(text, str) or not 1 <= len(text.strip()) <= 4000:
@@ -529,7 +561,7 @@ class Product(AssistantIO):
                 raise AgentError("The physical controller is not connected")
             if self.device_revision != self.revision:
                 raise AgentError("Wait for the controller and host to finish synchronizing")
-            followup = self._followup(followup_id) if _library_entry is None else None
+            followup = self._followup(followup_id) if _library_entry is None and not _adapt_controls and not _component_setup else None
             job_sequence = self.progress["job_sequence"] + 1
             if job_sequence >= 2**53:
                 raise AgentError("Request sequence limit reached")
@@ -537,7 +569,6 @@ class Product(AssistantIO):
             self.response = None
             self._stop_speech()
             self.computer_approved_action = None
-            self.computer.begin_task()
             self.agent.turn_actions = []
             self.agent.loaded_skills = []
             self.agent.cancelled.clear()
@@ -615,13 +646,15 @@ class Product(AssistantIO):
                 elif followup and followup.get("kind") == "library_purge":
                     result = self.app_library.human_reply(followup["library_confirmation"], raw_human_reply)
                 else:
-                    result = (self.agent.run(request_text, private=True) if followup and followup.get("private")
+                    result = (self.agent.run(request_text, component_setup=True) if _component_setup else
+                              self.agent.run(request_text, adapt_controls=True) if _adapt_controls else
+                              self.agent.run(request_text, private=True) if followup and followup.get("private")
                               else self.agent.run(request_text))
                 summary = result if isinstance(result, str) else "Request finished."
             except Exception as error:
                 summary, question = self._failure_guidance(error)
                 with self.lock:
-                    if (question and self.conversation and not self.agent.cancelled.is_set()
+                    if (question and not _adapt_controls and self.conversation and not self.agent.cancelled.is_set()
                             and self.conversation["recoveries"] < 1
                             and self.conversation["questions"] < _MAX_QUESTIONS):
                         self._question(question, kind="recovery")
@@ -804,6 +837,11 @@ class Product(AssistantIO):
                 self.changed.wait(min(remaining, 0.5))
             if pending["phase"] != "confirmed":
                 raise AgentError(pending.get("error", "Activation failed"))
+            # A successfully selected app takes over the physical device from
+            # speaker mode. Do this after confirmation so failed builds keep
+            # the previous experience, including its audio route.
+            if self.audio_status().get("running"):
+                self.stop_computer_audio()
             return {"activated": True, "revision": revision, "device_acknowledged": True,
                     "kind": package["kind"], "title": package["title"]}
 
@@ -840,6 +878,46 @@ class Product(AssistantIO):
             except Exception:
                 pending.update(phase="abort", error="Host could not commit activation")
         self.changed.notify_all()
+
+    def _setup_new_components(self):
+        hardware = self.hardware.inspect()
+        workflow = hardware.get("workflow") or {}
+        voice = self.telemetry.get("voice") or {}
+        eligible = (self.connected() and self.device_revision == self.revision
+                    and self.permission_allowed("hardware") and not self.running
+                    and not self.clarification and not self.voice_draft and not self.speech_pending
+                    and not self.app_library.view["open"]
+                    and voice.get("state") not in {"listening", "transcribing"}
+                    and workflow.get("phase") in {None, "complete", "completed", "cancelled", "failed"}
+                    and not (self.pending and self.pending["phase"] not in {"confirmed", "abort"}))
+        if self.component_setup.consider(hardware, self.device["devices"], eligible=eligible, now=time.monotonic()):
+            try:
+                self.request(SETUP_REQUEST, source="component_discovery", _component_setup=True)
+            except AgentError:
+                pass  # Consumed attempt is not replayed after a concurrent state change.
+
+    def _adapt_changed_controls(self):
+        from .adaptation import ADAPT_REQUEST
+        runtime = self.telemetry.get("app", {})
+        voice = self.telemetry.get("voice", {})
+        listening = type(voice) is dict and voice.get("state") in {"listening", "transcribing"}
+        workflow = self.hardware.inspect().get("workflow")
+        hardware_busy = (type(workflow) is dict and workflow.get("phase") not in
+                         {"complete", "completed", "cancelled", "failed"})
+        eligible = (self.connected() and self.device_revision == self.revision
+                    and not self.running and not self.clarification and not self.voice_draft
+                    and not self.speech_pending and not hardware_busy and not listening
+                    and not self.app_library.view["open"]
+                    and not (self.pending and self.pending["phase"] not in {"confirmed", "abort"}))
+        if self.control_adaptation.consider(
+                self.active["package"] if self.active else None, self.revision,
+                self.device["controls"], suspended=type(runtime) is dict and runtime.get("suspended") is True,
+                eligible=eligible, now=time.monotonic()):
+            try:
+                self.request(ADAPT_REQUEST, source="hardware", _adapt_controls=True)
+                self.progress["title"] = "Adapting to connected controls"
+            except AgentError:
+                pass  # A concurrent state change must not create an automatic retry.
 
     def heartbeat(self, packet):
         """Called only after device bearer authentication on the pinned TLS listener."""
@@ -929,6 +1007,8 @@ class Product(AssistantIO):
             self._acknowledge(packet.get("ack"))
             if failure is None:
                 self._restore_host_program()
+            self._setup_new_components()
+            self._adapt_changed_controls()
             if isinstance(packet.get("audio_stopped"), str):
                 self.stop_computer_audio(packet["audio_stopped"])
             self._sync_camera()
@@ -977,6 +1057,7 @@ class Product(AssistantIO):
                     "speaker_volume": self.speaker_volume.offer(session_id),
                     "camera_frame": self._camera_packet(), "computer_audio": self.audio_offer(),
                     "activation": pending, "active_revision": self.revision, "wake": self.wake and self.permission_allowed("voice"),
+                    "transcription_provider": self.transcription.provider,
                     "agent_running": self.running, "agent_state": self.agent_state(),
                     "clarification": self._clarification_state(),
                     "setup_status": self.connection_guide.brief(),
@@ -1052,12 +1133,16 @@ class Product(AssistantIO):
             token = self.bridge.pair(code, name)
             try:
                 session = self.bridge.session(token)
+                if self.mac_link:
+                    self.mac_link.authorize(session)
                 self.volume_read_at = time.monotonic()
                 volume = self.bridge.execute(token, session["next_sequence"], "volume.get")
             except BridgeError:
                 self.pairing = None
                 self.volume = None
                 self.bridge.revoke(token)
+                if self.mac_link:
+                    self.mac_link.revoke()
                 raise
             self.volume_token, self.volume = token, volume
             self.intent_memory.clear()
@@ -1068,14 +1153,16 @@ class Product(AssistantIO):
 
     def create_pairing(self):
         with self.lock:
+            if not self.bridge.backend.capabilities().get("supported"):
+                raise AgentError("Mac controls need an optional Mac companion connection. Modulate's own apps and voice work without it.")
             self.pairing = self.bridge.create_pairing()
             return copy.deepcopy(self.pairing)
 
     def local_pairing(self):
-        """Read the existing comparison code for authenticated, local Studio only.
+        """Read the comparison code for authenticated setup surfaces only.
 
         Device-initiated pairing uses the same pending request. Do not put this
-        value in state(), capabilities, agent context or the remote gateway.
+        value in state(), capabilities, agent context or public session responses.
         """
         with self.lock:
             if (not self.pairing or time.time() >= self.pairing["expires_at"]
@@ -1090,6 +1177,8 @@ class Product(AssistantIO):
             self.speaker_volume.disconnect()
             self.hardware.call("cancel")
             self.bridge.revoke_all()
+            if self.mac_link:
+                self.mac_link.revoke()
             self.volume_token = None
             self.volume = None
             self.volume_read_at = None

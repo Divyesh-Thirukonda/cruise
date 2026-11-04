@@ -24,7 +24,7 @@ import urllib.request
 SKILLS = {"computer-use", "device-apps", "games", "hardware-controls", "hardware-debugger"}
 CONTROLS = {"joystick", "encoder", "button_a", "button_b", "encoder_pressed"}
 TOOLS = {"load_skill", "read_recent_context", "inspect_capabilities", "read_runtime_api",
-         "read_current_package", "write_package", "test_package", "preview_package",
+         "read_current_package", "write_package", "edit_package", "test_package", "preview_package",
          "activate_package", "delegate_task", "ask_user", "computer_observe", "computer_act",
          "computer_audio", "camera_control", "system_control", "speaker_control", "hardware_debug"}
 OPERATIONS = {"get", "set", "delta", "mute", "start", "stop", "status",
@@ -179,7 +179,7 @@ def event_summary(events):
         operation = event.get("operation")
         if operation in OPERATIONS:
             operations[f"{tool}:{operation}"] += 1
-        if tool in {"write_package", "activate_package", "computer_act"}:
+        if tool in {"write_package", "edit_package", "activate_package", "computer_act"}:
             mutations += 1
         elif tool in {"system_control", "speaker_control", "camera_control", "computer_audio"}:
             if operation not in {"get", "status", "volume.get", "brightness.get"}:

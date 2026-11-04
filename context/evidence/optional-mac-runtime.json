@@ -1,0 +1,123 @@
+{
+  "date": "2026-10-30",
+  "implementation_commits": [
+    "c91da6198cbbaccce3d9f4cf5124b969faa09bc1",
+    "8bd37301fb1015372c74f43f12c3b7f7a392134c"
+  ],
+  "native_pairing": {
+    "user_confirmation": "Codes match; I pressed A",
+    "transport": "pinned LAN TLS; outbound Mac helper to Pi port 8790",
+    "expires_at": 1793362673.8344913,
+    "helper_restarted_with_same_session": true,
+    "runs_at_login": true
+  },
+  "brightness": {
+    "input_mode": "typed",
+    "ai_host": "pi",
+    "request_id": "1c89e3cccca04ef2a4d699ad05156984",
+    "seconds_from_submission": 10.817281188999914,
+    "timing_note": "one-second completion polling; excludes voice capture and transcription",
+    "model_calls": 6,
+    "tools": [
+      {
+        "at": "2026-10-30T04:18:43.993111+00:00",
+        "tool": "system_control",
+        "operation": "brightness.get",
+        "status": "passed",
+        "seconds": 0.346,
+        "detail": {
+          "brightness": 47,
+          "sequence": 2
+        }
+      },
+      {
+        "at": "2026-10-30T04:18:46.643620+00:00",
+        "tool": "system_control",
+        "operation": "brightness.delta",
+        "status": "passed",
+        "seconds": 1.397,
+        "detail": {
+          "brightness": 48,
+          "sequence": 4,
+          "before": {
+            "brightness": 47,
+            "sequence": 3
+          },
+          "after": {
+            "brightness": 48,
+            "sequence": 4
+          }
+        }
+      },
+      {
+        "at": "2026-10-30T04:18:48.752462+00:00",
+        "tool": "system_control",
+        "operation": "brightness.set",
+        "status": "passed",
+        "seconds": 1.033,
+        "detail": {
+          "brightness": 47,
+          "sequence": 6,
+          "before": {
+            "brightness": 48,
+            "sequence": 5
+          },
+          "after": {
+            "brightness": 47,
+            "sequence": 6
+          }
+        }
+      },
+      {
+        "at": "2026-10-30T04:18:49.820183+00:00",
+        "tool": "system_control",
+        "operation": "brightness.get",
+        "status": "passed",
+        "seconds": 0.237,
+        "detail": {
+          "brightness": 47,
+          "sequence": 7
+        }
+      }
+    ],
+    "independent_native_final_brightness": 47,
+    "app_unchanged": true,
+    "retained_app": "Orbit Catch",
+    "retained_revision": "491f6971e962eff1495c40374430d8d27004fdba49742c49e31787cfb10046b8"
+  },
+  "tunnel_reconnect": {
+    "hostname_changed": true,
+    "registered_without_redeploy_or_environment_update": true,
+    "seconds_from_new_hostname_to_registration": 121.738,
+    "public_api_online_confirmed_seconds_after_new_hostname": 141,
+    "deployment": "dpl_FAJvYNhmTgjZ5RXkKwuTCCHVqotc",
+    "native_session_retained": true,
+    "model_calls_after": 601
+  },
+  "validation": {
+    "host_suite": {
+      "passed": 1061,
+      "skipped": 13
+    },
+    "focused_final_host_tests": 44,
+    "pi_focused_tests": 22,
+    "website_api_tests": 41,
+    "website_ui_tests": 29,
+    "production_build": "passed",
+    "production_deployment": "READY"
+  },
+  "current_ledger": {
+    "limit_dollars": 50.0,
+    "charged_or_reserved_dollars": 11.444617,
+    "calls": 601,
+    "halted": false
+  },
+  "limitations": [
+    "Physical knob-to-brightness mapping was not activated or physically tested; Orbit Catch was retained.",
+    "Background Mac helper currently lacks Screen Recording and Accessibility permission; desktop actions remain blocked until native grants.",
+    "Camera and system-audio adapters over the new network link were not live-validated.",
+    "Quick Tunnel endpoint identity checks initially failed with fetch TypeError; retries recovered. Cause was not conclusively diagnosed.",
+    "Prototype Wi-Fi is already provisioned; fresh unboxing network provisioning is not implemented.",
+    "Only this configured demo Pi uses the discovery record; this is not multi-customer discovery."
+  ]
+}

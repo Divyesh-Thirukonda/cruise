@@ -1,0 +1,10 @@
+{
+  "name": "modulate-discovery",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "durable_objects": {"bindings": [{"name": "DEVICE_REGISTRY", "class_name": "Registry"}, {"name": "DEMO_BUDGET", "class_name": "DemoBudget"}]},
+  "migrations": [{"tag": "v1", "new_sqlite_classes": ["Registry"]}, {"tag": "v2", "new_sqlite_classes": ["DemoBudget"]}],
+  "observability": {"enabled": false}
+}

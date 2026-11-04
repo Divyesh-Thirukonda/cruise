@@ -30,7 +30,7 @@ const PERMISSIONS = [
   { key: 'camera', icon: Camera, title: 'Mac camera', detail: 'Show your Mac’s live camera on Modulate’s screen, with generated effects.', tag: 'Camera permission' },
   { key: 'remote_preview', icon: Monitor, title: 'Camera preview in browsers', detail: 'Share the live camera preview with connected browsers through the encrypted cloud connection. Off keeps camera frames on the Mac and Pi.', tag: 'Optional sharing' },
   { key: 'audio', icon: AudioLines, title: 'Computer audio', detail: 'Play the paired Mac’s system audio through the speaker connected to Modulate.', tag: 'System audio recording' },
-  { key: 'speaker', icon: Volume2, title: 'Spoken replies', detail: 'Read replies and errors aloud through the device speaker. Reply text is sent to ElevenLabs.', tag: 'Device speaker' },
+  { key: 'speaker', icon: Volume2, title: 'Spoken replies', detail: 'Read replies and errors aloud through the device speaker.', tag: 'Device speaker' },
   { key: 'voice', icon: Mic, title: 'Device microphone', detail: 'Use the microphone on Modulate for spoken requests and “Hey Meta” wake listening.', tag: 'Device microphone' },
   { key: 'hardware', icon: Cpu, title: 'Hardware setup', detail: 'Inspect modules and guide supported repairs. Physical steps still need your confirmation.', tag: 'Connected modules' },
 ];
@@ -39,6 +39,7 @@ const dateMs = value => typeof value === 'number' ? (value < 1e12 ? value * 1000
 const human = value => String(value || '').replace(/_/g, ' ').replace(/^./, value => value.toUpperCase());
 const pretty = value => typeof value === 'string' ? value : JSON.stringify(value, null, 2);
 const clock = value => { const date = new Date(dateMs(value)); return Number.isFinite(date.getTime()) ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''; };
+const connectionExpiry = value => new Date(dateMs(value)).toLocaleString([], {timeZone:'America/New_York',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
 
 export default function Connect() {
   const router = useRouter();
@@ -63,18 +64,24 @@ export default function Connect() {
   const [inspectView, setInspectView] = useState('code');
   const [previewError, setPreviewError] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [museLink, setMuseLink] = useState(null);
   const [dismissedResponse, setDismissedResponse] = useState(null);
   const mounted = useRef(true);
   const refreshTask = useRef(null);
   const refreshGeneration = useRef(0);
   const mutationRunning = useRef(false);
   const requestRef = useRef(null);
+  const mainShellRef = useRef(null);
   const pairingRef = useRef(null);
   const draftIdRef = useRef(null);
   const authenticated = session?.connected === true;
   const deviceConnected = online && state?.device?.connected === true;
   const agentRunning = state?.agent?.running === true;
   const permissions = session?.permissions || state?.permissions || {};
+  const permissionChoices = PERMISSIONS.map(choice => choice.key === 'speaker' ? { ...choice, detail: choice.detail + (state?.speech?.provider === 'meta_mms' ? ' Meta MMS generates speech locally on your Pi.' : state?.speech?.provider === 'elevenlabs' ? ' Reply text is sent to ElevenLabs.' : '') } : choice);
+  useEffect(() => {
+    if (!authenticated || museLink?.expires_at * 1000 <= now) setMuseLink(null);
+  }, [authenticated, permissions.speaker, museLink?.expires_at, now]);
   const voiceDraftId = state?.voice_draft?.job_id || null;
   const voiceDraftText = state?.voice_draft?.text || '';
   const voiceDraftEditing = state?.voice_draft?.editing === true;
@@ -153,7 +160,7 @@ export default function Connect() {
     if (!voiceDraftEditing || voiceDraftId !== draftIdRef.current) setDraftText(voiceDraftText);
     draftIdRef.current = voiceDraftId;
   }, [voiceDraftId, voiceDraftText, voiceDraftEditing]);
-  useEffect(() => { setPreviewError(false); }, [state?.active?.revision, state?.preview_version, permissions.remote_preview]);
+  useEffect(() => { setPreviewError(false); }, [state?.active?.revision, state?.preview_version, permissions.remote_preview, deviceConnected]);
   useEffect(() => { if (state?.paired && pairing) setPairing(null); }, [state?.paired, pairing]);
   useEffect(() => {
     if (!pairing) return;
@@ -183,7 +190,7 @@ export default function Connect() {
       if (!mounted.current) return null;
       if (key === 'disconnect') {
         setSession(null); setState(null); setOnline(false);
-        setRequest(''); setDraftText(''); setPairing(null); setDismissedResponse(null);
+        setRequest(''); setDraftText(''); setPairing(null); setMuseLink(null); setDismissedResponse(null);
       }
       if (success) setNotice({ text: success, type: 'success' });
       return result;
@@ -201,6 +208,9 @@ export default function Connect() {
   };
   const act = (key, path, payload, success) => run(key, () => command(path, payload), success);
   const navigate = next => { setView(next); setMenuOpen(false); router.push(ROUTES[next]); };
+  useEffect(() => {
+    if (mainShellRef.current) mainShellRef.current.scrollTop = 0;
+  }, [view]);
   useEffect(() => {
     if (loading || busy === 'connect') return;
     if (authenticated && view === 'connect') { setView('studio'); router.replace(ROUTES.studio); }
@@ -230,7 +240,7 @@ export default function Connect() {
   const packageData = active?.package;
   const controls = Array.isArray(state?.device?.capabilities?.controls) ? state.device.capabilities.controls : [];
   const connectionStatus = loading ? 'Connecting' : !authenticated ? 'Not connected' : !online ? 'Companion offline' : !deviceConnected ? 'Device offline' : 'Connected';
-  const connectionHint = loading ? 'Checking your connection…' : !authenticated ? 'Enter a code to link this browser.' : !online ? 'Ask your setup agent to reconnect your Mac.' : !deviceConnected ? 'Companion is online. Check your Pi.' : `${controls.length} ${controls.length === 1 ? 'control' : 'controls'} ready to use.`;
+  const connectionHint = loading ? 'Checking your connection…' : !authenticated ? 'Enter a code to link this browser.' : !online ? 'Check your device’s Wi-Fi and power.' : !deviceConnected ? 'AI service is online. Reconnecting to the controls.' : `${controls.length} ${controls.length === 1 ? 'control' : 'controls'} ready to use.`;
   const response = state?.response;
   const responseVisible = response?.text && response.id !== dismissedResponse && dateMs(response.expires_at) > now;
   const draft = state?.voice_draft;
@@ -238,6 +248,21 @@ export default function Connect() {
   const computer = state?.computer;
   const approval = computer?.pending_approval;
   const speaker = state?.device?.telemetry?.speaker;
+  const speakerVolume = state?.device?.telemetry?.speaker_volume;
+  const demoWarnings = [];
+  if (deviceConnected && permissions.speaker !== false && speakerVolume?.available &&
+      (speakerVolume.muted || speakerVolume.volume === 0)) {
+    demoWarnings.push(speakerVolume.muted ? 'The Pi speaker is muted. Spoken replies will be silent.' :
+      'The Pi speaker is at 0%. Spoken replies will be silent.');
+  }
+  const macExpires = dateMs(state?.setup_status?.pairing_expires_at);
+  if (state?.paired && Number.isFinite(macExpires) && macExpires - now < 30 * 60 * 1000) {
+    demoWarnings.push(`Mac access expires ${macExpires > now ? `at ${clock(macExpires)}` : 'now'}. Pair again before a computer-control demo; confirmation on the device is required.`);
+  }
+  const browserExpires = dateMs(session?.expires_at);
+  if (authenticated && Number.isFinite(browserExpires) && browserExpires - now < 30 * 60 * 1000) {
+    demoWarnings.push('This browser connection expires soon. Reconnect before the demo.');
+  }
   const hardware = state?.hardware;
   const workflow = hardware?.workflow;
   const repairActive = workflow && !['complete', 'completed', 'cancelled'].includes(workflow.phase);
@@ -274,6 +299,7 @@ export default function Connect() {
   const renderHardware = () => <Card className="mc-hardware-card">
     <div className="mc-card-heading"><h2>Connected modules</h2><Cpu size={18} /></div>
     {controls.length ? <div className="mc-controls">{controls.map(control => <div key={control} className={`mc-control ${state?.device?.input?.[control] === true ? 'mc-control-active' : ''}`}><span className="mc-dot" /><span>{CONTROL_NAMES[control] || human(control)}</span><small>{control === 'joystick' && Number.isFinite(state.device.input?.joystick_x) ? `${state.device.input.joystick_x.toFixed(1)} / ${state.device.input.joystick_y?.toFixed(1) ?? '—'}` : control === 'encoder' && Number.isFinite(state.device.input?.encoder_delta) ? `Δ ${state.device.input.encoder_delta}` : state.device.input?.[control] === true ? 'Pressed' : 'Ready'}</small></div>)}</div> : <p className="mc-muted mc-small">Verified modules appear when the device connects.</p>}
+    {Array.isArray(state?.device?.capabilities?.components) && state.device.capabilities.components.length > 0 && <div className="mc-permission-status" aria-label="Detected components"><h3>Detected components</h3>{state.device.capabilities.components.map(component => <div key={component.id}><span>{component.model || human(component.id)}{component.addresses?.length ? ` · ${component.addresses.join(' / ')}` : ''}</span><Badge live={component.ready === true}>{human(component.status)}</Badge></div>)}</div>}
     {state?.device?.capabilities?.warnings?.length > 0 && <details className="mc-detail"><summary>Device notes ({state.device.capabilities.warnings.length})</summary>{state.device.capabilities.warnings.map((warning, i) => <p key={i}>{warning}</p>)}</details>}
     {hardware?.report && <p className="mc-small mc-muted mc-bus-scan">{hardware.report.bus_available ? `Last scan: ${(hardware.report.addresses || []).map(address => `0x${address.toString(16).padStart(2, '0')}`).join(' · ') || 'No response'}` : 'The last scan could not read the bus.'}</p>}
     <Button quiet icon={RefreshCw} disabled={genericDisabled || agentRunning || !deviceConnected} onClick={() => act('hardware', '/api/request', { text: 'Check my connected hardware and explain any problems. Do not change addresses.' })}>Check hardware</Button>
@@ -282,9 +308,10 @@ export default function Connect() {
 
   const urgentControls = authenticated && (agentRunning || approval || draft || state?.clarification || computer?.active || cameraRunning || audioRunning) ? <div className="mf-urgent" role="status"><strong>{approval ? 'An action needs your approval' : draft ? 'Review your spoken request' : state?.clarification ? 'Modulate has a question' : agentRunning ? state?.agent?.title || 'Working on your request' : 'Your device is using a live connection'}</strong><div><Button quiet onClick={() => navigate('studio')}>Return to Studio</Button>{(agentRunning || draft || state?.clarification) && <Button danger disabled={genericDisabled} onClick={() => act('cancel', '/api/cancel', {})}>Cancel request</Button>}{computer?.active && <Button danger disabled={genericDisabled} onClick={() => act('computer', '/api/computer', { action: 'revoke' })}>Pause access</Button>}{cameraRunning && <Button quiet disabled={genericDisabled} onClick={() => act('camera', '/api/camera/stop', {})}>Stop camera</Button>}{audioRunning && <Button quiet disabled={genericDisabled} onClick={() => act('audio', '/api/audio/stop', {})}>Stop computer audio</Button>}</div></div> : null;
   const entryProps = { loading, busy, notice, connectionUnavailable, urgentControls, onDismissNotice: () => setNotice(null), navigate };
-  if (view === 'setup') return <SetupScreen {...entryProps} connected={authenticated} />;
-  if (!authenticated || view === 'connect') return <ConnectionLanding {...entryProps} code={code} setCode={setCode} onConnect={pairBrowser} />;
-  if (view === 'access') return <AccessStep {...entryProps} permissions={permissions} choices={PERMISSIONS} online={online} onSave={async choices => {
+  const standalone = session?.companion?.platform !== 'darwin';
+  if (view === 'setup') return <SetupScreen {...entryProps} standalone={standalone} connected={authenticated} macPairing={online ? state?.mac_pairing : null} setupStatus={online ? state?.setup_status : null} />;
+  if (!authenticated || view === 'connect') return <ConnectionLanding {...entryProps} standalone={standalone} code={code} setCode={setCode} onConnect={pairBrowser} />;
+  if (view === 'access') return <AccessStep {...entryProps} permissions={permissions} choices={permissionChoices} online={online} onSave={async choices => {
     const result = await run('access', () => connectApi('permissions', { permissions: choices }));
     if (result) navigate('studio');
   }} />;
@@ -307,9 +334,10 @@ export default function Connect() {
       </div>
     </aside>
 
-    <div className="mc-main-shell">
+    <div className="mc-main-shell" ref={mainShellRef}>
       <main className="mc-main" id="mc-main">
         <div className="mc-page-heading"><div className="mc-page-title"><button className="mc-menu-button" type="button" aria-label="Open navigation" aria-expanded={menuOpen} aria-controls="mc-navigation" onClick={() => setMenuOpen(true)}><Menu size={22} /></button><div><h1>{pageTitles[view][0]}</h1><p>{pageTitles[view][1]}</p></div></div>{authenticated && <Button icon={RefreshCw} quiet disabled={Boolean(busy)} onClick={refresh}>Refresh</Button>}</div>
+        {demoWarnings.length > 0 && <div className="mc-notice mc-notice-warning" role="status"><Bell size={18} /><span>{demoWarnings.join(' ')}</span></div>}
         {notice && <div className={`mc-notice mc-notice-${notice.type}`} role="status">{notice.type === 'success' ? <CheckCircle2 size={18} /> : <Bell size={18} />}<span>{notice.text}</span><button aria-label="Dismiss notification" onClick={() => setNotice(null)}><X size={16} /></button></div>}
         {authenticated && !online && <ConnectionUnavailable onSetup={() => navigate('setup')} />}
         {computer?.active && <div className="mc-live-control" role="status"><span className="mc-pulse-dot" /><strong>Modulate is using your Mac</strong><span>{computer.scope || 'Paired Mac desktop'}</span><Button danger icon={Square} onClick={() => act('computer', '/api/computer', { action: 'revoke' })} disabled={genericDisabled}>Pause access</Button></div>}
@@ -332,14 +360,15 @@ export default function Connect() {
 
         {view === 'device' && <>
           {renderHardware()}
-          <div className="mc-services-grid"><Card><div className="mc-card-heading"><h2>Your Mac</h2><Monitor size={20} /></div><Badge live={state?.paired}>{state?.paired ? 'Paired' : 'Not paired'}</Badge><p className="mc-service-description">{state?.paired ? 'Native controls run through your Mac companion.' : 'Link the device to this companion to enable Mac controls.'}</p>{Number.isFinite(state?.volume?.volume) && <div className="mc-volume-readout"><span>System volume</span><strong>{state.volume.muted ? 'Muted' : `${state.volume.volume}%`}</strong><div><i style={{ width: `${Math.max(0, Math.min(100, state.volume.volume))}%` }} /></div></div>}<div className="mc-inline-actions">{state?.paired ? <Button danger quiet disabled={genericDisabled} onClick={() => act('revoke', '/api/revoke', {})}>Revoke Mac pairing</Button> : <Button icon={Link2} disabled={genericDisabled} onClick={createDevicePairing}>Pair the device</Button>}<Button quiet onClick={() => navigate('permissions')}>Permissions<ArrowRight size={14} /></Button></div></Card>
-          <Card><div className="mc-card-heading"><h2>Voice & speaker</h2><AudioLines size={20} /></div><div className="mc-setting-row"><div><strong>Wake listening</strong><span>{state?.device?.telemetry?.voice?.message || human(state?.device?.telemetry?.voice?.state) || 'Awaiting microphone'}</span></div><Toggle label="Wake listening" checked={state?.wake} disabled={genericDisabled || !deviceConnected} onChange={enabled => act('wake', '/api/wake', { enabled })} /></div><p className="mc-service-description">{state?.speech?.provider === 'elevenlabs' ? 'ElevenLabs' : state?.speech?.provider || 'Voice'} · {human(speaker?.state) || 'Awaiting speaker'}{state?.speech?.error || speaker?.error ? ` · ${state?.speech?.error || speaker?.error}` : ''}</p><div className="mc-inline-actions"><Button icon={Volume2} disabled={genericDisabled || !speaker?.available} onClick={() => act('speaker', '/api/speaker', { action: 'test' })}>Test speaker</Button><Button quiet danger disabled={genericDisabled || !speaker} onClick={() => act('speaker', '/api/speaker', { action: 'stop' })}>Stop audio</Button></div></Card>
+          <div className="mc-services-grid"><Card><div className="mc-card-heading"><h2>Your Mac</h2><Monitor size={20} /></div><Badge live={state?.paired}>{state?.paired ? 'Paired' : 'Not paired'}</Badge><p className="mc-service-description">{state?.paired ? 'Native controls run through your Mac companion.' : 'Modulate works on its own. Connect this Mac only for native computer controls.'}</p>{Number.isFinite(state?.volume?.volume) && <div className="mc-volume-readout"><span>System volume</span><strong>{state.volume.muted ? 'Muted' : `${state.volume.volume}%`}</strong><div><i style={{ width: `${Math.max(0, Math.min(100, state.volume.volume))}%` }} /></div></div>}<div className="mc-inline-actions">{state?.paired ? <Button danger quiet disabled={genericDisabled} onClick={() => act('revoke', '/api/revoke', {})}>Revoke Mac pairing</Button> : <Button icon={Link2} disabled={genericDisabled} onClick={() => standalone ? navigate('setup') : createDevicePairing()}>Connect this Mac</Button>}<Button quiet onClick={() => navigate('permissions')}>Permissions<ArrowRight size={14} /></Button></div></Card>
+          <Card><div className="mc-card-heading"><h2>Voice & speaker</h2><AudioLines size={20} /></div><div className="mc-setting-row"><div><strong>Wake listening</strong><span>{state?.device?.telemetry?.voice?.message || human(state?.device?.telemetry?.voice?.state) || 'Awaiting microphone'}</span></div><Toggle label="Wake listening" checked={state?.wake} disabled={genericDisabled || !deviceConnected} onChange={enabled => act('wake', '/api/wake', { enabled })} /></div><p className="mc-service-description">{state?.speech?.provider === 'meta_mms' ? 'Meta MMS · on device' : state?.speech?.provider === 'elevenlabs' ? 'ElevenLabs' : state?.speech?.provider || 'Voice'} · {human(speaker?.state) || 'Awaiting speaker'}{state?.speech?.error || speaker?.error ? ` · ${state?.speech?.error || speaker?.error}` : ''}</p><div className="mc-inline-actions"><Button icon={Volume2} disabled={genericDisabled || !speaker?.available} onClick={() => act('speaker', '/api/speaker', { action: 'test' })}>Test speaker</Button><Button quiet danger disabled={genericDisabled || !speaker} onClick={() => act('speaker', '/api/speaker', { action: 'stop' })}>Stop audio</Button></div></Card>
+          <Card className="mc-muse-card"><div className="mc-card-heading"><h2>Muse connector</h2><Link2 size={20} /></div><p>Ask Muse to create games, refine apps, adapt connected controls or perform supported tasks through Modulate’s agent. Set up once for seven days. Muse stays linked when this browser expires or the Pi restarts. Access follows the device’s existing permissions.</p><div className="mc-inline-actions"><Button icon={Link2} disabled={genericDisabled} onClick={async () => { const result = await run('muse-link', () => connectApi('muse-link', {})); if (result) setMuseLink(result); }}>Connect Muse</Button><a href="/api/modulate-agent?action=schema" target="_blank" rel="noreferrer">API documentation<ArrowUpRight size={14} /></a></div>{museLink && <div className="mc-muse-grant"><p>Modulate requests · expires {connectionExpiry(museLink.expires_at)}. Add the API documentation URL to a Muse custom connector. Put this token in Muse’s secure credential field, never in chat. Muse can submit requests and read their results, which may include private information you ask for.</p><label htmlFor="mc-muse-token">Modulate connector token</label><input id="mc-muse-token" type="password" readOnly value={museLink.token} autoComplete="off" spellCheck={false} /><div className="mc-inline-actions"><Button quiet icon={Copy} onClick={async () => { try { await navigator.clipboard.writeText(museLink.token); setNotice({ type: 'success', text: 'Modulate token copied. Paste it only in Muse’s secure credential field.' }); } catch (_) { setNotice({ type: 'error', text: 'Clipboard unavailable. Select the token to copy it.' }); } }}>Copy Modulate token</Button><Button quiet onClick={() => setMuseLink(null)}>Hide token</Button></div><p>Use Revoke Muse access below to disconnect it. Existing device permissions, spending limits, Mac pairing and action approvals still apply. This connector cannot change permissions or pairing.</p></div>}{session?.connectors?.length > 0 && <div className="mc-muse-connections" aria-label="Muse access">{session.connectors.map(link => <div className="mc-connection-row" key={link.id}><Link2 size={18} /><div><strong>{link.name} authorization</strong><span>Expires {connectionExpiry(link.expires_at)}</span></div><Button quiet danger disabled={genericDisabled} onClick={async () => { if (await run('muse-disconnect', () => connectApi('muse-disconnect', {id:link.id}), 'Muse access revoked.')) { if (museLink?.id === link.id) setMuseLink(null); } }}>Revoke Muse access</Button></div>)}</div>}</Card>
           <Card><div className="mc-card-heading"><h2>Live connections</h2><Radio size={20} /></div><div className="mc-connection-row"><Camera size={18} /><div><strong>Mac camera</strong><span>{state?.camera?.error || (cameraRunning ? 'Live · Mac → Pi' : 'Starts when requested')}</span></div>{cameraRunning && <Button quiet danger onClick={() => act('camera', '/api/camera/stop', {})} disabled={genericDisabled}>Stop</Button>}</div><div className="mc-connection-row"><Volume2 size={18} /><div><strong>Computer audio</strong><span>{state?.computer_audio?.error || (audioRunning ? 'Streaming to Pi speaker' : 'Starts when requested')}</span></div>{audioRunning && <Button quiet danger onClick={() => act('audio', '/api/audio/stop', {})} disabled={genericDisabled}>Stop</Button>}</div><div className="mc-connection-row"><MousePointer2 size={18} /><div><strong>Computer use</strong><span>{computer?.error || (computer?.enabled ? 'Access follows Mac pairing' : computer?.paused ? 'Access paused' : 'Waiting for permissions')}</span></div>{computer?.enabled ? <Button quiet danger disabled={genericDisabled} onClick={() => act('computer', '/api/computer', { action: 'revoke' })}>Pause</Button> : computer?.paused ? <Button quiet disabled={genericDisabled || !computer?.supported} onClick={() => act('computer', '/api/computer', { action: 'enable' })}>Resume</Button> : null}</div></Card></div>
         </>}
 
         {view === 'permissions' && <div className="mc-access-page">
           <p className="mc-access-intro">Choose what Modulate can use. Changes apply across voice and all connected browsers.</p>
-          <Card className="mf-access-card">{PERMISSIONS.map(({ key, icon: Icon, title, detail }) => <div className="mf-access-row" key={key}><Icon size={20} /><div><strong>{title}</strong><p>{detail}</p></div><Toggle label={`Allow ${title.toLowerCase()}`} checked={permissions[key] === true} disabled={genericDisabled} onChange={enabled => togglePermission(key, enabled)} /></div>)}</Card>
+          <Card className="mf-access-card">{permissionChoices.map(({ key, icon: Icon, title, detail }) => <div className="mf-access-row" key={key}><Icon size={20} /><div><strong>{title}</strong><p>{detail}</p></div><Toggle label={`Allow ${title.toLowerCase()}`} checked={permissions[key] === true} disabled={genericDisabled} onChange={enabled => togglePermission(key, enabled)} /></div>)}</Card>
           <details className="mc-permission-advanced"><summary>Mac permissions & privacy</summary><div className="mc-permission-details"><Card><div className="mc-card-heading"><h2>Mac system permissions</h2><Monitor size={20} /></div><p className="mc-service-description">Open System Settings → Privacy & Security on the paired Mac. Allow the Modulate companion where prompted.</p><div className="mc-permission-status"><div><span>Screen Recording</span><Badge live={computer?.permissions?.screen_recording === true}>{computer?.permissions?.screen_recording === true ? 'Granted' : computer?.permissions?.screen_recording === false ? 'Required' : 'Not checked'}</Badge></div><div><span>Accessibility</span><Badge live={computer?.permissions?.accessibility === true}>{computer?.permissions?.accessibility === true ? 'Granted' : computer?.permissions?.accessibility === false ? 'Required' : 'Not checked'}</Badge></div><div><span>Camera / audio recording</span><span className="mc-muted mc-small">macOS prompts when needed</span></div></div>{computer?.error && <p className="mc-inline-error">{computer.error}</p>}</Card><Card><div className="mc-card-heading"><h2>Your recent context</h2><Sparkles size={20} /></div><p className="mc-service-description">Modulate uses recent requests to understand refinements like “make it louder.” Computer-task details are kept separately and briefly.</p><div className="mc-memory-stat"><strong>{state?.memory?.turns ?? '—'}</strong><span>recent requests{state?.memory?.hours ? ` · up to ${state.memory.hours} hours` : ''}</span></div><Button quiet icon={RotateCcw} disabled={genericDisabled || agentRunning || !state?.memory?.turns} onClick={() => act('memory', '/api/context/clear', {})}>Forget recent context</Button></Card></div>
 </details>
           <p className="mc-access-intro">Your Mac still asks for native permissions when needed. Provider keys stay on the server; this browser never receives them.</p>

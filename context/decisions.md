@@ -279,3 +279,261 @@ setup voice command) or a later boot; an
 ordinary wake/request is not setup intent. Return to the current local app or
 neutral idle state. Distinguish optional native Mac control from the prototype's
 current companion-hosted AI; do not imply that hiding setup adds standalone AI.
+
+
+## 2026-10-29 — Pi owns normal AI operation
+
+The user asked to remove the running-Mac dependency and use the Pi's Wi-Fi plus
+the existing Vercel deployment. Run the trusted agent/library/speech coordinator
+on the Pi with loopback pinned TLS to the device runtime; keep Meta/ElevenLabs
+API keys in the existing Vercel gateway. Browser linking is optional. Move both
+cumulative ledgers intact, freeze the stopped Mac's old copies, and refuse
+missing/malformed/migrated accounting on standalone startup. Preserve the $50
+total model ceiling and unknown holds. The user explicitly approved a 10,000
+cumulative speech-character ceiling; the separate provider cap is unchanged.
+
+The current installation supports local apps, replies and speaker control without
+Mac pairing. A separate native Mac bridge is not yet connected. The dashboard
+still uses a development Quick Tunnel with a hostname that changes on restart;
+direct Pi AI is independent of it. Do not claim either limitation is solved.
+[Deployment, trials and safeguards](standalone.md).
+
+
+## 2026-10-30 — Increase cumulative speech allowance to one million
+
+The user explicitly requested 1,000,000 speech characters. Applied
+`MODULATE_TTS_CHARACTER_LIMIT=1000000` to the Pi's private service configuration,
+retaining the existing 5,011 reserved characters and all five uncertain requests.
+This is a persistent installation-wide allowance across replies/restarts, not a
+per-request or API-key quota. Provider key/account limits and the $50 model
+ceiling were not changed. Repeated-operation failure feedback now distinguishes
+an unsuccessful attempt from a usage quota; bounded repair loops remain intact.
+
+
+## 2026-10-30 — Pi-owned AI with optional native Mac access
+
+The Pi remains sole AI/speech accounting owner. Native computer controls use an
+optional Mac helper with no model credentials or ledgers. The helper connects
+outbound over pinned local TLS; a fresh physical comparison-code confirmation
+creates the revocable eight-hour grant. Temporary reconnects preserve its original
+expiry. Commands consume persisted sequences before execution and uncertain
+outcomes are not replayed. Browser linking remains separate and optional.
+
+Use the existing scoped gateway secret for signed tunnel registration and endpoint
+identity proof, storing only one origin/timestamp in private Vercel Blob. Never put
+Vercel admin access on the device. A changing development tunnel may cause a brief
+website outage (121.738 seconds to registration in the recorded trial); device AI
+and native LAN controls do not depend on it. This registry serves one demo Pi.
+
+Code comparison and pairing do not replace native OS permissions. Brightness was
+verified through the Pi agent; the background helper still needs Screen Recording
+and Accessibility for desktop actions. Camera/audio and physical knob brightness
+across this link are not yet live-validated. See [scope and evidence](optional-mac.md).
+
+
+## 2026-10-30 — Local MMS and website-managed native Mac access
+
+Use the pinned official Meta MMS English VITS checkpoint on the Pi as the active
+speech provider, following the user's explicit choice. Keep the ElevenLabs ledger
+unchanged for rollback; MMS makes no paid TTS requests or cumulative reservations.
+Keep bounded per-reply resources, cancellation and the separate $50 Meta ceiling.
+The offline speech subprocess receives no provider credentials. The checkpoint's
+CC-BY-NC-4.0 license is recorded in [the operating note](meta-mms.md).
+
+Use Modulate.app as the stable responsible macOS app for the native helper and
+permission prompts. The user enabled Screen Recording, Accessibility and Camera.
+Use the authenticated Vercel setup page for native comparison/status; expose the
+comparison code only to the linked browser, and retain physical small-A approval,
+revocation and the original eight-hour expiry. The localhost page is diagnostic.
+The user does not need a Mac for Pi generation or speech. Native Mac actions need
+the paired helper running with OS grants. Camera frames remain outside model input.
+
+The earlier unverified camera/audio note above is superseded by fresh capture and
+stop telemetry in [the new evidence](evidence/mms-native-runtime.json). That trial
+does not establish physical camera-display/audio-playback quality or broad desktop
+reliability. No physical brightness-knob trial was performed in this session.
+
+## October 30 — capabilities determine app controls
+
+The user's product intent is standalone operation that adapts to connected hardware. A package's controls are its dependencies, not a fixed product inventory. Preserve a disconnected app while permitting an independently checked replacement. A suspended local game may trigger one debounced Meta adaptation per revision/control set, persisted before dispatch, with no privileged tools and existing ledger limits. A user request can always explicitly refine the interaction.
+
+Trusted drivers identify supported modules and expose bounded signals/units; Meta chooses the game's mapping from current capabilities and intent. No fixed joystick/encoder/IMU preference order. New module discovery makes capabilities available without silently redesigning a healthy app. LSM6DS3TR-C now exposes acceleration, angular velocity and gravity tilt; live samples remain outside manifest hashes. Unidentified hardware still needs a trusted driver/contract, and no absolute position/heading is implied. [Implementation and physical evidence](adaptive-controls.md).
+
+## October 30 — supported driver installation belongs to the Pi agent
+
+The user authorized closing the missing-driver setup gap. Expose a fixed installer through hardware-debugger, separate from generated apps and computer-shell tools. Begin with the owned LSM6DS3TR-C: independently read chip identity, install hash-pinned official Adafruit wheels into a private pack, require real samples before commit and verify the pack on startup. Preserve base dependencies, existing app revisions, cancellation and the $50 ledger. An ordinary requested setup/repair needs no extra installation question for a verified catalog entry.
+
+Meta chooses whether installation serves the request and chooses app mappings afterward. Unknown modules still need identification, a reviewed driver pack and an input contract; do not describe this as arbitrary driver synthesis. Automatic app adaptation retains only local app tools. Button-address repair still requires its physical isolation/power-cycle confirmations. The user is currently away from the device: complete remote verification while recording physical checks as unperformed. [Verified scope and live trial](driver-setup.md).
+
+## October 30 — layout cleanup and preserving an existing Mac session
+
+The UI review keeps the existing information architecture and product behavior. Setup cards have explicit spacing, quiet actions retain padding without acquiring a hover border, Device action rows align at the bottom, and the Studio preview must shrink within its card. Route changes reset the workspace scroll container.
+
+A network-address change can reconnect the installed Mac helper within an existing valid grant after independently matching the Pi certificate to its saved pin. Change the address only; preserve token, sequence, OS permissions, expiry and revocation. This session's reconnection used that path. It did not implement automatic Mac address discovery or remove the physical check for a fresh/expired pairing.
+
+
+## 2026-10-30 — Bound demo recovery and replace quota-exhausted discovery
+
+- Use a shared 32-call agent budget with parent completion reserve, partial specialist handoffs and at most two cancellable transient inference retries. The million-character historical speech allowance is unrelated to agent turns. Do not remove spending or effect-replay protections.
+- Replace the single-address Vercel Blob discovery record with Cloudflare Workers Free plus a SQLite Durable Object. Store only hostname/timestamp; derive a registry-only HMAC credential from the existing gateway secret. Preserve independent Pi identity proofs and expiring sessions. Deployment is pending explicit Wrangler authorization; do not label the migration live until verified.
+- During the Blob quota outage, use the already-supported direct, identity-verified tunnel configuration as a temporary website recovery. Re-enable dynamic discovery after Cloudflare registration and session continuity are tested. No paid plan, new model provider or device-agent relocation is needed.
+
+
+## 2026-10-30 — Reuse real creations for repeated requests
+
+- Meta decides semantic reuse from bounded saved-app metadata before generation; a saved launch retains trusted verification, capability checks and activation acknowledgement. Explicit new versions generate; edits refine. Report reuse honestly rather than fresh generation.
+- Present the latest saved revision per title by default while retaining all source, favorites, Trash and rollback history. Expose older versions explicitly on the website; do not destructively merge same-title packages.
+- Optimize computer-task round trips generically, retaining fresh observations and current access. Do not cache private answers or hardcode the demo script. The under-15-second target applies to measured runs, not a blanket performance claim.
+
+
+### Cloudflare activation
+
+- Wrangler authorization and live rotation succeeded. Dynamic Cloudflare discovery is active; the temporary direct-address mode is no longer used. Remove the legacy Blob dependency/fallback to prevent accidental future quota use. Temporary tunnel changes still take roughly a minute to recover in this trial.
+
+
+### Uncertain command outcomes
+
+- A network or gateway error after command submission cannot prove the command failed. Tell users to inspect current activity/state before resending; preserve the no-replay rule. Allow failed previews to retry on a restored device connection even when the app revision is unchanged.
+
+
+### Fast paths for demo requests
+
+- Let Meta choose semantically suitable saved apps and recognize edits already satisfied by current source. Preserve actual verification, capability checks and acknowledgement. Log model/tool duration to locate latency; no artificial processing pause or prewritten current-email answer.
+- Repeat/local timing trials meet the 15-second target in this small sample; fresh generation/editing and Mac tasks need separate timing. Do not call this a measured 75% reliability result. Physical pairing remains required before native Mac tests.
+
+
+## 2026-10-30 — Readiness-aware component setup
+
+The user requested autonomous setup when a new component appears or a requested
+component is unusable. Discover I²C responders in the background, distinguish
+identity from presence, and expose only read-backed runtime capabilities as ready.
+A bounded, persisted automatic Meta attempt may diagnose, reinitialize or install
+an identity-verified catalog pack. Discovery never grants app replacement, native
+computer actions or address writes. Explicit app requests resume with verified
+capabilities; Meta chooses mappings without fixed component roles.
+
+Unknown boards still need identifying information and a trusted driver/input
+adapter; universal internet driver discovery/creation and USB discovery are not
+implemented by this change. Preserve required physical isolation and power-cycle
+confirmations. Keep healthy setup idempotent and failed automatic work from
+repeating across restarts.
+
+
+## October 30 — private Muse speaker connector
+
+Use Muse's documented custom-connector flow with a small OpenAPI API for actual
+Pi speaker read/set, rather than publishing a directory integration. Issue a
+speaker-only sealed credential from an already authenticated browser; retain its
+eight-hour maximum and immediate parent-session/speaker-permission revocation.
+No native Mac or private content access is included. The user explicitly approved
+storing that credential in Muse's secure store and testing 80%. No token belongs
+in chat, URLs, source or evidence. See `muse-connector.md`.
+
+
+## October 30 — Muse scope expanded to the normal device agent
+
+The user clarified that Muse must support “make Mario Kart” on the actual Pi,
+not just volume. Added a separate full-request credential and connector named
+Modulate, without silently expanding previously issued speaker-only credentials.
+The user approved its secure storage, existing-permission device/paired-Mac
+tasks and returned task results until 01:39 Eastern, plus a kart test. Requests
+use the same Meta agent/context/verification/activation path as Studio/voice.
+Durable request IDs prevent network retries from becoming duplicate builds.
+Use the approved existing Modulate logo in metadata. See `muse-connector.md`.
+
+
+## October 30 — independent seven-day Muse authorization
+
+The user requested a week without repeatedly entering a key. New full Muse
+authorizations use a separate persisted seven-day Pi session and sealed
+`device-week` credential, independent of browser expiry or revocation. Each grant
+is separately revocable from the authenticated Device screen; connector tokens
+cannot mint grants or administer permissions. Existing eight-hour credentials
+retain their old expiry. Native Mac pairing remains eight hours, and model
+ledger/OS/device permission boundaries remain unchanged. No new paid dependency.
+
+
+## October 30 — Muse command transcription with local wake
+
+Integrated and enabled Meta `muse-voice-transcribe-1.0` for invoked commands,
+PTT and clarification answers. Ambient/media wake checks and busy cancellation
+remain local Whisper/Silero; local MMS replies remain separate. Preserve native
+capture/resampling, three-second silence/review, permission/epoch cancellation
+and normal request/check/activate flow. Existing server-held provider key and
+$50 shared ledger cover audio at verified $0.18/hour; no key or ceiling change.
+Cloud failures discard the request without hidden fallback or automatic retry.
+Three MMS synthetic samples were slower than local Whisper, with both models
+mishearing the synthetic wake phrase; this is an integration choice, not proven
+recognition or speed improvement. Keep local recognition as explicit rollback.
+
+
+### November 2: reconnect existing native identity after address change
+
+For this repair, keep the existing trusted companion build and pinned Pi
+certificate when the current Wi-Fi endpoint proves the same identity. Renew an
+expired native session through the existing physical comparison-code flow; retain
+the eight-hour duration and native OS grants. The live generated brightness
+binding is two percentage points per encoder step, physically confirmed in both
+directions. Browser relinking remains separate from native Mac pairing.
+
+
+### November 3: demo latency and independent mode switches
+
+Use generic revision-checked package edits and combined write/verification to
+reduce output and round trips. Keep Meta's inspection of check results and the
+separate exact-revision device acknowledgement. Initialize optional native
+computer work only when a desktop observation is requested, so local apps do
+not inherit a busy Mac helper dependency. A successful app selection exits
+speaker mode; a rejected replacement preserves the earlier experience.
+
+Fifteen seconds remains a target, not a guarantee: live saved-game launches and
+speaker/library paths met it, while generation, bubble editing, mirror creation
+and native YouTube work exceeded it. A completed agent turn is not evidence of
+media playback: independent checks found a paused ad. Keep those failures and
+unsupported script claims explicit; see [readiness](demo-readiness.md).
+
+
+## November 3 — Public browser playground
+
+The user requested an Online demo entry at the top right of the homepage and a
+virtual experience for visitors without hardware. Use a separate `/demo` route
+with Studio, App library and Device views, conceptual Raspberry Pi components,
+playable built-in games and a browser synth. Keep the real pairing layout and
+API outside this route. Persist bounded visitor-owned demo state in local
+storage; a demo session grants no device, microphone, model or computer access.
+Label example matching, walkthrough stages and simulated hardware explicitly.
+This demonstrates the interaction concept, not live Meta inference, electrical
+simulation, firmware execution or Arduino compatibility. User authorized pushing
+the finished website change; retain the existing Modulate Vercel project.
+
+
+## November 3 — Live inference for virtual hardware
+
+The user's follow-up supersedes the public playground's preset-only decision:
+use the existing Meta account to generate original apps for virtual components,
+then independently check, have Meta inspect/repair, and acknowledge activation in
+the browser. Keep hardware simulation explicitly separate from real inference.
+No fallback presets. Keep the homepage entry and visitor-owned library.
+
+Reuse existing Vercel credentials and Workers Free infrastructure. Allocate $5
+inside the current Pi's $50 ledger with an idempotent, permanently held parent
+reservation, then enforce that sub-budget durably in Cloudflare. Do not use the
+halted migrated Mac ledger or activate spending without the Pi reservation.
+Unknown-cost holds remain charged. Browser sessions grant no native authority.
+
+Use QuickJS/WASM without host callbacks in both checking and browser execution;
+fixed drawing/audio commands, 16 MiB memory, 40 ms frame interruption, worker
+termination watchdog, bounded state/output and component validation. Keep model
+calls out of gameplay. This browser contract is a restricted virtual-device
+adapter and does not alter physical firmware, drivers or paired-Mac services.
+
+
+### November 3 — Independent $25 online-demo budget (supersedes allocation plan)
+
+The user explicitly authorized the online demo's **own $25 total budget** and
+required the entire page to be independent of the Pi. Remove the proposed Pi
+allocation script and native-ledger tests. Initialize the existing Cloudflare
+DemoBudget object directly with this ceiling. Keep accrued costs, unknown holds,
+rate limits and fixed model/provider routing. The physical prototype's existing
+$50 ledger is unchanged. No Pi availability or native service is required to
+create, verify, play, save or restore an online app.

@@ -1,0 +1,147 @@
+{
+  "date": "2026-11-03",
+  "timezone": "America/New_York",
+  "environment": "Local production build of the submission-polish branch (next build + next start) calling the live Meta API with the shared $25 demo budget; not yet deployed",
+  "model": "muse-spark-1.3",
+  "input_mode": "typed in the browser; scene 4 used the page's 'Message from Muse' channel, not the Muse app",
+  "hardware": "virtual components, simulated I2C bus and virtual paired Mac",
+  "budget_after_trials": {
+    "charged_dollars": 0.40087,
+    "limit_dollars": 25,
+    "requests": 16,
+    "calls": 31,
+    "unknown_holds": 0
+  },
+  "scenes": [
+    {
+      "scene": 1,
+      "request": "Hey Meta, make a game similar to old-school Doom.",
+      "attempts": [
+        {
+          "outcome": "rejected, previous app kept",
+          "seconds": 150.7,
+          "detail": "Coder reply was not valid JSON (an oversized 12-room design); reviewer reply was also unusable."
+        },
+        {
+          "outcome": "rejected, previous app kept",
+          "seconds": 93.8,
+          "detail": "Sandbox syntax error without a line number; the reviewer's repair failed the same check."
+        },
+        {
+          "outcome": "activated CRIMSON KEEP",
+          "seconds": 81.1,
+          "calls": 3,
+          "cost_dollars": 0.0488,
+          "detail": "Orchestrator chose tilt to turn and joystick to walk; check failed on the 160-command frame limit; reviewer repaired; repair passed 151 sandboxed frames and browser verification. The game rendered and responded to button A, tilt and joystick."
+        }
+      ],
+      "fixes_between_attempts": [
+        "scope limits in orchestrator and coder prompts (about 8,000 characters, one arena, two enemy types)",
+        "finish_reason length reported as a cut-off reply",
+        "sandbox errors name the generated line and column"
+      ]
+    },
+    {
+      "scene": 2,
+      "request": "Hey Meta, update the game with my new controls.",
+      "setup": "joystick removed",
+      "outcome": "activated CRIMSON KEEP v2",
+      "seconds": 29.8,
+      "calls": 3,
+      "cost_dollars": 0.0286,
+      "detail": "Orchestrator chose edit; coder moved walking to the knob and kept tilt to turn; checks passed first time; reviewer approved."
+    },
+    {
+      "scene": 3,
+      "request": "Hey Meta, check my hardware.",
+      "setup": "IMU attached without its driver",
+      "attempts": [
+        {
+          "outcome": "inspect only",
+          "detail": "The orchestrator chose a bus inspection instead of acting on the missing driver."
+        },
+        {
+          "outcome": "trusted simulated driver install; IMU ready; paused game resumed",
+          "seconds": 4.4,
+          "calls": 1,
+          "cost_dollars": 0.0036,
+          "detail": "After the prompt stated the report is already a fresh inspection, the orchestrator chose install_driver lsm6ds3trc."
+        }
+      ],
+      "button_conflict": {
+        "setup": "third Qwiic Button added at factory address 0x6F; button B flickers",
+        "outcome": "guided re-address to 0x6D after three human confirmations; bus scan clean; B stable",
+        "seconds": 3.8,
+        "calls": 1,
+        "detail": "The orchestrator chose begin_button_repair; the trusted simulated workflow chose the address and performed the identity check and write."
+      }
+    },
+    {
+      "scene": 4,
+      "request": "Control my Mac brightness with the knob.",
+      "channel": "muse (typed on the page)",
+      "outcome": "activated control mapping, knob brightness +2",
+      "seconds": 3.6,
+      "calls": 1,
+      "cost_dollars": 0.0029,
+      "detail": "Virtual Mac brightness went 70 → 60 after five left detents and 60 → 64 after two right detents, with no model calls."
+    },
+    {
+      "scene": 5,
+      "request": "Hey Meta, reverse the knob.",
+      "outcome": "activated mapping with step -2",
+      "seconds": 4.3,
+      "calls": 1,
+      "cost_dollars": 0.0037,
+      "detail": "Three right detents then moved brightness 64 → 58."
+    },
+    {
+      "scene": 6,
+      "request": "Hey Meta, turn into a mirror and make it Halloween themed.",
+      "setup": "camera attached",
+      "outcome": "activated Haunted Mirror: Halloween Selfie",
+      "seconds": 63.1,
+      "calls": 3,
+      "cost_dollars": 0.0369,
+      "detail": "Check failed on a control description; reviewer repaired; repair passed. The browser pane blocks real cameras, so the camera path was exercised with a synthetic canvas stream: mirrored, filtered frames with generated ghosts and bats rendered locally."
+    },
+    {
+      "scene": 7,
+      "request": "Hey Meta, open the app library.",
+      "outcome": "library opened on the device screen",
+      "seconds": 4.1,
+      "calls": 1,
+      "cost_dollars": 0.0036
+    },
+    {
+      "scene": 8,
+      "request": "Hey Meta, use the joystick to scroll the apps.",
+      "outcome": "library opened with joystick scrolling",
+      "seconds": 6.1,
+      "calls": 1,
+      "detail": "Run in a fresh session with three seeded fixture apps; the joystick then moved the selection and button A opened the selected app. A quick flick could skip two entries, so the first step now happens on press and repeats start after 400 ms of holding."
+    },
+    {
+      "scene": 9,
+      "request": "Hey Meta, favorite the Doom game.",
+      "outcome": "starred CRIMSON KEEP v2",
+      "seconds": 5.6,
+      "calls": 1,
+      "cost_dollars": 0.0042
+    },
+    {
+      "scene": 10,
+      "request": "Hey Meta, turn into an RFID badge cloner.",
+      "outcome": "declined; device unchanged",
+      "seconds": 3.7,
+      "calls": 1,
+      "cost_dollars": 0.0037,
+      "reply": "I can't make a badge cloner, but I can make a fun RFID-style access game instead."
+    }
+  ],
+  "limits": [
+    "Individual runs, not reliability rates; the Doom-style request failed twice before the fixes above.",
+    "Real webcam capture was not verified in this environment.",
+    "Hardware, driver installation and the paired Mac are simulations."
+  ]
+}

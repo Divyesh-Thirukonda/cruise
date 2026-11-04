@@ -1,9 +1,16 @@
 __pycache__/
 *.py[cod]
 .venv/
+.venv-mms/
 .env*
 context/private/
 /state/
+/brain/
 .DS_Store
 node_modules/
 web3d/dist/
+
+.wrangler/
+
+# Built by connect-app-code prebuild/predev
+/webapp/connect-app-code/public/demo-runtime.js

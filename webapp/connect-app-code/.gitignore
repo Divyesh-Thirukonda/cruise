@@ -6,3 +6,6 @@ coverage/
 .env*
 *.log
 .DS_Store
+
+# Copied from node_modules by prebuild/predev (scripts/copy-ort-wasm.mjs)
+/public/ort/

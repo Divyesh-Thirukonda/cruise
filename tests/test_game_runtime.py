@@ -39,6 +39,24 @@ def camera_command(**changes):
 
 
 class PackageTests(unittest.TestCase):
+    def test_schema_repair_feedback_names_structure_without_echoing_values(self):
+        package = fixture()
+        package['assets']['unexpected'] = 'private-value-must-not-appear'
+        del package['assets']['sprites']
+        with self.assertRaises(GameError) as error:
+            validate_package(package)
+        message = str(error.exception)
+        self.assertIn('package.assets', message)
+        self.assertIn('sprites', message)
+        self.assertIn('unexpected', message)
+        self.assertNotIn('private-value-must-not-appear', message)
+
+    def test_nested_sprite_failure_identifies_the_actual_contract(self):
+        package = fixture()
+        package['assets']['sprites']['ship']['extra'] = True
+        with self.assertRaisesRegex(GameError, 'sprite ship.*unsupported.*extra'):
+            validate_package(package)
+
     def test_normalization_copies_assets_and_controls(self):
         original = fixture()
         result = validate_package(original)

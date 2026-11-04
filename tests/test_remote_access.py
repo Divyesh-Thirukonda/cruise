@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 from modulate.agent import AgentError, digest
 from modulate.product import Product
-from modulate.remote_access import RemoteAccess, RemoteAccessError, PERMISSIONS, handler_for
+from modulate.remote_access import RemoteAccess, RemoteAccessError, PERMISSIONS, CONNECTOR_SECONDS, handler_for
 from tests.test_assistant_io import SyntheticProvider, FakeComputer
 from tests.test_mac_access import FakeCamera
 from tests.test_product import FakeBackend
@@ -71,6 +71,212 @@ class RemoteAccessTests(unittest.TestCase):
         finally:
             connection.close()
 
+    def test_speaker_connector_requires_live_browser_and_speaker_access(self):
+        token = self.claim()
+        self.start_http()
+        with patch.object(self.product.speaker_volume, "control") as control:
+            self.assertEqual(self.http("/speaker-control", "POST", {"action": "get"})[0], 401)
+            self.remote.set_permissions({"speaker": False})
+            self.assertNotEqual(self.http("/speaker-control", "POST", {"action": "get"}, token)[0], 200)
+            control.assert_not_called()
+            self.remote.set_permissions({"speaker": True})
+            self.remote.revoke(token)
+            self.assertEqual(self.http("/speaker-control", "POST", {"action": "get"}, token)[0], 401)
+            control.assert_not_called()
+
+    def test_speaker_connector_is_bounded_independent_of_mac_and_rechecks_revocation(self):
+        token = self.claim()
+        self.assertFalse(self.product.state()["paired"])
+        self.product.agent.cancelled.set()
+        def apply(action, value, *, allowed):
+            self.assertTrue(allowed())
+            # Heartbeats must be able to acquire Product.lock during readback.
+            acquired = []
+            def probe():
+                with self.product.lock:
+                    acquired.append(True)
+            thread = threading.Thread(target=probe)
+            thread.start(); thread.join(.5)
+            self.assertEqual(acquired, [True])
+            self.remote.revoke(token)
+            self.assertFalse(allowed())
+            return {"verified": True, "after": {"volume": 80, "muted": False}, "private": "hidden"}
+        with patch.object(self.product.speaker_volume, "control", side_effect=apply):
+            self.assertEqual(self.remote.speaker_command(token, {"action": "set", "value": 80}),
+                             {"verified": True, "volume": 80, "muted": False})
+        token = self.claim()
+        for data in ({"action": "mute", "value": True}, {"action": "set", "value": True},
+                     {"action": "set", "value": 101}, {"action": "get", "value": 0},
+                     {"action": "set", "value": 80, "path": "/api/request"}):
+            with self.subTest(data=data), patch.object(self.product.speaker_volume, "control") as control:
+                with self.assertRaises(RemoteAccessError):
+                    self.remote.speaker_command(token, data)
+                control.assert_not_called()
+
+    def test_connector_reservation_storage_failure_blocks_model_dispatch(self):
+        token = self.claim()
+        with patch.object(self.remote.connector_requests, "save", side_effect=OSError("disk full")), patch.object(self.remote, "request") as request:
+            with self.assertRaises(OSError):
+                self.remote.connector_request(token, {"request_id": "a"*32, "text": "Make a game"})
+            request.assert_not_called()
+            self.assertEqual(self.remote.connector_requests.records, {})
+
+    def test_connector_corrupt_history_fails_closed_instead_of_resetting_identities(self):
+        (self.directory / "connector-requests.json").write_text('{"bad": "corrupt"}')
+        with self.assertRaisesRegex(ValueError, "refusing to replay"):
+            RemoteAccess(self.product, self.directory, clock=lambda: self.now)
+
+    def test_connector_request_replay_and_restart_do_not_duplicate_dispatch(self):
+        token = self.claim()
+        payload = {"request_id": "a"*32, "text": "Make a game"}
+        def dispatch(*args):
+            self.product.progress.update(job_id="b"*32, phase="queued")
+            self.product.running = True
+            return {"job_id": "b"*32, "accepted": True}
+        with patch.object(self.remote, "request", side_effect=dispatch) as request:
+            first = self.remote.connector_request(token, payload)
+            self.assertEqual(first["job_id"], "b"*32)
+            self.assertEqual(self.remote.connector_request(token, payload), first)
+            request.assert_called_once()
+        self.product.running = False
+        reloaded = RemoteAccess(self.product, self.directory, clock=lambda: self.now)
+        with patch.object(reloaded, "request") as request:
+            self.assertEqual(reloaded.connector_request(token, payload)["job_id"], "b"*32)
+            request.assert_not_called()
+        with self.assertRaisesRegex(ValueError, "different text"):
+            reloaded.connector_request(token, {**payload, "text": "Do a different task"})
+        journal = (self.directory / "connector-requests.json").read_text()
+        self.assertNotIn(token, journal)
+        self.assertNotIn("Make a game", journal)
+        self.assertEqual((self.directory / "connector-requests.json").stat().st_mode & 0o777, 0o600)
+
+    def test_connector_unknown_dispatch_is_retained_instead_of_replayed(self):
+        token = self.claim()
+        payload = {"request_id": "a"*32, "text": "Make a game"}
+        with patch.object(self.remote, "request", side_effect=RuntimeError("uncertain dispatch")) as request:
+            with self.assertRaises(RuntimeError):
+                self.remote.connector_request(token, payload)
+            self.assertEqual(self.remote.connector_request(token, payload)["status"], "unknown")
+            request.assert_called_once()
+
+    def test_connector_status_and_cancel_are_owned_and_never_expose_other_jobs(self):
+        token, other = self.claim(), self.claim()
+        self.remote.connector_requests.reserve(hashlib.sha256(token.encode()).hexdigest(), "a"*32,
+            {"text": "A request"}, self.now+100, self.now)[0]["job_id"] = "b"*32
+        self.product.progress.update(job_id="b"*32, phase="ready")
+        self.product.summary = "Done"
+        self.product.response = {"id": "c"*32, "text": "This job result", "expires_at": time.time()+100}
+        result = self.remote.connector_status(token, "a"*32)
+        self.assertEqual(result["response"], "This job result")
+        self.assertNotIn("events", result)
+        with self.assertRaises(RemoteAccessError):
+            self.remote.connector_status(other, "a"*32)
+        with patch.object(self.product, "cancel", return_value={"cancelled": True}) as cancel:
+            self.assertTrue(self.remote.connector_cancel(token, "a"*32)["cancelled"])
+            cancel.assert_called_once_with("b"*32)
+        self.product.progress["job_id"] = "d"*32
+        self.product.response["text"] = "Other session private result"
+        result = self.remote.connector_status(token, "a"*32)
+        self.assertEqual(result["status"], "superseded")
+        self.assertNotIn("private", json.dumps(result))
+        with patch.object(self.product, "cancel") as cancel:
+            with self.assertRaises(RemoteAccessError):
+                self.remote.connector_cancel(token, "a"*32)
+            cancel.assert_not_called()
+        self.remote.revoke(token)
+        with self.assertRaises(RemoteAccessError):
+            self.remote.connector_status(token, "a"*32)
+
+    def test_connector_http_only_accepts_typed_requests_and_owns_status(self):
+        token = self.claim()
+        self.start_http()
+        for payload in ({"text": "Hi"}, {"request_id": "a"*32, "text": "Hi", "shell": "bad"},
+                        {"request_id": "a"*32, "text": "Hi", "followup_id": "bad"}):
+            self.assertEqual(self.http("/connector-request", "POST", payload, token)[0], 400)
+        self.assertEqual(self.http("/connector-request?request_id="+"a"*32, token=token)[0], 404)
+        self.assertEqual(self.http("/connector-request?request_id="+"a"*32+"&request_id="+"b"*32, token=token)[0], 400)
+        self.assertEqual(self.http("/connector-request?request_id="+"a"*32)[0], 401)
+
+    def test_week_connector_survives_browser_expiry_revocation_and_reload(self):
+        browser = self.claim()
+        connection = self.remote.create_connector(browser, {})
+        token = connection["token"]
+        self.assertEqual(connection["expires_at"], self.now + CONNECTOR_SECONDS)
+        self.assertNotIn(token, self.remote.path.read_text())
+        self.assertEqual(self.remote.session(browser)["connectors"][0]["id"], connection["id"])
+        self.remote.revoke(browser)
+        self.now += 6 * 24 * 60 * 60
+        reloaded = RemoteAccess(self.product, self.directory, clock=lambda: self.now)
+        self.assertEqual(reloaded.authenticate(token)["kind"], "connector")
+        self.assertFalse(reloaded.session(browser)["connected"])
+        self.assertFalse(reloaded.session(token)["connected"], "A tool credential is never browser authentication")
+        self.assertEqual(reloaded.local_status()["browsers"], [])
+        self.assertEqual(len(reloaded.local_status()["connectors"]), 1)
+        reloaded.job_owner = connection["id"]
+        reloaded.job_id = self.product.progress["job_id"] = "a"*32
+        reloaded.require_job()
+        self.assertFalse(self.product.state()["paired"], "Week access must not pair a Mac")
+        self.now = connection["expires_at"]
+        with self.assertRaises(RemoteAccessError):
+            reloaded.authenticate(token)
+        with self.assertRaises(AgentError):
+            reloaded.require_job()
+
+    def test_connector_expiry_does_not_extend_ordinary_browser_authentication(self):
+        browser = self.claim()
+        connection = self.remote.create_connector(browser, {})
+        self.now += 8 * 60 * 60 + 1
+        self.assertFalse(self.remote.session(browser)["connected"])
+        self.assertEqual(self.remote.authenticate(connection["token"])["kind"], "connector")
+
+    def test_week_connector_cannot_create_grants_or_use_dashboard_admin_routes(self):
+        browser = self.claim()
+        connection = self.remote.create_connector(browser, {})
+        token = connection["token"]
+        self.start_http()
+        self.assertFalse(self.http("/session", token=token)[1]["connected"])
+        for path, method, data in [("/state", "GET", None), ("/preview", "GET", None),
+                ("/permissions", "POST", {"permissions": {"speaker": True}}),
+                ("/command", "POST", {"path": "/api/wake", "payload": {"enabled": False}}),
+                ("/connector-session", "POST", {})]:
+            with self.subTest(path=path):
+                self.assertEqual(self.http(path, method, data, token)[0], 403)
+        with patch.object(self.product.speaker_volume, "control", return_value={"verified": True, "volume": 80, "muted": False}):
+            self.assertEqual(self.http("/speaker-control", "POST", {"action": "get"}, token)[0], 200)
+            self.remote.set_permissions({"speaker": False})
+            self.assertNotEqual(self.http("/speaker-control", "POST", {"action": "get"}, token)[0], 200)
+        self.assertTrue(self.product.wake)
+
+    def test_browser_can_revoke_only_connector_ids_and_cancels_its_running_job(self):
+        browser = self.claim()
+        connection = self.remote.create_connector(browser, {})
+        with self.assertRaises(RemoteAccessError):
+            self.remote.revoke_connector(connection["token"], connection["id"])
+        with self.assertRaises(RemoteAccessError):
+            self.remote.revoke_connector(browser, hashlib.sha256(browser.encode()).hexdigest())
+        self.remote.job_owner = connection["id"]
+        self.remote.job_id = self.product.progress["job_id"] = "a"*32
+        with patch.object(self.product, "cancel") as cancel:
+            result = self.remote.revoke_connector(browser, connection["id"])
+            self.assertTrue(result["revoked"])
+            cancel.assert_called_once_with("a"*32)
+        self.assertTrue(self.remote.session(browser)["connected"])
+        with self.assertRaises(RemoteAccessError):
+            RemoteAccess(self.product, self.directory, clock=lambda: self.now).authenticate(connection["token"])
+
+    def test_connector_creation_and_revocation_fail_without_false_success_on_storage_failure(self):
+        browser = self.claim()
+        before = dict(self.remote.state["sessions"])
+        with patch.object(self.remote, "_save", side_effect=OSError("disk full")):
+            with self.assertRaises(OSError):
+                self.remote.create_connector(browser, {})
+        self.assertEqual(self.remote.state["sessions"], before)
+        connection = self.remote.create_connector(browser, {})
+        with patch.object(self.remote, "_save", side_effect=OSError("disk full")):
+            with self.assertRaises(OSError):
+                self.remote.revoke_connector(browser, connection["id"])
+        self.assertEqual(self.remote.authenticate(connection["token"])["kind"], "connector")
+
     def test_pair_code_one_use_and_only_token_hash_is_saved(self):
         result = self.remote.create_pairing()
         token = self.remote.claim(result["code"], "My phone")["token"]
@@ -83,6 +289,22 @@ class RemoteAccessTests(unittest.TestCase):
             self.remote.claim(result["code"])
         reloaded = RemoteAccess(self.product, self.directory, clock=lambda: self.now)
         self.assertTrue(reloaded.session(token)["connected"])
+
+    def test_website_comparison_requires_claimed_browser_and_cannot_pair_mac(self):
+        token = self.claim()
+        code = self.product.create_pairing()["code"]
+        self.start_http()
+        for path in ("/state", "/session"):
+            self.assertNotIn(code, json.dumps(self.http(path)[1]))
+        status, state = self.http("/state", token=token)
+        self.assertEqual(status, 200)
+        self.assertEqual(state["mac_pairing"]["code"], code)
+        self.assertFalse(self.product.state()["paired"])
+        self.assertNotIn("mac_pairing", self.product.state())
+        self.product.pairing["expires_at"] = time.time()-1
+        self.assertIsNone(self.http("/state", token=token)[1]["mac_pairing"])
+        self.remote.revoke(token)
+        self.assertEqual(self.http("/state", token=token)[0], 401)
 
     def test_wrong_code_locks_after_six_attempts_and_expires(self):
         code = self.remote.create_pairing()["code"]

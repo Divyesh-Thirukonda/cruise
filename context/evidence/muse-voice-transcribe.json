@@ -1,0 +1,87 @@
+{
+  "date": "2026-10-30",
+  "pi_source_commit": "5a88f5c plus 398070f transcription frame fix",
+  "website_commit": "398070f",
+  "website_deployment": "dpl_6NLqm84RJSQSbyywpvZExwWVfW9c",
+  "input_mode": "synthetic MMS recordings generated in memory on the Pi; not spoken by a person, not played",
+  "account_access": "verified via existing provider gateway and live Muse ASR responses",
+  "samples": [
+    {
+      "reference": "Hey Meta, show me the connected controls.",
+      "input_audio_ms": 3488,
+      "muse": {
+        "transcript": "He made a show me the connected controls.",
+        "transcription_ms": 1448
+      },
+      "local_whisper": {
+        "transcript": "He made to show me the connected controls.",
+        "transcription_ms": 955
+      }
+    },
+    {
+      "reference": "Hey Meta, make the background purple.",
+      "input_audio_ms": 2704,
+      "muse": {
+        "transcript": "He to make the background purple.",
+        "transcription_ms": 1000
+      },
+      "local_whisper": {
+        "transcript": "He made the background purple.",
+        "transcription_ms": 895
+      }
+    },
+    {
+      "reference": "Turn the speaker volume down to thirty percent.",
+      "input_audio_ms": 3008,
+      "muse": {
+        "transcript": "Turn the speaker volume down to 30%.",
+        "transcription_ms": 1100
+      },
+      "local_whisper": {
+        "transcript": "Turn the speaker volume down to 30%.",
+        "transcription_ms": 939
+      }
+    }
+  ],
+  "comparison_notes": [
+    "Local Whisper model loading excluded; Muse includes Pi-to-Vercel-to-Meta network round trip.",
+    "MMS synthesis and capture/silence/review/agent work excluded from both timings.",
+    "Both recognizers misheard the synthesized wake phrase; these are not physical wake trials or a recognition-rate benchmark.",
+    "Muse was slower in this small sample; no accuracy or latency improvement is claimed."
+  ],
+  "added_dollars_for_three_successful_samples": 0.0004,
+  "audio_played": false,
+  "requests_executed": 0,
+  "room_microphone_tested": false,
+  "active_revision_preserved": true,
+  "earlier_failure": {
+    "kind": "integration rejected otherwise accepted upstream response",
+    "observed_input_ms": 1000,
+    "observed_provider_ms": 1040,
+    "fix": "accept at most one bounded 80 ms processing frame; preserve uncertain prior reservations"
+  },
+  "validation": {
+    "full_local_python": 1156,
+    "full_local_skips": 13,
+    "subsequent_focused_checks": "new late-result/transport/padding checks passed separately",
+    "focused_pi_before_padding": 199,
+    "focused_pi_padding": 13,
+    "api": 63,
+    "ui": 42,
+    "production_build": "passed"
+  },
+  "enabled_on_pi": true,
+  "final_device_path": {
+    "input_mode": "synthetic PTT through VoiceListener \u2192 pinned Companion TLS \u2192 Pi agent \u2192 provider gateway \u2192 Muse; isolated delivery callback",
+    "transcript": "Turn the speaker volume down to 30%.",
+    "transcription_seconds": 1.182,
+    "actual_device_command_executed": false,
+    "active_game_and_speaker_volume_preserved": true,
+    "local_wake_retained": true,
+    "native_mac_scope_changed": false,
+    "muse_connector_scope_changed": false,
+    "shared_budget_ceiling_dollars": 50,
+    "ledger_halted": false,
+    "room_microphone_tested": false
+  }
+}

@@ -31,6 +31,23 @@ class DeviceSpeakerVolumeTests(unittest.TestCase):
         packet = self.Companion.post.call_args.args[1]
         self.assertEqual(packet["telemetry"]["speaker_volume"], self.volume.snapshot.return_value)
 
+    def test_standalone_local_agent_controls_pi_speaker_without_mac_grant(self):
+        command = {"synthetic": "validated by worker"}
+        self.controller.standalone = True
+        self.controller.responses.put({"paired": False, "speaker_volume": command,
+                                       "setup_status": {"ai_host": "pi"}})
+        self.controller._apply_responses()
+        self.volume.offer.assert_called_once_with(command)
+        self.volume.disconnect.assert_not_called()
+
+    def test_standalone_flag_does_not_authorize_unpaired_mac_agent(self):
+        self.controller.standalone = True
+        self.controller.responses.put({"paired": False, "speaker_volume": {},
+                                       "setup_status": {"ai_host": "mac"}})
+        self.controller._apply_responses()
+        self.volume.offer.assert_not_called()
+        self.volume.disconnect.assert_called_once()
+
     def test_network_failure_invalidates_pending_volume_authority(self):
         self.Companion.post.side_effect = TransportError("Synthetic unavailable link")
         self.controller._network_step()

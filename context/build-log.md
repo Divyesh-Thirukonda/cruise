@@ -802,3 +802,534 @@ new credentials or pairing were involved.
 The user physically confirmed: “Yes, Later and Cancel stay dismissed.” This
 confirms the dismissal paths on the mini screen; it does not demonstrate
 standalone AI or change the documented Mac-hosted orchestration limitation.
+
+
+## 2026-10-29 — Standalone Pi agent installed and demonstrated
+
+Implemented `--standalone`, local TLS transport, service startup, accounting
+validation, Pi-aware setup/browser copy and optional dashboard tunnel on the Pi.
+Migrated both cumulative ledgers securely without a reset; froze the stopped
+Mac's copies. Provider keys remain in Vercel. Reused the existing agent, isolated
+QuickJS runtime, Whisper, ElevenLabs gateway and UI; no preset game or new external
+art assets were substituted. Cloudflare's official ARM64 cloudflared 2026.10.6
+release was hash-verified. Preserved the pre-existing display/brand work.
+
+Live evidence: one typed Meta call produced “Modulate is running on its own,”
+which the user heard. An unrelated speaker-volume request exposed a stale Mac
+pairing gate; bounded retries failed and a concurrent typed game probe was
+rejected as busy. Fixed that gate with session/readback protections retained.
+A subsequent typed Orbit Catch generation repaired a malformed tool call, passed
+independent checks and activated in 13 Meta calls / about 37.37 seconds. After a
+full Pi reboot, all services restarted and the same revision returned with zero
+new model calls; the user confirmed the game and physical controls worked.
+A final three-call typed speaker readback verified 30% unchanged and completed
+speech. User also reported a spoken reply; no new matching request appeared in
+the final collected trace, so that confirmation is recorded separately.
+
+Validation: 1,056 host tests passed (13 skips), 196 staged Pi checks passed,
+13 final standalone/speaker checks passed, then 17 focused setup checks passed
+after guidance edits. Website source/API/UI checks and Next production build
+passed (29 UI tests). Production deployment `dpl_2t4qdN1FbxfLx8njCmoSPFspvSLE`
+reaches the online Linux agent and renders standalone setup. Snapshot: 595 calls /
+$11.390532 charged or held; speech 5,011 characters reserved under the explicitly
+approved 10,000-character ceiling, with all five uncertain requests retained.
+
+Remaining: stable dashboard routing across tunnel restarts and a separate native
+Mac bridge for the Pi agent. [Evidence](evidence/standalone-runtime.json) and
+[operating guide](standalone.md) distinguish tests, live trials and user reports.
+
+
+## 2026-10-30 — Speech allowance and confusing limit feedback
+
+Inspected the live Pi state: speech usage was 5,011 reserved / 4,793 settled /
+73 requests / 5 uncertain, below the then-10,000 local allowance. Model usage was
+595 calls / $11.390532 held or used under $50. No provider quota failure appeared
+in the collected trace. The matching recorded failure was the earlier speaker
+operation's bounded retry stop; no new instance matching the user's approximate
+quote was captured. Kept that uncertainty explicit rather than labeling it a
+provider rate limit.
+
+Applied the user's requested 1,000,000 cumulative speech-character ceiling,
+verified byte-identical ledger preservation, then loaded the deployed config to
+confirm the value. Agent/device services were active and Orbit Catch retained its
+exact revision. Revised retry feedback so a failed operation does not sound like
+a daily usage quota. 46 focused agent/standalone tests passed; deployed product.py
+SHA256 `91c5182953bafec30fecd896bc4b6d71f0c4faae945e7e0706686de58db41ddf`
+was verified before installation. No billable probe or provider-key change was
+needed. ElevenLabs official API-key documentation distinguishes key credit quotas
+from workspace quota; Meta documents rate limits per team, not per key.
+
+
+## 2026-10-30 — Optional Mac controls from the Pi and tunnel discovery
+
+Added a native-only Mac helper, pinned LAN RPC listener, expiring physical pairing,
+persisted command sequences, single delivery, acknowledgement deadlines and a
+three-second disconnect watchdog. Reused the project's existing native system,
+desktop, camera and audio adapters; no second model agent or cost ledger runs on
+Mac. Generated packages remain outside the trusted bridge. Installed the helper
+as a per-user LaunchAgent and verified reconnect with the same grant.
+
+The user confirmed matching eight digits and pressing small A. A typed live Meta
+request ran on Pi and read 47%, changed native Mac brightness to 48%, restored 47%
+and read 47% again. An independent Mac native read confirmed restoration. Six Meta
+calls took 10.817 seconds from typed submission with one-second completion polling.
+Orbit Catch retained revision 491f6971e962eff1495c40374430d8d27004fdba49742c49e31787cfb10046b8.
+Cumulative model usage: 601 calls / $11.444617 held or charged under the unchanged
+$50 ceiling. Speech allowance remains the user-approved 1,000,000 characters.
+
+The background LaunchAgent lacks Screen Recording and Accessibility grants, so
+native desktop actions remain blocked. Brightness needs neither and was verified.
+Camera/audio across the new link and physical knob brightness were not retested.
+
+Reused cloudflared and added @vercel/blob 2.8.2 for a private single-record device
+registry. The Pi signs changing tunnel origins with its existing scoped secret;
+the server proves endpoint identity before recording or forwarding credentials.
+No Vercel administrator credential is installed on Pi. Browser setup now defaults
+to standalone guidance even offline, distinguishes browser-code entry from native
+code comparison, and retains access to a new browser code after prior linking.
+
+Live deployment c91da61 initially exposed a missing systemd WorkingDirectory;
+8bd3730 records the corrected supervisor unit and setup fixes. A verified tunnel
+restart changed hostname. Identity checks initially raised fetch TypeError, then
+automatic retries registered the new hostname after 121.738 seconds. Public session
+returned online Linux at 141 seconds, with no intervening deployment/env change.
+The specific network cause was not conclusively diagnosed. All three Pi services,
+native pairing and app revision remained active with no extra model calls.
+
+Validation: 1,061 host tests passed / 13 skipped; 22 focused Pi tests; 44 final
+host checks; 41 website API tests, 29 UI tests and production build passed.
+Production deployment dpl_FAJvYNhmTgjZ5RXkKwuTCCHVqotc is READY. Temporary transfer
+and evidence-receiver servers were stopped. Initial Pi archive extraction rejected
+an unsupported filter argument; verified safe extraction recovered before service
+restart. TLS pin checking also rejected a mistyped fingerprint before credentials.
+See [sanitized evidence](evidence/optional-mac-runtime.json) and [operating guide](optional-mac.md).
+
+
+## 2026-10-30 — Meta MMS on Pi, native grants and website setup
+
+Implemented a persistent, bounded, cancellable offline MMS worker, verified pinned
+safetensors installation, isolated environment, number normalization and existing
+24 kHz PCM transport integration. Meta's MMS English checkpoint and Hugging Face
+VITS integration are reused dependencies, not project-trained models; the
+noncommercial model license is documented. The user confirmed clear Pi speech.
+Cold/warm synthesis observations were 8.265/5.887 seconds; these are not complete
+voice latency measurements. Historical ElevenLabs usage stayed unchanged.
+
+Built the native Modulate.app shell with user-triggered macOS grants, child-process
+restart and login launch. The user enabled all three native permissions. Added
+authenticated website comparison/status and accurate local-MMS privacy text;
+retained physical A, session expiry, revoke, and private pairing boundaries.
+Production deployment dpl_FY1uvfHBoZcpFnFqXVyPrmouA1Hw is READY. The actual linked
+website showed Browser connected, Mac connected and both desktop grants allowed.
+
+Typed live Pi Meta trials: newest Gmail Primary-inbox message opened and summarized
+(8 calls, 39.523 seconds to agent completion), camera/audio capture and stop
+(10 calls, 18.827 seconds), brightness and volume change/readback/restore
+(10 calls, 18.821 seconds). Gmail recovered an initial focus miss. One media action
+returned helper busy; fresh status confirmed stopped with no buffered audio.
+Camera frames and audio packets were observed; no new human playback/image check
+or physical knob trial is claimed. Independent native readback confirmed brightness
+47%, volume 31% unmuted. Orbit Catch retained its exact revision. No private email
+contents are included in public evidence.
+
+Validation: 1,069 host tests ran successfully (13 skipped); 55 focused Pi tests; website
+41 API tests, 31 UI tests and production build passed. Worker credential isolation
+then passed 23 focused checks and all 7 MMS tests, plus real Pi synthesis returning
+47,616 PCM bytes. Final agent/device/connect services were active, Pi Wi-Fi connected,
+Mac control enabled, MMS active and the $50 Meta ledger preserved ($11.734172).
+See [sanitized evidence](evidence/mms-native-runtime.json), [MMS](meta-mms.md) and
+[optional Mac operation](optional-mac.md).
+Temporary source-transfer and evidence-receiver servers were stopped after validation.
+
+## October 30 — connected controls, automatic adaptation and live IMU steering
+
+Fixed saved Orbit Catch's disconnected-joystick lockout: verified replacements can stage over a suspended app, with suspended-state rollback and preserved durable pointers. Added five-second stable-control adaptation with persisted attempt history, user/voice priority and local-package-only model tools. A live automatic Meta request preserved artwork and changed joystick + A to encoder + A (14.316 s, 7 calls, $0.099571); user confirmed physical knob play and an agent restart made no extra calls.
+
+Identified the connected LSM6DS3TR-C (`0x6A`, WHO_AM_I `0x6A`); the driver/input contract was missing. Reused MIT Adafruit LSM6DS 4.6.3 and Register 1.13.0. Added bounded acceleration/gyro/gravity-tilt input, read-backed availability, background supported-driver rediscovery and live sensor context for Meta. A typed live request generated IMU + A steering, calibrated on start, with dead zone/smoothing (20.487 s, 6 calls, $0.115248). User confirmed tilt controls the ship. No fixed device preference or preset mapping was used.
+
+Host: 1,089 tests, 13 skipped; Pi: 208 focused tests passed. Final game revision `15ec238a3ac61c887db52a9a5a4466475c6227c83d4a5836bc9a7a8f6083ee29`; no missing controls/error; agent/device/connect active; MMS delivered. Physical IMU unplug/replug remains untested; synthetic discovery checks are separate evidence. [Details, dependency attribution and trace](adaptive-controls.md).
+
+## October 30 — Pi agent installs a supported missing driver
+
+Added a trusted runtime driver catalog and installer, starting with LSM6DS3TR-C. Meta chooses hardware-debugger and the install tool; the Pi reads identity, downloads hash-pinned MIT Adafruit LSM6DS 4.6.3/Register 1.13.0 wheels, validates actual sensor samples and commits a restart-verifiable pack. Downloads stay outside the input lock. Failed setup restores prior imports/handles; cancellation/session/boot/deadline and existing physical-repair checks remain. Generated packages cannot install drivers or run shell code.
+
+Deployed `e3de9d3` and preserved the working optional IMU package outside the import path for a controlled fault trial. A typed live Pi Meta request recovered the sensor in 7.578 seconds (7.76 s polling observation), four calls / $0.051106 charged or reserved. The installed driver returned real acceleration/gyro readings. Orbit Catch retained revision `03130009c50e9e5cf4affbac4e55461a1b53b770bfeb8073ac720b3200c7edf7`; a device-service restart retained the managed driver and game without another model call. All three services were active, with no missing controls or runtime error. MMS reported no pending speech/error. The user cannot access the physical device, so tilt play/display/audibility were not retested.
+
+Host: 1,106 tests, 13 skipped; Pi: 242 focused tests passed. A deployment-wrapper formatting error stopped before mutations; corrected before the successful trial. An outdated schema expectation was corrected before the passing host suite. Total ledger: 655 calls / $12.144861 under $50. The first pack is supported-driver installation, not universal driver creation. [Design, attribution and evidence](driver-setup.md).
+
+## October 30 — Connect layout review and Mac reconnection
+
+Reviewed all nine Connect routes: landing, setup, access onboarding, Studio, library, Device, Access, activity, and code/checks. Fixed adjacent setup cards touching, excess trailing paragraph space, asymmetric Permissions padding/hover border, and Device action rows floating above the card bottom. Comparison digits now scale for narrow screens. The phone review found the Studio grid keeping a 370px minimum track; a bounded track now fits its live preview inside the 320px viewport. Navigation now resets the actual scrolling container instead of carrying the prior page's scroll position.
+
+Validated desktop (1280px) and phone (320px) layouts for all routes; the unlinked landing and unavailable-connection state used the local development server, while connected views used the real Pi through production. Also checked Device at 820px, code tabs, expanded access details, and the mobile drawer. Measured 18px setup-card gaps, matched action-row bottoms, a 234px preview device within its 258px phone stage, and scroll reset from 236px to zero. Screenshots are retained privately. Existing 41 API and 31 UI tests, source manifest and production build passed; no model requests or physical control/playback tests were run.
+
+Released UI commits `63955d2` and `6f44368`; final Vercel production deployment `dpl_9HDAiaztn5yu21zHhMeDdnSyxLKw` is READY at the existing Modulate Connect domain. Refreshed the user's Chrome Device page.
+
+The installed Mac helper retained an unexpired pairing but was targeting a stale IPv4 address. Verified the Pi's reachable IPv6 TLS certificate against the saved identity pin, privately backed up the connection file, updated only its address, and relaunched the existing signed Modulate app. Both helper status and website report paired; Screen Recording and Accessibility are granted. Existing token, sequence, expiry, permissions and revoke behavior were preserved. No new physical confirmation was needed and no OS grants or app signature were changed. Pi Wi-Fi is up and the website continues to show its five connected controls.
+
+
+## 2026-10-30 — Live demo hardening and Blob quota recovery
+
+- Added bounded inference retries, specialist partial handoffs and parent finishing reserve inside a shared 32-call request budget. Kept the $50 ledger, unknown-cost holds, physical confirmation and native-session expiry. Added a read-only demo preflight and dashboard warnings for silent audio and expiring sessions.
+- Live typed tunnel trials generated/refined Demo Circuit, rejected a concurrent request, cancelled safely, read Mac settings, restored brightness 38 → 39 → 38, rolled back and restored Orbit Catch without model calls. These are remote telemetry checks, not physical voice/control reliability evidence. See `context/demo-reliability.md` and `context/evidence/demo-reliability.json`.
+- Full Python suite: 1120 tests, 13 skips; Pi focused checks: 142 agent tests and 2 tunnel tests. Website after registry changes: 45 API tests, 32 UI tests, production build pass. New Cloudflare Worker: 4 focused tests and Wrangler dry-run pass.
+- User reported Vercel Blob free operation exhaustion. Prepared a Cloudflare Workers Free SQLite Durable Object registry with HMAC registration, bounded input, authenticated lookup, ordered updates and a one-way derived credential. Concurrent website lookups share one in-flight request. Cloudflare deployment awaits the user's Wrangler access authorization; no paid plan selected. Existing Cloudflare/Wrangler runtime is reused infrastructure.
+- Temporarily configured the website's existing direct-tunnel mode against the identity-verified live Pi origin while the registry migration awaits authorization. This temporary configuration does not follow future tunnel changes.
+
+
+## 2026-10-30 — Saved-app reuse and timed demo sequence
+
+- Added a bounded metadata catalog of real saved apps to Meta's initial context, semantic reuse guidance, generic batching guidance for computer skills, and latest-revision library presentation with recoverable history. No demo keyword routing, prewritten racer, email-answer cache or synthetic thinking delay.
+- Installed `8f9e2e4` on Pi with backup/rollback and 57 focused tests passing. Host suite: 1121 tests, 13 skips. Website: 45 API tests, 33 UI tests, production build; deployed `dpl_Gaqs8aBF3SkBNfmTTV6viv64NdDC`, verified latest-version view in Chrome.
+- Seven typed live tunnel trials: repeat Orbit Catch 8.8 s; fresh original racer 42.7 s including repair; same request reused racer 6.6 s; library 4.1 s; contextual library knob reversal 5.3 s; red-coin edit 18.3 s; reuse of edited racer 9.1 s. Repeats preserved exact revisions without new saved duplicates. Five of seven trials under 15 s is an observed sample, not a reliability benchmark. See `context/demo-speed.md` and public metadata evidence.
+- Restored original Orbit Catch and forward library preference in 2.43 s with zero model calls. New live-generated racer revisions remain saved. Mac session expired and Pi audio remained 0%; no new computer-task, physical control or audibility claims.
+
+
+### Cloudflare migration verified
+
+- User authorized Wrangler; deployed the authenticated registry on Workers Free, configured production dynamic discovery and removed @vercel/blob plus the legacy fallback. Kept the website URL and Pi agent. Disabled Worker preview URLs and ignored local Wrangler state.
+- Live deliberate rotation: automatic registration after 64.1 s; website recovered with the same browser session and current Demo Circuit revision. No model calls. Native Mac pairing was expired and was not bypassed.
+
+
+### Reconnect audit follow-up
+
+- Fixed preview retry after a temporary disconnect with the same active revision, and replaced command timeout/retry advice with an explicit uncertain-outcome message. Already-aborted requests cannot dispatch. No automatic mutation replay.
+- Validation: 45 API tests, 38 UI/transport tests and production build passed. Changes in ef8f999; existing unrelated Muse/UI assets preserved.
+
+- Final cancellation check (175e559) prevents command dispatch if cancellation occurs during the session lookup. Final validation: 45 API tests, 39 UI/transport tests and production build passed.
+
+
+### Demo command latency follow-up
+
+- Installed content-free model-call duration events alongside existing tool timings, and generic idempotent-edit guidance. Removed a contradictory always-fresh generation instruction and its franchise-specific example. Runtime policy uses real saved creations, fresh checks and acknowledgement; no preset router, cached email answer or artificial thinking delay.
+- Live typed Pi sequence: saved racer 7.5 s, already-red coins 5.3 s, repeated racer 6.4 s, library 5.2 s, menu reversal 5.3 s. Final policy racer reopen 7.6 s. Eight revisions before/after; original app/menu preference restored. Full Python suite: 1122 tests/13 skips; 82 focused checks on Pi.
+- Mac session expired and user has no physical access; fresh email/brightness/camera/audio tests cannot proceed. Added context/demo-command-runbook.md with measured commands, fill-ins and scope corrections; no new physical evidence claimed.
+
+
+## 2026-10-30 — Automatic component setup on the Pi
+
+- Added a background I²C inventory refresh, readiness-aware components in Meta context/capabilities, a component-setup runtime skill and a persistent debounced automatic setup scheduler. Unknown addresses remain unidentified; they never become generated-code inputs merely by detection. Automatic setup is limited to eight Meta calls and diagnostic/verified catalog-driver tools; hardware permission, cancellation and existing physical repair checks remain. Meta chooses app mappings from actual ready signals.
+- Live controlled missing-driver trial: disabled the managed IMU import pointer, restarted services and submitted no repair request. The Pi detected missing IMU input, invoked Meta and restored verified motion readings in 18.34 s including startup, five model calls / $0.067437 charged/reserved. The cached pinned pack was reused. Baseline app state was already empty and stayed empty. This was not a physical hot-plug or a new network-download trial.
+- Restart retained readiness with zero extra model calls during 20 seconds. Host: 1130 tests, 13 skips; Pi: 232 broad focused tests, then 38 final focused checks. Website: 45 API tests, 40 UI tests and build; deployed detected-board/readiness view and verified it against the live Pi. Existing unrelated Muse work preserved.
+- Runtime c400c7b plus f5cd377 address-list cleanup; website 3c9c2c9. Detailed scope/evidence: context/component-setup.md and context/evidence/component-setup.json. Reused the existing pinned MIT Adafruit driver pack, trusted diagnostic worker and Meta API; no new third-party driver or asset added.
+
+
+## October 30 — Muse speaker connector
+
+Built and deployed a bounded speaker API, OpenAPI description and Device-page
+Connect Muse control. Added sealed, expiring speaker-only credentials and
+authorization checks before command delivery and while awaiting physical ack.
+Reused existing website discovery, authenticated Pi gateway and Pulse readback;
+no new paid dependency. Revision 717b38a: 1,133 Python checks (13 platform skips),
+35 focused Pi checks, 52 API checks, 41 UI checks and production build passed.
+Live HTTPS through the real tunnel verified 0 → 80 → 0, a fresh read of 80, and
+401 after temporary-parent revocation; one write took 0.493s, excluding Muse.
+No audio played, Mac pairing remained absent and the prior empty active app was
+retained. Muse created the custom connector and opened its secure API-key form;
+the user approved secure credential storage and a live Muse 80% trial. See
+`muse-connector.md` and `evidence/muse-speaker-connector.json` for scope/evidence.
+
+
+### Muse chat confirmed
+
+Stored the user-approved credential only in Muse's secure API-key form. Muse
+reported a verified change from 0 to 80, not muted, for the user's chat example.
+An independent Pi loopback read confirmed volume 80 / not muted / available,
+without a paired Mac; left that requested level in place. Muse network approvals
+caused a timed-out read and extra setup delay, distinct from device API latency.
+Its game request was denied as expected under this speaker-only credential.
+The stored connector token expires October 31 at 01:39 Eastern. Private
+screenshots remain ignored under context/private/demo-audit.
+
+
+## October 30 — full Modulate requests from Muse
+
+Expanded the private connector at the user's request to submit normal text to
+the existing Pi Meta agent, poll only its session's jobs, relay clarification
+questions and cancel by identity. Added a durable reservation journal so an
+uncertain response/restart cannot duplicate dispatch. Retained speaker-only
+credential scope, existing device permissions, native pairing and $50 ceiling.
+Served the existing approved PNG in connector metadata; no new brand asset.
+Pi revision 1ee8376; production website e1ef39c. Validation: 1,137 local Python
+checks (13 skips), plus two later storage-failure focused checks; 41 focused Pi
+checks, 58 API checks, 41 UI checks and production builds.
+
+A direct HTTPS hardware question completed in 5.98s (0.642s acceptance), returned
+real available controls, and repeated IDs reused one job before/after completion.
+Revoking its temporary parent returned 401. The user separately approved storing
+the full connector token only in Muse's secure form until 01:39 Eastern. Muse
+then forwarded the kart request; Pip Kart Turbo passed checks and was acknowledged
+by the Pi, independently verified against the durable connector job and Studio
+preview. Fresh generation used 13 live Meta calls over 97.346s of agent time,
+excluding Muse/approval delay. No sub-15-second or physical-play claim. The game
+declares IMU, encoder, A and B; the disconnected joystick was not declared.
+Chrome automation stalled during approvals, then recovered after user input;
+the user independently selected site-always-allowed in Muse. No protection was
+changed by Codex for that step. See `muse-connector.md` and
+`evidence/muse-agent-connector.json`. Existing unrelated Muse artwork edits
+were preserved.
+
+
+Final Muse settings confirmed the full Modulate entry connected. Disconnected
+the superseded Modulate Speaker entry without deleting prior shared data. Muse
+saved preference for the full connector. The approved 256px PNG is available and
+in metadata, but Muse reported no native custom icon URL field; the default
+connector icon remained. This UI limitation is recorded, not presented as a
+successful native-icon change. Private final connection/preview screenshots are
+saved under context/private/demo-audit.
+
+
+## October 30 — week-long Muse connection
+
+Implemented and deployed independent seven-day Muse grants with per-grant revoke,
+persisted hashed Pi authorization, browser-only administration and old-token
+compatibility. Website deployment dpl_3R4gu6gUAjYdGWRzMzxBAk1oGVmC serves
+72e417a. Pi installed the same remote authorization code. Reused existing
+AES-GCM, discovery registry, remote gateway and connector request path.
+
+Validation: 1,144 Python tests (13 platform skips), 46 focused Pi checks, 60 API
+and 42 UI checks, production build. Three additional tunnel tests passed on Mac
+and Pi. The first controlled tunnel change exceeded a 60s observation window
+then registered automatically at about 64s. Tightened initial retries to 2/3/5s
+for 90s, retaining long-outage backoff and hourly steady-state refresh. Final
+live API trial survived browser revocation and agent restart; tunnel replacement
+recovered in 28.256s with the same token. Revocation returned 401; active game
+retained, no new model calls/audio. Not a full Pi reboot or week-long uptime
+trial. Temporary grants were revoked. Evidence: muse-week-connection.json.
+
+The user approved saving the seven-day token. Reconnected the existing Modulate
+entry through Muse's secure credential form, with expiry shown as November 6,
+2026 at 5:54 PM EST. Muse confirmed a fresh speaker GET returned verified volume 80,
+not muted, and updated its own connector doc/helper with the new expiry/revoke
+path. No token was pasted in chat, and the clipboard was replaced with the
+public website URL afterward. Native Mac pairing remains separate.
+
+
+## October 30 — Muse Voice Transcribe integration and live account checks
+
+Built bounded invoked-command ASR with a pinned device TLS route, existing
+server-held Meta key, canonical WAV multipart provider gateway, shared-ledger
+reservation/settlement and permission/epoch rejection of late results. Reused
+Meta hosted ASR, existing Whisper/Silero/MMS, TLS gateway and ledger; no copied
+cookbook source, new dependency, account or credential. Pi source 5a88f5c plus
+398070f frame fix; production website 398070f, deployment
+dpl_6NLqm84RJSQSbyywpvZExwWVfW9c.
+
+Validation: 1,156 local Python tests with 13 platform skips before three added
+focused late-result/transport/frame-padding checks, also passing; 199 focused Pi
+checks followed by 13 final ASR checks; 63 API and 42 UI tests and production build.
+Initial live replies were rejected by exact-duration validation: a 1,000 ms clip
+returned 1,040 ms. Fixed one-frame 80 ms padding, kept reservations conservative,
+normalized integer-string durations and matched Meta's no-filename JSON multipart
+part. Previous uncertain holds were retained; no limit was reset.
+
+Three in-memory MMS synthetic clips, never played or executed: Muse 1.448/1.000/
+1.100s including network, versus cached Whisper 0.955/0.895/0.939s excluding model
+load. Cost delta $0.000400. Both models misheard the synthesized wake phrase; no
+physical wake/noise, accuracy or speed improvement claim. Enabled meta_muse in
+the existing private Pi provider file and restarted the agent. A complete
+VoiceListener→pinned TLS→agent/gateway→Muse test returned text in 1.182s to an
+isolated callback, with no real command/audio and the game/volume preserved.
+Native Mac/Muse grants unchanged, total budget still $50. Evidence and limitations:
+muse-voice-transcribe.md and evidence/muse-voice-transcribe.json.
+
+
+## November 2: restored Mac pairing and verified native controls
+
+Codex, at the user's request, repaired the installed companion's stale Pi address
+after confirming the existing pinned device certificate, then completed a fresh
+eight-hour pairing with the user's physical comparison-code A press. No new app
+build, dependency, runtime source change or expanded permission was needed.
+Native Screen Recording and Accessibility both report granted.
+
+Typed live Pi Meta integration: brightness 44 → 45 → 44 independently sampled,
+then Calculator 7 × 8 = 56 independently observed through native UI; 55.789 s,
+12 calls, $0.159724. A second typed live request generated, checked and activated
+a two-percentage-point encoder brightness binding; 17.81 s, six calls, $0.080661.
+The user physically confirmed brightening and dimming in both directions. The
+website browser session was relinked and visibly shows Mac Paired and the active
+brightness mapping. Shared $50 ledger and eight-hour native expiry are preserved.
+Reused existing Pi agent, native companion, DisplayServices and CUA; no external
+assets added. No new voice reliability claim. Evidence: [sanitized record](evidence/mac-reconnect-2026-11-02.json).
+
+
+## November 2–3: independent demo commands and live timing audit
+
+Codex added generic exact-revision package edits, combined write/check results,
+capability context and actionable bounded schema diagnostics. The live first-person
+game initially failed three generic field checks in 76.773 s and retained Soup
+Sprint Kitchen. After diagnostic repair, Meta generated, checked and activated
+Rust Pit 2.5D in 148.457 s, using one coder delegate. A real bubble-enemy edit
+used the new edit tool and activated in 27.285 s. Reuse preserved its exact
+revision in 13.082 s. No game code or demo keyword handler was added to the base
+runtime; these are typed live website/tunnel requests, not spoken trials.
+
+The rehearsal exposed a second concrete fault: optional Mac initialization ran
+before every request and could leave running=true when the helper was busy.
+Moved it to the first actual desktop observation, kept failed initialization
+retryable, and rejected old-observation actions from a new job. Cleared the exact
+stale job during deployment without clearing usage, pairing or the saved app.
+Speaker → saved game now passes in 13.333 s; rejected activations retain speaker
+routing. Mirror generation took 33.198 s and reopening the game took 9.924 s.
+Library trials took 7.557/6.470 s and speaker start 5.639/10.769 s.
+
+Native YouTube agent turns ended in 74.507 s and a 58.249 s recovery, but independent
+native UI checks showed a paused pre-roll ad. Target playback is not confirmed.
+Added generic media-completion guidance; do not count those ready flags as
+verified playback. The current assembly advertises joystick/A/B, without encoder
+or IMU; no physical knob/tilt or new camera-image/audibility evidence is claimed.
+
+Host validation: 1,176 tests passed with 13 skips, plus nine skill checks after
+the media wording change. Pi focused suites passed 120, 29 and 93 checks at the
+corresponding deployment stages (overlapping coverage, not an additive count).
+All installed source payloads were hash checked and prior files backed up.
+Reused existing Meta runtime, native Mac helper, QuickJS and CUA; no new dependency
+or third-party asset. Final model ledger $17.382067/50, not halted. Temporary
+ElevenLabs credentials/provider selection remain private and uncommitted.
+See [evidence](evidence/demo-rehearsal-nov2.json) and [script readiness](demo-readiness.md).
+
+
+## November 3 — Hardware-free online demo
+
+Added the homepage Online demo link and an independent `/demo` playground with
+Studio, App library and Device views. Visitors attach/remove five conceptual Pi
+modules, play two original browser games (Orbit Catch and Pixel Rally), make
+sounds with a Web Audio triangle synth, rename saved apps and create color/speed
+remixes from explicitly labeled built-in request examples. Joystick and knob
+steering work, required-component removal pauses play, and activation/cancellation
+preserve the previous app. State is validated and bounded to 24 browser-local
+apps, with session-only fallback when storage is unavailable. No model calls,
+physical-device commands, microphone input or account creation are involved.
+
+Validation: 52 frontend tests (10 new demo tests), 63 server/API tests, source
+provenance verification and a successful Next.js production build. Browser QA
+verified the homepage entry, scoring, knob movement, missing-input rejection,
+example activation, browser synth playback status, and saved library after reload.
+Desktop and 390 px mobile layouts were inspected; the mobile Device page had no
+horizontal overflow. Browser audio creation/status was checked, not human audibility.
+No new physical or live-inference evidence is claimed. Deployment is recorded
+separately after release.
+
+Reused dependencies: existing Next.js, React, Lucide, and Modulate brand asset.
+All new game mechanics, device/board diagrams, CSS artwork, request examples and
+synth code were authored for this change; no third-party game assets were added.
+Existing uncommitted native/Muse work was left in the original checkout; this
+change was developed in an isolated worktree.
+
+Release verified: pushed `e04a23c` on `codex/online-demo`; production deployment
+`dpl_225KXvw5w3HhC84ZbziUnuZL4mAi` reached READY with the existing
+`modulate-connect.vercel.app` alias. The published homepage opens `/demo`; a
+published pink-game request activated, and a held joystick moved its player from
+x=120 to x=182.49 before pause. No browser console errors were captured. The
+existing live-device connection reported unavailable; the demo worked independently.
+[Release evidence and screenshots](evidence/online-demo/release.json) are browser
+simulation evidence only. No production environment variables or native services
+were changed. The website source differs from the prior production commit only
+in the homepage entry, new demo route/modules and README.
+
+
+## November 3 — Real Meta generation for virtual hardware (release pending)
+
+Implemented the user's replacement of the preset browser demo with original
+Meta-generated JS apps. The existing server-only key routes to the fixed
+`muse-spark-1.3` endpoint. The model receives the attached component manifest,
+writes code, inspects independent check results and approves/repairs within three
+calls. The browser independently verifies and acknowledges the revision before
+activation. Source, response IDs, usage and check results are inspectable. App
+library restores and rollback run locally, without inference. Preset selection,
+scripted gameplay and fake timed build stages were removed from the live route.
+
+Reused existing Vercel and Cloudflare accounts. Added a separate transactional
+budget object to the existing Workers Free service; deployed version
+`7b500342-295e-4e24-8815-cdb7684fea63`, while preserving authenticated discovery.
+The pool remains at **$0**, with zero demo inference calls. An idempotent allocator
+reserves $5 within the Pi's existing $50 ledger, never a new ceiling. Unknown-cost
+holds, concurrency limits, anonymous session/IP-hash quotas, same-origin and CSRF
+checks are covered. The provider key passed authenticated `/v1/models` discovery
+and listed `muse-spark-1.3`; this does not prove a successful generation.
+
+Validation: **71 API/runtime tests, 52 UI tests, two Python allocation tests**,
+source provenance checks and production build passed. Real QuickJS tests verify
+input response, memory/state/drawing bounds, unavailable capabilities and infinite
+loop interruption. Browser fixture test passed 151 frames and button-driven state
+under production-style CSP. The production-mode local page reached the real
+private allowance service and displayed its unfunded 429 without activating a
+preset. The server-bundled WASM initialized successfully via session creation.
+A local hydration issue after rebuilding underneath a running production server
+was resolved by restarting that test server; the final build hydrated normally.
+
+**Not yet verified or released:** live Meta generation, generated gameplay/editing,
+and production promotion. Raspberry Pi Connect timed out and the device tunnel
+was unavailable, so the authoritative ledger could not be safely allocated. The
+user was asked to connect the Pi while implementation continued. The halted Mac
+backup was not changed. The old explicitly labeled preset demo remains production.
+[Sanitized verification evidence](evidence/online-demo/live/verification.json).
+
+New dependencies: MIT `quickjs-emscripten` and
+`@jitl/quickjs-singlefile-browser-release-sync` 0.32.0 (including QuickJS engine),
+and MIT esbuild 0.28.2 for the worker bundle. Existing Next.js/React/Lucide/brand
+assets retained. Original protocol adapter, generation/check/review loop, durable
+allowance, session layer and UI integration authored during this change. Test app
+fixtures are handwritten verification inputs, not production presets. No new
+third-party game art, generated promotional assets or physical evidence.
+
+
+Implementation `8d4552a` was pushed to `codex/online-demo`. Vercel preview
+`dpl_B5wr8CsWM16fQg8ELVNQVtpNPkt8` reached READY for that exact commit. This
+confirms the hosted build, not live inference; production promotion remains
+pending the Pi allocation and a real generated-app trial.
+
+
+## November 3 — Independent cloud budget and live Meta evidence
+
+The user explicitly authorized a separate **$25 total online-demo budget** and
+required the entire page to be Pi-independent. Removed the proposed native-ledger
+allocation script/tests and initialized the Cloudflare-only ledger directly.
+No Pi connection or native ledger mutation occurred. The existing physical $50
+budget remains unchanged. Cloudflare version
+`42f7f48f-658e-4516-8da7-51cf217c0412` adds private accounting status counts and
+preserves durable reservations, idempotency, rate limits and unknown-cost holds.
+
+Actual browser typed request generated **Pearl Constellations: Reef Sky** in
+**65.4 s / three Meta calls**, revision
+`0ea1894a6d68c5e4881e9a3b2667d8b9da34726d27ae9d7fce6581b78e95e205`.
+Both server and browser checked the candidate; Meta inspected the report and
+approved. Browser A started the game and keyboard joystick input visibly moved
+the pearl. A typed edit asking for a pink pearl and twice the speed completed in
+**25.6 s / two Meta calls**, revision
+`b97992fa63ee9ee22b6250cb96614f0ccc98bda75616a6788fcf6796f6d2722c`.
+The browser displayed the pink moving pearl. Replaying the actual exported
+sources under identical ten-frame input independently measured **28.3333 →
+56.6667 pixels**, with pearl colors **#FFFFFF → #FF4DD2**. These are real model
+outputs, not test fixtures or preset selection.
+
+Removing the joystick disabled play with an explicit missing-component message;
+reattachment and rollback restored the earlier revision. Reload preserved both
+apps. Cloud accounting before and after those operations stayed at **five calls,
+$0.086049 charged, zero unknown holds**, under the independent $25 ceiling.
+Actual response IDs, token usage, generated sources and screenshots are in
+[evidence](evidence/online-demo/live/verification.json). Audio command validation
+is covered; human audibility is not claimed. Updated automated suites: **72
+API/runtime and 52 UI tests**; native allocation tests removed with that feature.
+Generation now scrolls its progress into view on small screens. Production
+release and final published-page inference are recorded after deployment.
+
+
+Production release: `b024609` pushed to `codex/online-demo`; deployment
+`dpl_ESMH6SjwQG3cAxeq8LpURN5zmdnG` reached READY and the existing
+[public demo](https://modulate-connect.vercel.app/demo) serves real generation.
+On the published page, a fresh typed request with only display/joystick/buttons
+attached generated **Neon Courier** in **32.2 s / two Meta calls**, revision
+`c58cc93d02df5f9c9a89a0388767165dc4b8ea13fe0813587a40547d221c290e`.
+Browser joystick input visibly moved the courier and collected parcels (**score
+0 → 2**); A changed its color from cyan to magenta. No browser errors were
+captured. Provider IDs, usage and source are in `production-checks.txt` and
+`production-courier.js`; before/after screenshots show the gameplay result.
+
+The complete live verification used **seven calls across three requests**, with
+**$0.101252 accounted usage, $24.898748 remaining and zero unknown holds**.
+The public demo is fully independent of Pi power, network, pairing, native
+services and the physical ledger. Production server credentials remained
+server-side. Code, durable safeguards and public behavior are now verified;
+actual Meta generation is demonstrated, while the hardware remains explicitly
+virtual. No Arduino firmware or physical-device behavior is claimed.

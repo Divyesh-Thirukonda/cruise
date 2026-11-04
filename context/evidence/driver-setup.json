@@ -1,0 +1,148 @@
+{
+  "date": "2026-10-30",
+  "code_commit": "e3de9d329157226e08cd819e08afce7adc3187b5",
+  "evidence_kind": "live runtime Meta request on physical Pi with controlled missing optional IMU package",
+  "input_mode": "typed normal Pi API request, not spoken",
+  "source_archive_sha256": "f530cab6d10647e2522bd8877b5a72f7bbfe2732ca2e69a05238bd0261528a1a",
+  "source_archive_bytes": 2178088,
+  "method": "Preserved base adafruit_lsm6ds as private backup outside import path; restarted agent/device; asked runtime Meta to diagnose and install the supported driver, preserving the game.",
+  "baseline": {
+    "controls": [
+      "encoder",
+      "encoder_pressed",
+      "button_a",
+      "button_b"
+    ],
+    "imu_import_available": false,
+    "hardware_report_at_initial_submission": null
+  },
+  "trial": {
+    "request_started_utc": "2026-10-30T05:55:39.316508+00:00",
+    "request_finished_utc": "2026-10-30T05:55:46.894391+00:00",
+    "agent_trace_seconds": 7.577883,
+    "polling_completion_seconds": 7.76,
+    "model_calls": 4,
+    "charged_or_reserved_delta_dollars": 0.051106,
+    "tools": [
+      {
+        "tool": "load_skill",
+        "status": "passed",
+        "seconds": 0.001,
+        "skill": "hardware-debugger"
+      },
+      {
+        "tool": "hardware_debug",
+        "status": "passed",
+        "seconds": 0.018
+      },
+      {
+        "tool": "hardware_debug",
+        "status": "passed",
+        "seconds": 1.731
+      }
+    ],
+    "driver_result": {
+      "driver": "lsm6ds3trc",
+      "status": "installed",
+      "verified": true,
+      "identity": {
+        "address": 106,
+        "who_am_i": 106
+      },
+      "readings": {
+        "imu_ax": -0.1651047594,
+        "imu_ay": -0.2691925425,
+        "imu_az": 9.9744810081,
+        "imu_gx": 0.03451388595818787,
+        "imu_gy": 0.04306599929296008,
+        "imu_gz": 0.018020524526841452,
+        "tilt_x": -0.021065980075443337,
+        "tilt_y": -0.03434930609169262
+      }
+    }
+  },
+  "restart": {
+    "kind": "device-service restart, not physical power cycle",
+    "managed_pack_loaded": true,
+    "input_ready": true,
+    "identity": {
+      "address": 106,
+      "who_am_i": 106
+    },
+    "catalog_error": null,
+    "controls": [
+      "encoder",
+      "encoder_pressed",
+      "button_a",
+      "button_b",
+      "imu"
+    ],
+    "app_suspended": false,
+    "missing_controls": [],
+    "runtime_error": null,
+    "game_revision_before_and_after": "03130009c50e9e5cf4affbac4e55461a1b53b770bfeb8073ac720b3200c7edf7",
+    "additional_model_calls": 0,
+    "services": {
+      "modulate-agent": "active",
+      "modulate-device": "active",
+      "modulate-connect": "active"
+    },
+    "base_optional_package_present": false,
+    "optional_package_backup_present": true,
+    "speech": {
+      "provider": "meta_mms",
+      "pending": false,
+      "error": null
+    }
+  },
+  "budget_before": {
+    "calls": 651,
+    "charged_or_reserved_dollars": 12.093755,
+    "limit_dollars": 50
+  },
+  "budget_after": {
+    "calls": 655,
+    "charged_or_reserved_dollars": 12.144861,
+    "limit_dollars": 50
+  },
+  "validation": {
+    "host": {
+      "tests_run": 1106,
+      "skipped": 13,
+      "result": "OK"
+    },
+    "pi": {
+      "tests_run": 242,
+      "skipped": 0,
+      "seconds": 17.582,
+      "result": "OK"
+    },
+    "official_wheels_downloaded_and_verified_bytes": [
+      13939,
+      21349
+    ]
+  },
+  "limitations": [
+    "Only the LSM6DS3TR-C installable catalog pack is implemented.",
+    "No physical unplug/replug or power-cycle trial.",
+    "User cannot access the device; tilt play, visible frame and audibility were not retested.",
+    "No spoken installation trial.",
+    "Synthetic cancellation/rollback tests do not establish physical fault reliability."
+  ],
+  "failures_preserved": [
+    "Initial deployment wrapper failed to parse before any Pi mutation; corrected and syntax-checked.",
+    "Outdated tool-schema expectation failed in first broader host run; updated before final passing suite."
+  ],
+  "attribution": [
+    {
+      "project": "Adafruit CircuitPython LSM6DS",
+      "version": "4.6.3",
+      "license": "MIT"
+    },
+    {
+      "project": "Adafruit CircuitPython Register",
+      "version": "1.13.0",
+      "license": "MIT"
+    }
+  ]
+}

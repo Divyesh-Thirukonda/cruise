@@ -1,155 +1,217 @@
-# Modulate
+<p align="center">
+  <img src="modulate/web/logo.png" width="96" alt="Modulate logo: three interlocking cube modules">
+</p>
 
-**Say what it should do. Give the same hardware a new job.**
+<h1 align="center">Modulate</h1>
 
-Modulate is a modular-device project you program by speaking: a Meta-powered agent uses connected controls and devices as context to generate and check software for an on-device game or a controller for your computer. The user-requested extension adds browser computer tasks and spoken answers through the device.
+<p align="center"><strong>Say what it should become.</strong></p>
 
-Say “Hey Meta, make a kart-racing game,” and the target experience is a small original game appearing on the device's screen, playable with its physical controls. Then say “Make this knob control my computer's volume,” and the agent maps the knob to a computer you have paired. Follow-up requests can change the game, button behavior, or adjustment sensitivity.
+<p align="center">
+Modulate is a Raspberry Pi device you program by talking to it. A Meta Muse Spark agent sees which components are connected, writes the app or control mapping for that hardware, verifies it in a sandbox, repairs failures, and activates it with acknowledgment and rollback. The result then runs locally, with no model call per frame or press. On our device, single requests have produced playable games, turned a knob into a Mac volume control, and switched a game to tilt steering after an IMU was added.
+</p>
 
-The new behavior comes from generated code and mappings. Physical controls and game frames run locally after activation; generating a new experience is a separate, measured process.
+<p align="center">
+  <a href="https://modulate-connect.vercel.app/demo"><strong>Try it in your browser →</strong></a>
+  &nbsp;·&nbsp; <a href="https://modulate-connect.vercel.app/connect">Connect a real device</a>
+  &nbsp;·&nbsp; <a href="#how-it-works">Architecture</a>
+  &nbsp;·&nbsp; <a href="#evidence">Evidence</a>
+  <!-- TODO(team): add the 3-minute demo video link here before submitting -->
+</p>
 
-## Status
+<p align="center">
+  <img src="docs/generated-apps.png" alt="Frames from three Meta-generated apps: Pixel Kart Sprint, MODULATE: Self Assembly and Neon Courier">
+  <br>
+  <sub>Saved frames from Meta-generated apps: Pixel Kart Sprint (typed, Pi) · MODULATE: Self Assembly (spoken, Pi) · Neon Courier (online demo). Rendered package output, not photos.</sub>
+</p>
 
-Planning began October 27, 2026 for the Meta Global AI Developer Hackathon. The user renamed Cruise to **Modulate** and set this voice-first direction on October 28. **The first voice-to-number prototype runs on the physical Pi:** USB microphone → local Whisper transcription → local Meta Llama 3.2 generation → fixed code checks → PiTFT activation. A spoken trial displayed 1008 in blue from a newly generated program.
+<p align="center"><sub>Meta Global AI Developer Hackathon · Theme: Push the Frontier · Track: Indie Developer</sub></p>
 
-**Live generated games now run on the Pi.** The first typed Meta request produced **Pixel Kart Sprint**, with code and three original sprites, in about 49 seconds; the user confirmed steering and both large buttons. A later spoken “Make yourself” request produced **MODULATE: Self Assembly**, with four generated sprites, in about 38 seconds. Observed device rates were about 13 fps, not a sustained guarantee. See [exact revisions, costs, setup and limits](context/product-runtime.md#first-live-generated-game--october-28).
+## What it does
 
-**The same knob now controls the paired Mac's actual system volume.** A typed mapping request completed in about 6.6 seconds; the user confirmed its direction and independent native reads confirmed the volume. A six-second push-to-talk request, “Make the knob less sensitive,” changed its scale from +2 to +1. The user then said “Hey Meta, reverse the knob” without pressing buttons, producing a checked −1 mapping. Those agent requests took about 5.9 and 4.5 seconds after transcription; they exclude recording/transcription time. [Live control and voice evidence](context/product-runtime.md#live-volume-and-spoken-refinements--october-28).
+Demonstrated on our Raspberry Pi 5 with live Meta models. Input modes are labeled; timings are in [Evidence](#evidence).
 
-Another hands-free request increased the reversed step to −10. Two live UI rollbacks then restored −1 and returned to the original −10 revision, with zero model calls. [Rollback evidence](context/evidence/live-rollback.json) records Pi software acknowledgements, not optical readback.
+- **Builds a game from a sentence.** A spoken "Make yourself" produced *MODULATE: Self Assembly*, with fresh code and four original sprites. The first typed request produced *Pixel Kart Sprint*, which the user played with the joystick and buttons. [Spoken run](context/product-runtime.md#further-spoken-game--october-28) · [first game](context/evidence/first-live-game.json)
+- **Turns a knob into a Mac control.** A typed request bound the knob to the paired Mac's system volume. Spoken "Make the knob less sensitive" (push-to-talk) and "Hey Meta, reverse the knob" (hands-free) refined it. A later typed request made it dim and brighten the Mac screen. [Volume](context/product-runtime.md#live-volume-and-spoken-refinements--october-28) · [brightness](context/evidence/mac-reconnect-2026-11-02.json)
+- **Adapts when the hardware changes.** With the joystick unplugged, the Pi automatically had Meta rework the saved game for the knob. After an IMU was added, a typed request switched it to tilt steering. The user confirmed both. [Adaptive controls](context/adaptive-controls.md)
+- **Fixes its own hardware setup.** With the IMU driver deliberately removed, a typed request had the agent verify the chip, install a hash-pinned driver pack and return real readings. It also diagnoses the I²C bus and guides Qwiic-button address changes; the full address write has only run on a simulated bus. [Driver setup](context/driver-setup.md) · [debugger](context/hardware-debugger.md)
+- **Turns into a camera mirror or a Mac speaker.** A typed request generated *Funky Mirror Cam*, which shows the Mac's live camera with effects on the mini display. A typed "Turn into a speaker for my computer" streamed Mac audio to the Pi; a spoken "Hey Meta, stop being a speaker" handed it back. Both user-confirmed. [Camera](context/product-runtime.md#paired-mac-and-live-camera-extension) · [speaker](context/evidence/computer-audio.json)
+- **Uses the Mac like a person would.** From screenshots and native cursor and keyboard input, it read the newest Gmail message aloud after a spoken request and operated Calculator from typed ones. No Gmail API; these were individual trials. [Computer tasks](context/product-runtime.md#computer-tasks-and-spoken-replies)
+- **Keeps a library of what it built.** Every acknowledged app is saved, with favorites and Trash, and re-verified when reopened. The user browsed it with the knob and A/B buttons; a spoken "Hey Meta, reverse the knob here" flipped its scrolling. [App library](context/app-library.md) · [trial](context/evidence/wake-library-preferences.json)
+- **Takes requests from Muse.** A Muse chat asking for a "mario kart clone on modulate" reached the Pi agent through a private custom connector; the agent generated, checked and activated *Pip Kart Turbo*. [Muse connector](context/muse-connector.md)
 
-The user confirmed the **Indie Developer** track and [owned hardware](context/hardware.md). This is a working hackathon prototype: early audio failures required resampling/buffering fixes, and a shutdown race caused unintended game fallback. The shutdown fix preserved the exact game revision across two verified restarts. These trials do not establish broad wake/noise or failure reliability; revocation and performance testing remain. The [number prototype guide](context/number-prototype.md) preserves its earlier evidence.
+## Try it online
 
-**A spoken Gmail request now produces an audible email readout.** Under the user's two-hour Chrome grant, Meta used native screenshots and cursor actions to answer with the latest email's sender and subject in five calls. Independent inspection of visible Gmail verified the subject, and the user confirmed hearing the readout. This follows an earlier failed attempt and a successful typed local-form trial; it does not establish three independently verified subjects or general browser reliability. That trial used an expiring Chrome grant, fresh observations and stop/revoke controls, without a Gmail API; the later paired-Mac scope below supersedes the separate grant. [Exact evidence, setup and privacy limits](context/product-runtime.md#computer-tasks-and-spoken-replies).
+**[modulate-connect.vercel.app/demo](https://modulate-connect.vercel.app/demo)**: no hardware or account needed. Each scene of the three-minute video has a numbered button, in order.
 
-Later spoken requests created and refined Metro Dash, then generated **Star Dash — Astronaut Runner**, retained across restart and the email trial. The update adds one-time focus of the granted Chrome window, spoken failure feedback and up to two malformed-response repairs within existing call/budget limits. Validation ran 417 local tests with three Mac PyAV skips, 46 final Pi device checks after the earlier 92 speaker/device tests, and 69 focused duration-integration tests. The **$50 total ledger ceiling** is live; that checkpoint recorded 147 calls / $5.343662 held or used. The earlier two-hour grant had an October 28, 11:56 PM Eastern expiry. [Grant state and ledger snapshots](context/product-runtime.md#install-the-host).
+- **Real agent, virtual parts.** Your request and the attached virtual parts go to Meta `muse-spark-1.3`. An orchestrator call picks a skill and one action. For apps, a coder subagent writes original JavaScript and a reviewer subagent approves it or repairs it against the check report. The trace streams onto the page as it happens.
+- **The same verification idea as the device.** Generated code runs in a QuickJS/WASM worker with no DOM, network, imports or host callbacks. The server and your browser each run 151 frames before activation; sandbox errors name the failing line so the reviewer can repair it. A rejected candidate leaves the previous app running.
+- **Scenes:** a Doom-style game that turns with tilt; unplug the joystick and ask it to update the controls; break the simulated I²C bus (an IMU without its driver, or a third button at 0x6F) and ask it to check your hardware; map the knob to a virtual Mac's brightness from a Muse-style message, then reverse it; a webcam Halloween mirror; the app library with favorites, Trash and knob or joystick scrolling; an unsafe request it declines.
+- **Spoken replies, optional.** Turn on the voice and Meta's open-weight MMS-TTS runs in your browser through WebAssembly, as it runs on the Pi's CPU. It's a one-time download of about 42 MB, and reply text never leaves the tab.
+- **Honest labels.** The Pi parts, I²C bus, driver installer and paired Mac are simulations; the Meta inference, the generated code and its checks are real. The "Message from Muse" channel is typed on the page, not sent from the Muse app. Webcam frames, if you allow them, stay in the tab and never reach the model or the generated code.
+- **Bounded spend.** An independent, capped $25 demo budget reserves worst-case cost before every call, and each visitor has a small daily allowance. Saved apps, knob mappings and the library work without it.
 
-## Run the development studio
+## How it works
 
-The current prototype uses the Mac companion as its AI host. New app generation,
-voice replies and library management need that service online; a current local
-game can continue on the Pi without it. Native Mac-control pairing is separate
-and only needed for computer capabilities. Fully standalone AI is not yet
-implemented. Later/Cancel leave connection setup without forcing the user back
-into it; hold small screen A for one second to reopen setup.
+The agent runs on the Pi and reaches Meta through a gateway that holds the API keys. It reads the live capability manifest, loads one of [eight skills](modulate/skills), and chooses among [21 trusted tools](modulate/agent.py) such as `inspect_capabilities`, `write_package`, `test_package`, `activate_package`, `hardware_debug` and `computer_act`. There is no keyword router or fixed call sequence. Up to two coder, artist or reviewer subagents share the request's 32-call budget and cannot activate anything. Only the fixed verifier, never the model, can pass a package.
+
+```mermaid
+flowchart TD
+    subgraph ASK [Ways to ask]
+        V["Voice on the Pi<br/>local wake check, then transcription"]
+        MU["Muse custom connector"]
+        ST["Studio or Modulate Connect<br/>typed request"]
+    end
+    META["Meta API<br/>muse-spark-1.3"]
+    subgraph PI [Raspberry Pi 5]
+        AG["Pi agent on Muse Spark<br/>8 skills · coder, artist and reviewer subagents"]
+        PK["Candidate package<br/>JavaScript + original sprites, or a control binding"]
+        VF["Independent verifier<br/>QuickJS isolation · exact hash · capability manifest"]
+        AC["Staged activation<br/>device acknowledgment · rollback"]
+        RT["Local runtime<br/>no model call per frame or press"]
+        HD["Hardware debugger<br/>catalog-only driver installs"]
+        TT["Meta MMS-TTS<br/>spoken replies on the Pi CPU"]
+    end
+    MAC["Paired Mac helper<br/>volume · brightness · camera · audio · desktop"]
+    V --> AG
+    MU --> AG
+    ST --> AG
+    META <-->|gateway holds the API keys| AG
+    AG --> PK --> VF
+    VF -->|check report| AG
+    VF -->|exact candidate passed| AC --> RT
+    AG -.-> HD
+    AG -.-> TT
+    AG -.->|bounded tools| MAC
+    RT -.->|knob steps| MAC
+    MAC -.->|camera frames and audio stay local| RT
+```
+
+**Trust boundaries**
+
+- **Generated apps are sandboxed.** A QuickJS-NG worker gives them no host callbacks, files, network, imports or shell, under a macOS sandbox or Linux seccomp filter with fixed CPU, memory and drawing limits. Drivers and firmware are out of reach. [Contract](context/product-runtime.md#generated-package-and-execution-contract) · [verifier](modulate/game_runtime.py)
+- **Checks bind to the exact package.** The verifier runs startup, representative input updates and hostile resource probes, then records the package and capability-manifest hashes. Activation rejects any change and waits for the device's matching acknowledgment. On failure the previous app keeps running, and rollback needs no model call. [Verification](context/architecture.md#packages-and-verification)
+- **Drivers come only from a hash-pinned catalog.** `install_driver` takes a catalog ID (one pack today), re-checks the chip, verifies wheel hashes and requires real readings before committing. It accepts no model-supplied URL, command or code. [Installer boundary](context/driver-setup.md#trusted-installation-boundary)
+- **Keys stay server-side.** Provider API keys live only in the server environment. The Pi holds a gateway credential; browsers, generated apps and the Mac helper get none. [Standalone setup](context/standalone.md)
+- **Mac access needs a physical press.** Pairing requires matching codes and a press of the Pi's A button; sessions expire after eight hours and can be revoked. Generated mappings can only use advertised volume or brightness steps (±10 at most). [Mac helper](context/optional-mac.md)
+- **Camera frames never enter model input.** They travel as local JPEGs to the trusted Pi renderer; the model sees camera metadata only. Screenshots for a requested desktop task do go to Meta, transiently. [Camera path](context/product-runtime.md#paired-mac-and-live-camera-extension)
+- **Every model call is reserved in advance.** The [ledger](modulate/agent.py) holds a worst-case reservation before each call and settles actual usage after; unknown costs stay held. The device has a $50 total ceiling; the online demo has its own $25.
+
+## Meta AI in Modulate
+
+| Model | Where it runs | What it does | Evidence |
+| --- | --- | --- | --- |
+| **Muse Spark** `muse-spark-1.3` | Meta API, called by the Pi agent through the key-holding gateway, and by the `/demo` server | Orchestrator and coder/artist/reviewer subagents: reads capabilities, writes and repairs apps and mappings, reads check reports, drives the Mac from screenshots | [First game](context/evidence/first-live-game.json) · [online demo](context/evidence/online-demo/live/verification.json) |
+| **Muse Voice Transcribe** `muse-voice-transcribe-1.0` | Meta API, same gateway | Transcribes invoked commands, push-to-talk and clarification answers after a local wake check | [Integration](context/muse-voice-transcribe.md): synthetic command transcribed end to end in 1.18 s; not yet tested with a person speaking |
+| **MMS-TTS** `facebook/mms-tts-eng` | Pi 5 CPU, and the visitor's browser (WASM) in the online demo; open weights (CC-BY-NC-4.0) | Spoken replies without a cloud call | [Setup](context/meta-mms.md): user confirmed clear speech; 8.3 s cold synthesis for 3.6 s of audio |
+| **Muse** custom connector | Muse → Modulate Connect API → Pi agent | Sends requests and follow-up answers to the Pi agent under a revocable seven-day grant | [Connector](context/muse-connector.md) |
+| **Llama 3.2 1B** via Ollama | Pi 5, on device | First voice-to-number prototype only (Oct 28) | [Prototype](context/number-prototype.md) |
+
+Local Whisper `tiny.en` still handles wake detection. Spoken replies can also use an ElevenLabs voice (Flash v2.5) through the same gateway, and the November 2 rehearsal did. A failed synthesis never switches providers silently. [Voice options](context/product-runtime.md#elevenlabs-upgrade-and-conversation-validation) · [rehearsal](context/demo-readiness.md)
+
+## Evidence
+
+One recorded trial per row on the physical Pi unless noted. Sanitized traces are in [`context/evidence/`](context/evidence). Times run from request submission (after transcription, for spoken rows) to agent completion; they exclude microphone capture and speech playback.
+
+| Capability | Input | Measured result | Link |
+| --- | --- | --- | --- |
+| First generated game, *Pixel Kart Sprint* | Typed | 49.8 s, 11 Meta calls; a malformed write was repaired by a coder subagent; user played it; 13.4 fps | [Trace](context/evidence/first-live-game.json) |
+| Spoken game, *MODULATE: Self Assembly* | Spoken | 37.9 s, 8 calls, four original sprites, about 13 fps | [Runtime log](context/product-runtime.md#further-spoken-game--october-28) |
+| First-person game, *Rust Pit 2.5D* | Typed | First attempt rejected after 76.8 s, previous app kept; after a schema-diagnostics fix, 148.5 s and 13 calls; "bubbles" edit 27.3 s | [Rehearsal](context/demo-readiness.md) |
+| Game requested from Muse, *Pip Kart Turbo* | Connector | 97.3 s, 13 calls; checks and device acknowledgment passed; physical play not retested | [Connector](context/muse-connector.md) |
+| Online demo, *Neon Courier* | Typed, browser | 32.2 s, 2 calls; joystick play, score 0 → 2 | [Verification](context/evidence/online-demo/live/verification.json) |
+| Online demo agent, Doom-style *CRIMSON KEEP* | Typed, browser | 81.1 s, 3 calls, $0.049; orchestrator chose tilt to turn; check failed (frame limit), reviewer repaired, repair passed 151 frames | [Scene runs](context/evidence/online-demo/scenes-2026-11-03.json) |
+| Online demo: joystick unplugged → "update the game" | Typed, browser | 29.8 s, 3 calls, $0.029; edit moved walking to the knob, kept tilt; approved first time | Same |
+| Online demo: knob → virtual Mac brightness, then "reverse the knob" | Muse-style message, then typed | 3.6 s and 4.3 s, one call each; step +2 → −2, applied locally per detent | Same |
+| Online demo: missing IMU driver, "check my hardware" | Typed, browser | 4.4 s decision → trusted simulated install; game resumed | Same |
+| Online demo: button conflict at 0x6F, "check my hardware" | Typed, browser | 3.8 s decision → guided re-address to 0x6D after three human confirmations | Same |
+| Online demo: Halloween mirror | Typed, browser | 63.1 s, 3 calls, $0.037; check failed, reviewer repaired; camera path checked with a synthetic stream | Same |
+| Online demo: RFID badge cloner | Typed, browser | Declined in 3.7 s with a harmless alternative; nothing changed | Same |
+| Knob → Mac system volume | Typed | 6.6 s, 6 calls; direction user-confirmed; OS volume read back natively | [Runtime log](context/product-runtime.md#live-volume-and-spoken-refinements--october-28) |
+| "Make the knob less sensitive" | Spoken, push-to-talk | 5.9 s; scale +2 → +1 | Same |
+| "Hey Meta, reverse the knob" | Spoken, hands-free | 4.5 s; scale +1 → −1 | Same |
+| Knob → Mac brightness | Typed | 17.8 s, 6 calls; user confirmed both directions | [Record](context/evidence/mac-reconnect-2026-11-02.json) |
+| Joystick unplugged → knob version of a saved game | Automatic | 14.3 s, 7 calls, artwork kept; user confirmed the knob works | [Adaptive controls](context/adaptive-controls.md) |
+| Tilt steering after adding an IMU | Typed | 20.5 s, 6 calls; user: "Yes, tilt controls the ship." | Same |
+| Missing IMU driver installed by the agent | Typed | 7.58 s, 4 calls; chip ID and real readings verified; survived a service restart | [Record](context/evidence/driver-setup.json) |
+| Live camera app, *Funky Mirror Cam* | Typed | 7 calls, 1.5 s activation acknowledgment; "Yes, live camera and effects work" (after a deadlock fix) | [Record](context/evidence/paired-mac-camera.json) |
+| Halloween mirror camera app | Typed | 33.2 s, 7 calls; checked and acknowledged; camera image not re-checked | [Rehearsal](context/evidence/demo-rehearsal-nov2.json) |
+| Mac audio through the Pi speaker | Typed start, spoken stop | User heard Mac audio on the Pi; the spoken stop returned it to the Mac | [Record](context/evidence/computer-audio.json) |
+| Newest Gmail message read aloud | Spoken | 5 Meta calls; subject independently verified; user heard the reply | [Runtime log](context/product-runtime.md#computer-tasks-and-spoken-replies) |
+| UI rollback −10 → −1 → −10 | Studio button | Exact earlier revisions restored with 0 model calls | [Record](context/evidence/live-rollback.json) |
+| Full Pi reboot | Reboot | Services restarted and the exact game revision returned with 0 model calls | [Record](context/evidence/standalone-runtime.json) |
+
+Saved frames and device acknowledgments are software evidence, not optical photos; "user-confirmed" means a person checked the physical result. These are individual runs, not reliability rates. Latest recorded test runs: 1,176 host tests with 13 platform skips ([build log](context/build-log.md)), plus 78 API/runtime and 66 UI tests for the web app on this branch.
+
+## Built during the hackathon vs. reused
+
+Everything in the middle column was built during the event (October 27 to November 4, 2026). The [build log](context/build-log.md) has dated entries and full attribution.
+
+| Area | Built by the team | Reused |
+| --- | --- | --- |
+| Agent | Tool loop, eight skills, subagent delegation, clarification, recent context, budget ledgers | Meta Muse Spark API |
+| App runtime | Package contract, verifier and hostile probes, staged activation and rollback, renderer | QuickJS-NG Python binding, Pillow, macOS sandbox and Linux libseccomp |
+| Voice and speech | Wake matching, transcript review, cancellation, Muse ASR adapter, MMS worker | faster-whisper with Whisper `tiny.en` and Silero VAD, PyAV, sounddevice, MMS weights via PyTorch and Transformers; Muse Voice Transcribe API; ElevenLabs (optional) |
+| Hardware | Device service, input contracts, hardware debugger, catalog driver installer, component setup | Raspberry Pi OS; Adafruit Blinka, RGB display, seesaw, LSM6DS and Register; SparkFun Qwiic Joystick and Button libraries |
+| Mac | Bridge, native helper app, computer-use loop, camera and system-audio paths | PyAutoGUI, MSS, PyObjC; macOS DisplayServices, AVFoundation, ScreenCaptureKit and CoreAudio |
+| Web and cloud | Studio, Modulate Connect, online demo, Muse connector API, setup plugin, discovery and budget Worker | Next.js, React, Lucide, Jest, esbuild, quickjs-emscripten; Vercel, Cloudflare Workers, cloudflared |
+| First prototype | Python-subset interpreter for the voice-to-number test | Ollama, Llama 3.2 1B |
+
+Pre-existing references: hardware and audio-capture settings were checked against an earlier Interactive-Lab-Hub fork, with adapters written independently. The web footer's Meta symbol comes from Simple Icons (CC0).
+
+## Repository map
+
+| Path | Contents |
+| --- | --- |
+| [`modulate/`](modulate) | Python runtime: [`agent.py`](modulate/agent.py) (tool loop, ledger), [`game_runtime.py`](modulate/game_runtime.py) (package checks, isolated worker), [`device_activation.py`](modulate/device_activation.py), [`hardware_debug.py`](modulate/hardware_debug.py), [`driver_setup.py`](modulate/driver_setup.py), [`voice.py`](modulate/voice.py), [`mms_tts.py`](modulate/mms_tts.py), [`mac_companion.py`](modulate/mac_companion.py) |
+| [`modulate/skills/`](modulate/skills) | The eight `SKILL.md` files the agent loads on demand |
+| [`modulate/web/`](modulate/web) | Local Studio, served on loopback |
+| [`webapp/connect-app-code/`](webapp/connect-app-code) | Modulate Connect and the online demo (Next.js), server routes and tests |
+| [`deploy/`](deploy) | Pi systemd units; Cloudflare discovery and demo-budget Worker |
+| [`native/mac-helper/`](native/mac-helper) | Native macOS app that hosts the Mac helper |
+| [`plugins/modulate-setup/`](plugins/modulate-setup) | Setup skill for a coding agent |
+| [`scripts/`](scripts) | Installers (MMS-TTS, Mac app), intent evaluation, previews |
+| [`tests/`](tests) | Python and Node tests with fake providers and real sandboxed workers |
+| [`context/`](context) | [Architecture](context/architecture.md), [decisions](context/decisions.md), [hardware](context/hardware.md), build log and [evidence](context/evidence) |
+
+## Run it
+
+**Host tests** (Python 3.11+). Providers and hardware are faked, so no API spend or device is needed; a few platform-specific tests skip on a Mac.
 
 ```sh
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements-product-host.txt
-.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python -m unittest discover -s tests
 ```
 
-Then follow the [host/Pi setup guide](context/product-runtime.md) for private credentials, a selected spending ceiling, pinned TLS enrollment and device launch. Customer setup uses the focused `http://127.0.0.1:8787/setup` pairing page and returns to the website. The developer companion is served locally at `http://127.0.0.1:8787`; it shows the real preview, connected controls, agent activity, generated source and checks. It is a working control surface, not a promotional website. The macOS host bridge and Pi device are separate trusted processes; no model key belongs in the browser or on the Pi.
-
-While processing, the Pi and companion show the actual stage. The user confirmed the Listening → processing transition; a later 60-sample trace showed processing throughout all sampled busy stages and then ready/game. The current program is retained and paused. [Processing and restart evidence](context/evidence/processing-and-restart.json) distinguishes software telemetry from optical confirmation.
-
-The latest voice update keeps ambient transcription visually quiet. A wake-only check starts after a short pause while recording continues, so “Hey Meta” can acknowledge before the complete request finishes. Finish speaking with a three-second pause, then review the transcript in Studio during a separate three-second window. **Edit** pauses sending until **Send now**; **Discard** cancels the draft. During a build, “Hey Meta, cancel build” requests cancellation locally. If Meta needs a detail, its question appears on the Pi and in Studio, and your next reply includes that context. The update is installed: the user confirmed wake acknowledgement and hands-free cancellation of a held request; 164 focused tests passed on the Pi. A live Meta clarification and Studio edit/discard were also checked. Room-noise reliability remains unmeasured. See [voice behavior and limits](context/product-runtime.md#use-the-companion).
-
-**Conversation and voice upgrade installed and demonstrated:** after being asked whether they wanted a space joke, the user answered “yes” without another wake phrase. The device understood, spoke the joke through ElevenLabs Flash v2.5/Roger and returned to wake listening. The user confirmed both the direct answer and natural voice/good volume at 75%. This verifies that trial, not general conversation reliability. Failed synthesis does not switch silently to eSpeak. Validation ran 512 host tests with 11 skips and all 177 focused Pi tests passed. That update cleared the old separate Chrome grant; the subsequent paired-Mac scope below supersedes that policy. [Setup, limits and evidence](context/product-runtime.md#elevenlabs-upgrade-and-conversation-validation).
-
-**Latest extension installed:** the paired session now authorizes requested Mac desktop/app actions, camera and supported volume/brightness controls, replacing separate Chrome grants. The agent chooses sensible defaults and asks only when needed. Generated camera apps combine the actual Mac camera image with effects and original interactive overlays; the camera stream stays local and outside model input/generated code. Native probes received a 240×135 JPEG and changed brightness 46 → 47 → 46, restoring the starting level. Final host validation ran 579 tests with 11 skips; the initial Pi suite passed all 184 focused checks. After a transport deadlock repair, the user confirmed live camera and effects work. A live Meta task operated native Calculator and produced 2+2 = 4, independently verified, with the camera app retained. [Contract and evidence](context/product-runtime.md#paired-mac-and-live-camera-extension).
-
-**Mac speaker mode is installed and user-confirmed:** “Hey Meta, turn into a speaker for my computer” streams local system audio through the Pi speaker. “Hey Meta, stop being a speaker,” screen button B or Studio’s **Stop computer audio** ends it and restores the Mac’s previous mute state when still owned. The current device app is retained. [Setup, live evidence and limits](context/product-runtime.md#mac-system-audio-capture-and-routing).
-
-Hardware setup now has its own **hardware-debugger** skill. Ask “Hey Meta, check my hardware” for driver, bus and device-health diagnostics, or describe a newly added Qwiic Button. Supported address repair guides isolation, a checked address change, a power-cycle check and reconnection through voice or Studio. The setup survives reboot, and missing controls pause the saved app. See [supported boards, wiring steps and verification limits](context/hardware-debugger.md).
-
-Saved apps now have an **app library** with favorites, Trash and restore. Say “Hey Meta, open my app library,” then use voice or the connected knob/joystick and A/B buttons. Successfully activated revisions are saved automatically and rechecked when reopened. [Usage and storage details](context/app-library.md).
-
-The Pi's voice and build cards now use an **animated Muse-inspired companion**: a cupped hand while listening, moving mouth during playback, thinking/building poses, concerned explanations and a brief celebration after confirmed activation. Games and existing controls remain intact. [States, preview and visual attribution](context/muse-screens.md).
-
-## Remote Studio
-
-**Connection webapp source:** [webapp/connect-app-code](webapp/connect-app-code)
-contains the Modulate React/Next.js app, server API routes and tests. It is the
-source for the dedicated `modulate-connect` Vercel project, built from this
-repository’s `main` branch. The source manifest preserves the original portfolio
-provenance alongside current standalone hashes; no portfolio pages or secrets
-are included.
-
-[Modulate Connect](https://modulate-connect.vercel.app/connect) adds a phone-friendly remote dashboard, a one-time browser connection code and enforced device access switches. It retains the native Mac companion and the current Pi runtime. Meta and ElevenLabs can use a server-only Vercel gateway without resetting the existing spending ledgers. Camera preview sharing is a separate opt-in. See [connection setup and current deployment limits](context/connect.md); this is one configured hub, not browser-only control of arbitrary phones or computers.
-
-The new web flow starts with a short introduction and an eight-digit connection
-code. After connecting, review the device's existing access settings, then enter
-Studio. The sidebar appears only in the connected workspace; **Device** and
-**Access** have their own pages, and activity/source inspection sits under
-**Developer tools**. Connecting preserves current permissions; the access step
-only saves choices the user changes. Returning sessions go straight to Studio.
-
-Need installation help? [Set up with your coding agent](https://modulate-connect.vercel.app/connect/setup)
-offers a copyable prompt and the downloadable [Modulate Setup plugin](plugins/modulate-setup).
-Open the downloaded folder in your coding agent and ask it to read
-`skills/modulate-setup/SKILL.md` and follow it. Optionally keep the skill through
-your agent's supported skill mechanism. The portable instructions check and
-reuse existing software, guide native permission and
-physical steps, and preserve apps, pairing, credentials and spending history.
-They do not silently install native services or connect arbitrary Macs to the
-shared public hub. The guided flow is deployed and verified; see the
-[build log](context/build-log.md).
-
-Develop the webapp with Node.js 22 or newer:
+**Web app** (Node.js 22+):
 
 ```sh
 cd webapp/connect-app-code
 npm ci
-npm run dev
+npm run check   # source provenance, API and UI tests, production build
+npm run dev     # http://localhost:3000/connect and /demo
 ```
 
-Open `http://localhost:3000/connect`. `npm run check` verifies source provenance,
-runs API/client tests and builds the Next.js app. `npm start` serves that production
-build. Real browser linking still needs HTTPS and the configured companion;
-local rendering does not bypass secure session requirements.
+Local `/demo` generation needs the server-only Meta key and budget service; without them it fails closed, with no preset fallback.
 
-The device has a local **setup mode** for missing enrollment, an unreachable companion or an unpaired Mac. Small screen **A** advances the guide; **B** dismisses it without deleting the saved app. Dismissal lasts for the current boot; restart, a recognized wake phrase while disconnected, or holding small A for one second can reopen it. When the companion is reachable, “Hey Meta, help me connect” uses the **connection-setup** skill to inspect access, display a browser code or prepare native pairing. Physical pairing confirmation and macOS permission grants still belong to the user. [Setup behavior and limits](context/connect.md#on-device-setup).
+**Device:** Raspberry Pi 5, Adafruit Mini PiTFT (240×135), USB microphone and speaker, and Qwiic controls: a joystick, an Adafruit rotary encoder, two SparkFun Qwiic Buttons and an optional Adafruit LSM6DS3TR-C IMU. Start with the [hardware guide](context/hardware.md), then [standalone Pi setup](context/standalone.md), the [runtime guide](context/product-runtime.md) and the [optional Mac helper](context/optional-mac.md).
 
-## Demonstration flow
+Provider API keys never go to the browser or the Pi. The Pi agent reaches Meta through a server-side gateway that holds them.
 
-1. **Ask and generate.** Show a real spoken game request and the agent/check/activation path. Pixel Kart Sprint was created through text; the later Self Assembly game came through the voice endpoint. Label the particular run accurately.
-2. **Play on the device.** Show the original game on the PiTFT's 240×135 landscape canvas. Joystick steering and large green/red buttons are physically confirmed in the first game.
-3. **Refine it.** Ask “Make steering less sensitive and make button B boost.” Show a fresh code or mapping change passing checks, then demonstrate its physical effect.
-4. **Control the computer.** Link the Mac through the companion and trusted bridge. Show the knob changing actual OS volume, then the demonstrated spoken sensitivity and direction changes.
-5. **Recover.** Show a rejected package, unavailable component, or failed activation leaving the previous working experience usable.
+## Honest limits
 
-The typed local-form trial and later spoken latest-email readout provide separate computer-task evidence. Label their input modes and keep private email contents out of public footage unless explicitly approved for publication.
+- **Generation takes time and can fail.** Fresh apps took about 30–150 s in recorded trials, edits about 15–30 s, and reopening a saved app under 15 s. Some attempts fail checks; the previous app keeps running. New requests need internet; installed apps run locally.
+- **About 13 fps on the Pi.** Generated games ran at 13–14 fps in recorded runs; no sustained minimum is established.
+- **Voice reliability is unmeasured.** Wake and push-to-talk trials succeeded individually, but noisy rooms and false triggers were not benchmarked. "Hey Meta" is matched in local transcripts; it is not an official Meta assistant integration.
+- **Mac brightness depends on the display.** It uses a private macOS API that may fail on other displays.
+- **The online demo's hardware is virtual.** Its components are conceptual, with no electrical or firmware emulation.
+- **The driver catalog has one pack.** Only the LSM6DS3TR-C installs automatically. Unknown I²C devices need a reviewed driver, and the full Qwiic-button address repair has only run on a simulated bus.
+- **Computer use is not reliability-tested.** Desktop tasks are individual successful trials. A YouTube request ended on a paused pre-roll ad, so video playback is not claimed.
 
-Voice is a core demo goal. Push-to-talk can establish it before wake-word detection; any host microphone or typed-input fallback must be identified. “Hey Meta” is a proposed activation phrase, not a claim that an official Meta voice-assistant integration exists. The user's “make Mario Kart” example is translated into an original small kart racer using our own or licensed assets.
+## Team
 
-## How it works in code
+Divyesh Thirukonda and Viktor.
 
-`Microphone → transcript + component/device context → Meta agent → generated package → checks and bounded repair → staged activation → local play/control`
+## License
 
-The product generates **JavaScript application/game code on a stable device runtime**, with original sprite data. Firmware generation is a longer-term ambition; this build does not reflash the Pi or peripherals with model output. Generated code runs in a bounded QuickJS-NG worker with OS restrictions, separate from fixed hardware drivers and the allowlisted computer-action bridge. Verification is tied to the exact candidate and capability manifest; a model saying its code works is insufficient.
-
-The local website handles pairing, preview, requests and status. Meta, Fireworks and Ollama adapters are implemented; `muse-spark-1.3` powered the live games and control changes. The current stack uses local Whisper speech recognition, a macOS host bridge and pinned TLS for the Pi connection. The wake phrase uses a local transcript matcher and is not an official Meta assistant integration. Evidence distinguishes typed and spoken runs.
-
-Computer tasks use an independently implemented native Python helper, separate from generated packages and volume pairing. The agent receives temporary screenshots and chooses bounded actions. Existing Codex app services, credentials and proprietary computer-use runtime were not copied. Dependency attribution and the permission boundary are in the [architecture](context/architecture.md#computer-tasks-and-spoken-replies).
-
-## Project context
-
-| Document | Purpose |
-| --- | --- |
-| [Agent instructions](AGENTS.md) | How coding agents should work in this repository |
-| [Product brief](context/product-brief.md) | Refined idea, target interactions, scope, and demo story |
-| [Hardware](context/hardware.md) | Confirmed inventory, missing capabilities, and bring-up checks |
-| [Hackathon facts](context/hackathon.md) | Source-backed rules, rubric, dates, and unresolved discrepancies |
-| [Architecture](context/architecture.md) | Agent tools, generated packages, validation, pairing, and recovery |
-| [Product runtime](context/product-runtime.md) | Host/Pi installation, runtime contracts, offline evidence and current limitations |
-| [Build plan](context/plan.md) | Priorities, milestones, and evidence to collect |
-| [Decisions](context/decisions.md) | User-confirmed direction, engineering proposals, and open choices |
-| [Build log](context/build-log.md) | What was actually created during the event |
-| [Submission checklist](context/submission-checklist.md) | Public repo, three-minute video, and submission readiness |
-
-The supplied participant guide weights **Impact 30%, Meta AI tooling 25%, Technical Depth & Execution 20%, Demo 25%**. These guide our priorities; they do not guarantee a placing.
-
-## Collaborate
-
-The product is now Modulate; the existing repository URL and workspace folder still use `cruise`.
-
-```sh
-git clone https://github.com/Divyesh-Thirukonda/cruise.git
-cd cruise
-git switch -c codex/short-description
-```
-
-Read the product brief and build plan, then follow [CONTRIBUTING.md](CONTRIBUTING.md). The [product runtime guide](context/product-runtime.md) is the current setup entry point; the [number prototype guide](context/number-prototype.md) documents the earlier experiment. Run checks in the installed virtual environment.
-
-The repository is public for judging. Keep API keys, private conversations, raw microphone recordings, account details, and raw participant materials out of commits. A project license has not yet been selected by the team.
+Not yet selected by the team. Third-party components keep their own licenses; the MMS-TTS checkpoint is CC-BY-NC-4.0 (noncommercial).

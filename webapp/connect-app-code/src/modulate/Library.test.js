@@ -91,3 +91,11 @@ test('while building, library mutations wait but the device menu can close', () 
   expect(screen.getByRole('button', { name: 'Permanently delete' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Keep in Trash' })).toBeEnabled();
 });
+
+test('earlier revisions are retained but hidden until requested', () => {
+  const older = { ...game, id: 'd'.repeat(64), latest: false, active: false };
+  render(<AppLibrary {...base} library={{ items: [{ ...game, latest: true }, older] }} onAction={jest.fn()} />);
+  expect(screen.getAllByRole('article', { name: game.title })).toHaveLength(1);
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Show earlier saved versions' }));
+  expect(screen.getAllByRole('article', { name: game.title })).toHaveLength(2);
+});

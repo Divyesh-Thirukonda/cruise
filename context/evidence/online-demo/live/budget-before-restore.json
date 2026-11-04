@@ -1,0 +1,9 @@
+{
+  "limit": 25000000,
+  "charged": 86049,
+  "halted": false,
+  "budgetId": "b55d03393eb54af8a99f29996478d1b4",
+  "requests": 2,
+  "calls": 5,
+  "unknownHolds": 0
+}

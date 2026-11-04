@@ -20,6 +20,38 @@ const deferred = () => {
   return { promise, resolve, reject };
 };
 
+test('a connected but silent speaker and expiring Mac session are visible before a demo', async () => {
+  connectApi.mockImplementation(async action => action === 'session' ? connectedSession : {
+    ...initialState,
+    device: { ...initialState.device, telemetry: { speaker_volume: { available: true, volume: 0, muted: false } } },
+    setup_status: { pairing_expires_at: Date.now()/1000 + 600 },
+  });
+  render(<Connect />);
+  expect(await screen.findByText(/speaker is at 0%/)).toHaveTextContent('Spoken replies will be silent');
+  expect(screen.getByText(/Mac access expires/)).toHaveTextContent('confirmation on the device is required');
+  expect(command).not.toHaveBeenCalled();
+});
+
+test('linked setup shows the pending Mac comparison without a web approval action', async () => {
+  usePathname.mockReturnValue('/connect/setup');
+  connectApi.mockImplementation(async action => action === 'session' ? connectedSession : {
+    ...initialState, paired: false, mac_pairing: { code: '87654321', expires_at: Date.now()/1000 + 120 },
+  });
+  render(<Connect />);
+  expect(await screen.findByLabelText('Mac comparison code')).toHaveTextContent('87654321');
+  expect(screen.getByText(/This website cannot approve native access/)).toBeInTheDocument();
+  expect(command).not.toHaveBeenCalled();
+});
+
+test('unlinked setup never fetches or displays a Mac comparison code', async () => {
+  usePathname.mockReturnValue('/connect/setup');
+  connectApi.mockResolvedValue({ connected: false, companion: { online: true, platform: 'linux' } });
+  render(<Connect />);
+  await screen.findByRole('heading', { name: '1. Link this browser.' });
+  expect(screen.queryByLabelText('Mac comparison code')).not.toBeInTheDocument();
+  expect(connectApi.mock.calls.some(([action]) => action === 'state')).toBe(false);
+});
+
 beforeEach(() => {
   jest.clearAllMocks();
   usePathname.mockReturnValue('/connect/studio');
@@ -264,6 +296,8 @@ test('an initial connection failure is visible and links to setup without leakin
   expect(screen.queryByText('Browser connected')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Get connection help' }));
   expect(useRouter().push).toHaveBeenCalledWith('/connect/setup');
+  expect(screen.getByRole('heading', { name: /Just Modulate and Wi-Fi/ })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Copy Mac setup prompt' })).toBeInTheDocument();
   expect(connectApi.mock.calls.every(([, payload]) => payload === undefined)).toBe(true);
 });
 
@@ -311,4 +345,76 @@ test('a failed browser claim stays on the connection form and gives actionable h
   expect(screen.getByLabelText(/connection code/i)).toHaveValue('01234567');
   expect(screen.queryByText(/private upstream/)).not.toBeInTheDocument();
   expect(useRouter().push).not.toHaveBeenCalledWith('/connect/access');
+});
+
+test('a failed preview retries after reconnecting without a new app revision', async () => {
+  let offline = false;
+  connectApi.mockImplementation(async action => {
+    if (offline) throw new Error('Temporary tunnel outage');
+    return action === 'session' ? connectedSession : {
+      ...initialState, active: { kind: 'game', revision: 'unchanged-revision', package: { title: 'Same game' } },
+    };
+  });
+  render(<Connect />);
+  const label = 'Actual host-rendered preview of the active Modulate program';
+  fireEvent.error(await screen.findByAltText(label));
+  expect(screen.queryByAltText(label)).not.toBeInTheDocument();
+  offline = true;
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  await screen.findByText('Your Modulate connection isn’t reachable yet. Ask your setup agent to finish or reconnect it.');
+  offline = false;
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  expect(await screen.findByAltText(label)).toBeInTheDocument();
+  expect(command).not.toHaveBeenCalled();
+});
+
+
+test('detected unknown boards are listed separately from ready runtime controls', async () => {
+  usePathname.mockReturnValue('/connect/device');
+  connectApi.mockImplementation(async action => action === 'session' ? connectedSession : {
+    ...initialState, device: { ...initialState.device, capabilities: {
+      controls: ['encoder'], components: [
+        { id: 'imu', model: 'LSM6DS3TR-C', addresses: ['0x6a'], ready: true, status: 'ready' },
+        { id: 'i2c:0x39', addresses: ['0x39'], ready: false, status: 'needs_identification' },
+      ],
+    } },
+  });
+  render(<Connect />);
+  const inventory = await screen.findByLabelText('Detected components');
+  expect(within(inventory).getByText(/LSM6DS3TR-C/)).toBeInTheDocument();
+  expect(within(inventory).getByText('Needs identification')).toBeInTheDocument();
+  expect(command).not.toHaveBeenCalled();
+});
+
+test('Muse credentials stay masked, device scoped and can be hidden without issuing commands', async () => {
+  usePathname.mockReturnValue('/connect/device');
+  connectApi.mockImplementation(async action => action === 'session' ? { ...connectedSession, permissions: { speaker: true } } : action === 'muse-link' ? { token: 'synthetic-speaker-only-token', expires_at: Date.now()/1000 + 600 } : initialState);
+  render(<Connect />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Connect Muse' }));
+  const token = await screen.findByLabelText('Modulate connector token');
+  expect(token).toHaveAttribute('type', 'password');
+  expect(screen.getByText(/Existing device permissions, spending limits, Mac pairing and action approvals still apply/)).toBeInTheDocument();
+  expect(connectApi).toHaveBeenCalledWith('muse-link', {});
+  expect(command).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Hide token' }));
+  expect(screen.queryByLabelText('Modulate connector token')).not.toBeInTheDocument();
+});
+
+test('a seven-day Muse authorization has its own revocation without disconnecting the browser', async () => {
+  usePathname.mockReturnValue('/connect/device');
+  let revoked = false;
+  const id = 'd'.repeat(64);
+  connectApi.mockImplementation(async (action, payload) => {
+    if (action === 'muse-disconnect') { expect(payload).toEqual({ id }); revoked = true; return { revoked: true, id }; }
+    if (action === 'session') return { ...connectedSession, connectors: revoked ? [] : [{ id, name: 'Muse', expires_at: Date.now()/1000 + 604800 }] };
+    return initialState;
+  });
+  render(<Connect />);
+  expect(await screen.findByText('Muse authorization')).toBeInTheDocument();
+  expect(screen.getByText(/Set up once for seven days/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Revoke Muse access' }));
+  await waitFor(() => expect(screen.queryByText('Muse authorization')).not.toBeInTheDocument());
+  expect(screen.getByRole('button', { name: 'Disconnect browser' })).toBeInTheDocument();
+  expect(connectApi.mock.calls.some(([action]) => action === 'disconnect')).toBe(false);
+  expect(command).not.toHaveBeenCalled();
 });

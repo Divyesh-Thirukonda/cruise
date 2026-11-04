@@ -59,12 +59,22 @@ class HardwareTests(unittest.TestCase):
         self.now = 1000.0
         self.session, self.boot = uuid.uuid4().hex, str(uuid.uuid4())
         self.factories = [patch("modulate.controls." + name, side_effect=OSError("missing"))
-                          for name in ("_open_encoder", "_open_joystick", "_open_external_buttons")]
+                          for name in ("_open_encoder", "_open_joystick", "_open_external_buttons", "open_imu")]
         self.mocks = [p.start() for p in self.factories]
         for p in self.factories:
             self.addCleanup(p.stop)
         self.controls = Controls(SimpleNamespace(buttons=[]), diagnostic_backend=self.bus)
         self.worker = self.make_worker()
+
+    def test_background_discovery_publishes_new_address_without_readdressing(self):
+        self.worker._scan(uuid.uuid4().hex)
+        self.bus.devices[0x39] = {}
+        previous = self.worker._last_discovery
+        with patch('modulate.hardware_device.time.monotonic', return_value=previous + 16):
+            self.worker.refresh_inventory()
+        self.assertIn(0x39, self.worker.snapshot()['report']['addresses'])
+        self.assertEqual(self.bus.writes, [])
+        self.assertNotIn('0x39', str(self.controls.capabilities()['controls']))
 
     def make_worker(self):
         worker = HardwareDevice(self.controls, self.directory.name, self.session,
@@ -104,6 +114,34 @@ class HardwareTests(unittest.TestCase):
         self.assertEqual(self.bus.writes, [])
         snapshot["report"]["addresses"].clear()
         self.assertEqual(self.worker.snapshot()["report"]["addresses"], [0x6F])
+
+    def test_driver_install_is_session_bound_and_duplicate_command_is_not_reexecuted(self):
+        setup=Mock()
+        setup.inspect.return_value={'catalog':[], 'last_result':{'verified':True}}
+        self.worker.driver_setup=setup
+        command={**self.command('scan'),'action':'install_driver','target':'lsm6ds3trc'}
+        self.assertFalse(self.worker.offer({**command,'session':'b'*32}))
+        self.assertFalse(self.worker.offer({**command,'target':'shell'}))
+        ack=self.run_command(command)
+        self.assertEqual(ack['status'],'done')
+        self.assertEqual(ack['result']['scan_id'],command['id'])
+        self.worker.offer(command)
+        setup.install.assert_called_once()
+        self.assertEqual(self.bus.writes,[])
+
+    def test_driver_install_withdrawal_reaches_installer_before_commit(self):
+        from modulate.driver_setup import DriverSetupError
+        setup=Mock();setup.inspect.return_value={'catalog':[]}
+        def install(driver,controls,allowed,guard):
+            self.assertTrue(allowed())
+            self.worker.offer(None)
+            with guard():self.assertFalse(allowed())
+            raise DriverSetupError('Driver setup cancelled, disconnected or expired')
+        setup.install.side_effect=install;self.worker.driver_setup=setup
+        command={**self.command('scan'),'action':'install_driver','target':'lsm6ds3trc'}
+        ack=self.run_command(command)
+        self.assertEqual(ack['status'],'failed');self.assertIn('cancelled',ack['error'])
+        self.assertEqual(self.bus.writes,[])
 
     def test_scan_and_reinitialize_never_write_address_or_reset_encoder(self):
         for action in ("scan", "reinitialize"):

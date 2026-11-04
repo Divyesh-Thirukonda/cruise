@@ -37,6 +37,18 @@ class SetupScreenTests(unittest.TestCase):
         self.assertEqual(card["action"], "next")
         self.assertEqual(self.screen.reason, "enrollment")
 
+    def test_existing_browser_does_not_trap_setup_on_mac_details(self):
+        host = {"paired": False, "setup_status": {"ai_host": "pi", "remote_enabled": True,
+                "browser_count": 1, "mac_helper": {"address": "192.0.2.1", "fingerprint": "a" * 20}}}
+        self.screen.force = True
+        self.assertEqual(self.update(host=host)["action"], "create_browser_code")
+        self.screen.page = 1
+        card = self.update(host=host)
+        self.assertEqual(card["title"], "Optional Mac setup")
+        self.screen.buttons(card, False, False, True)
+        self.assertEqual(self.screen.buttons(card, True, False, True), "next")
+        self.assertEqual(self.update(host=host)["action"], "create_browser_code")
+
     def test_unreachable_companion_waits_for_startup_grace(self):
         self.assertIsNone(self.update(fresh=False, now=107.9))
         card = self.update(fresh=False, now=108)
@@ -301,7 +313,7 @@ class SetupControllerTests(unittest.TestCase):
         self.controller.last_response = 0
         self.controller.voice_status({"state": "listening", "message": "Wake phrase heard; speak your request"})
         self.assertFalse(self.controller.request("Make a game"))
-        self.assertEqual(self.controller.feedback["title"], "AI service offline")
+        self.assertEqual(self.controller.feedback["title"], "Mac companion offline")
         self.assertIsNone(self.controller._setup_card())
         self.assertTrue(self.controller.requests.empty())
         self.assertIsNone(self.controller.build)

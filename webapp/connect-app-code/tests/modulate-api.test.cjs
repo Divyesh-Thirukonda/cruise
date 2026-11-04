@@ -33,6 +33,7 @@ beforeEach(() => {
   process.env.MODULATE_META_API_KEY = 'meta-test-only';
   process.env.MODULATE_ELEVENLABS_API_KEY = 'speech-test-only';
   delete process.env.VERCEL_URL;
+  delete process.env.MODULATE_DEVICE_DISCOVERY;
   calls = [];
   global.fetch = async (...args) => { calls.push(args); return response({ connected: false, permissions: {}, companion: { name: 'Modulate', online: true, platform: 'darwin' } }); };
 });
@@ -165,6 +166,42 @@ test('origin redirects are never followed and network errors disclose no URL', a
   const result = await run(gateway, req('state'));
   assert.equal(result.statusCode, 502); assert.ok(!JSON.stringify(result.body).includes('companion.example'));
 });
+test('a stale tunnel read refreshes discovery once and retains the existing session', async () => {
+  const registry = require('../server/device-registry.cjs');
+  const saved = registry.resolve;
+  const resolutions = [];
+  process.env.MODULATE_DEVICE_DISCOVERY = '1';
+  registry.resolve = async (secret, force) => {
+    resolutions.push(Boolean(force));
+    return force ? 'https://new.trycloudflare.com' : 'https://old.trycloudflare.com';
+  };
+  global.fetch = async (url, options) => {
+    calls.push([url, options]);
+    return url.includes('old.') ? response('Unavailable', 530) : response({ device: { connected: true } });
+  };
+  try {
+    const result = await run(gateway, req('state'));
+    assert.equal(result.statusCode, 200);
+    assert.deepEqual(resolutions, [false, true]);
+    assert.equal(calls.length, 2);
+    assert.ok(calls.every(([, options]) => options.headers['X-Modulate-Session'] === SESSION));
+    assert.equal(calls[1][0], 'https://new.trycloudflare.com/state');
+  } finally { registry.resolve = saved; }
+});
+test('a timed-out command is never replayed after a tunnel change', async () => {
+  const registry = require('../server/device-registry.cjs');
+  const saved = registry.resolve;
+  const resolutions = [];
+  process.env.MODULATE_DEVICE_DISCOVERY = '1';
+  registry.resolve = async (secret, force) => { resolutions.push(Boolean(force)); return 'https://old.trycloudflare.com'; };
+  global.fetch = async (...args) => { calls.push(args); throw new Error('Unknown action outcome'); };
+  try {
+    const result = await run(gateway, req('command', 'POST', { path: '/api/request', payload: { text: 'Test' } }));
+    assert.equal(result.statusCode, 502);
+    assert.equal(calls.length, 1);
+    assert.deepEqual(resolutions, [false]);
+  } finally { registry.resolve = saved; }
+});
 test('request bodies have bounded size', async () => {
   const result = await run(gateway, req('command', 'POST', { path: '/api/request', payload: { text: 'a'.repeat(256 * 1024) } }));
   assert.equal(result.statusCode, 413); assert.equal(calls.length, 0);
@@ -222,4 +259,60 @@ test('speech rejects HTML, empty audio and odd PCM byte counts', async () => {
     const result = await run(provider, cloud('speech', { voice_id: 'CwhRBWXzGAHq8TQ4Fs17', payload: { text: 'Ready', model_id: 'eleven_flash_v2_5' } }));
     assert.equal(result.statusCode, 502);
   }
+});
+
+test('speaker link uses authenticated CSRF issuance and remains speaker scoped', async () => {
+  const grant = require('../server/speaker-grant.cjs');
+  const expiry = Math.floor(Date.now()/1000 + 600);
+  global.fetch = async (...args) => { calls.push(args); return response({ connected: true, expires_at: expiry, permissions: { speaker: true } }); };
+  const result = await run(gateway, req('speaker-link', 'POST', {}));
+  assert.equal(result.statusCode, 200);
+  assert.equal(grant.verify(result.body.token).scope, 'speaker');
+  assert.equal(result.body.expires_at, expiry);
+  assert.ok(!result.body.token.includes(SESSION));
+  assert.equal(calls[0][0], 'https://companion.example/session');
+  calls = [];
+  assert.equal((await run(gateway, req('speaker-link', 'POST', {}, false))).statusCode, 401);
+  const noCsrf = req('speaker-link', 'POST', {}); delete noCsrf.headers['x-modulate-csrf'];
+  assert.equal((await run(gateway, noCsrf)).statusCode, 403);
+  assert.equal((await run(gateway, req('speaker-link', 'POST', { permissions: { speaker: true } }))).statusCode, 400);
+  assert.equal(calls.length, 0);
+  global.fetch = async () => response({ connected: true, expires_at: expiry, permissions: { speaker: false } });
+  assert.equal((await run(gateway, req('speaker-link', 'POST', {}))).statusCode, 403);
+});
+
+function commandWav(samples=16000) {
+  const wav=Buffer.alloc(44+samples*2);
+  wav.write('RIFF');wav.writeUInt32LE(wav.length-8,4);wav.write('WAVEfmt ',8);
+  wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);wav.writeUInt16LE(1,22);
+  wav.writeUInt32LE(16000,24);wav.writeUInt32LE(32000,28);wav.writeUInt16LE(2,32);
+  wav.writeUInt16LE(16,34);wav.write('data',36);wav.writeUInt32LE(samples*2,40);
+  return wav;
+}
+test('Muse ASR forwards only canonical bounded audio to the fixed authenticated endpoint',async()=>{
+  global.fetch=async(...args)=>{calls.push(args);return response({transcript:'Make a game.',audioDurationMs:'1040',private:'omit me'});};
+  const result=await run(provider,cloud('transcribe',{wav:commandWav().toString('base64')}));
+  assert.equal(result.statusCode,200);assert.deepEqual(result.body,{model:'muse-voice-transcribe-1.0',transcript:'Make a game.',audioDurationMs:1040});
+  assert.equal(calls[0][0],'https://api.meta.ai/v1/asr/transcribe');
+  assert.equal(calls[0][1].headers.Authorization,'Bearer meta-test-only');
+  assert.ok(calls[0][1].headers['Content-Type'].startsWith('multipart/form-data; boundary=modulate-'));
+  const wire=calls[0][1].body.toString('utf8');
+  assert.ok(wire.includes('name="request"\r\nContent-Type: application/json\r\n\r\n'));
+  assert.ok(!wire.includes('filename="blob"'));
+  const settings=JSON.parse(wire.split('Content-Type: application/json\r\n\r\n')[1].split('\r\n')[0]);
+  assert.equal(settings.mode,'PUSH_TO_TALK');assert.deepEqual(settings.keywords,['Modulate','Meta']);
+});
+test('Muse ASR rejects malformed, oversized and injected uploads before provider dispatch',async()=>{
+  const wrong=commandWav();wrong.writeUInt32LE(48000,24);
+  for(const body of [{wav:'***'},{wav:wrong.toString('base64')},{wav:commandWav(400001).toString('base64')},{wav:commandWav().toString('base64'),endpoint:'https://other'}]) {
+    assert.equal((await run(provider,cloud('transcribe',body))).statusCode,400);
+  }
+  assert.equal(calls.length,0);
+});
+test('Muse ASR discards malformed provider text and duration, without retry',async()=>{
+  for(const body of [{transcript:'x'.repeat(2001),audioDurationMs:1000},{transcript:'hello',audioDurationMs:0},{transcript:'hello',audioDurationMs:NaN},{transcript:'hello',audioDurationMs:1081}]) {
+    global.fetch=async(...args)=>{calls.push(args);return response(body);};
+    assert.equal((await run(provider,cloud('transcribe',{wav:commandWav().toString('base64')}))).statusCode,502);
+  }
+  assert.equal(calls.length,4);
 });

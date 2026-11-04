@@ -93,6 +93,28 @@ class FakeComputer:
 
 
 class AssistantIOTests(unittest.TestCase):
+    def test_local_request_does_not_initialize_busy_optional_computer(self):
+        self.connect_computer()
+        self.provider.script = [reply(content='Local answer')]
+        with patch.object(self.computer, 'begin_task', side_effect=ComputerError('Helper busy')) as begin:
+            self.request('Answer a local question')
+        begin.assert_not_called()
+        self.assertFalse(self.product.running)
+
+    def test_busy_begin_is_retryable_and_new_job_cannot_use_old_observation(self):
+        self.connect_computer()
+        self.product.computer_focus_pending = True
+        with self.assertRaisesRegex(AgentError, 'before acting'):
+            self.product.computer_act('synthetic-old', {'type':'key','keys':['escape']}, False, 'Close menu')
+        with patch.object(self.computer, 'begin_task', side_effect=ComputerError('Helper busy')):
+            with self.assertRaisesRegex(AgentError, 'busy'):
+                self.product.computer_observe()
+        self.assertTrue(self.product.computer_focus_pending)
+        self.assertEqual(self.computer.observations, 0)
+        self.product.computer_observe()
+        self.assertFalse(self.product.computer_focus_pending)
+        self.assertEqual(self.computer.observations, 1)
+
     def setUp(self):
         self.temp = TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

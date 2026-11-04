@@ -71,7 +71,7 @@ class _CharacterLedger:
         self.lock_path = self.directory / "tts-character-ledger.lock"
         self.limit = limit
 
-    def _change(self, characters, *, settled=False):
+    def _change(self, characters, *, settled=False, check_only=False):
         temporary = None
         try:
             self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -100,6 +100,8 @@ class _CharacterLedger:
                 else:
                     value = {"version": 1, "reserved_characters": 0, "settled_characters": 0,
                              "requests": 0, "uncertain_requests": 0}
+                if check_only:
+                    return dict(value)
                 if settled:
                     if (value["uncertain_requests"] < 1
                             or value["settled_characters"] + characters > value["reserved_characters"]):

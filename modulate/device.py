@@ -26,6 +26,7 @@ from .rendering import font
 from .speaker import Speaker
 from .speaker_volume import SpeakerVolumeDevice
 from .hardware_device import HardwareDevice
+from .driver_setup import DriverSetup
 from .audio_receiver import AudioReceiver
 from .voice import VoiceListener
 from .setup_screen import SetupScreen, setup_address_lines
@@ -67,8 +68,11 @@ class Controller:
         self.screen = Screen(self.directory / "screen.png")
         self.screen.display.image(render_card("idle", "Waking up", "Getting your controls ready.", now=0), rotation=90)
         self.display_state = {"kind": "status", "title": "Connecting"}
+        self.driver_setup = DriverSetup(self.directory / "drivers")
+        self.driver_setup.restore()
         self.controls = Controls(self.screen)
-        self.hardware_debugger = HardwareDevice(self.controls, self.directory / "hardware", self.session)
+        self.hardware_debugger = HardwareDevice(self.controls, self.directory / "hardware", self.session,
+                                               driver_setup=self.driver_setup)
         self.sample = neutral_input()
         self.encoder_pending = 0
         self.encoder_revision = None
@@ -113,7 +117,8 @@ class Controller:
         self.state = self.runtime.snapshot()
         self.encoder_revision = self.state.get("revision")
         self.voice = VoiceListener(self.request, self.voice_status, device=microphone,
-                                   on_cancel=self.cancel_request, on_unclear=self.unclear)
+                                   on_cancel=self.cancel_request, on_unclear=self.unclear,
+                                   command_transcribe=self.companion.transcribe_audio)
         self.speaker = Speaker(self.speaker_status, audio_fetch=self.companion.speech_audio)
         self.speaker_state = self.speaker.snapshot()
         self.speaker_volume = SpeakerVolumeDevice(self.speaker.snapshot, self.session)
@@ -192,6 +197,7 @@ class Controller:
         return active
 
     def _sync_voice(self):
+        self.voice.set_transcription_provider(self.host.get("transcription_provider", "local"))
         self.voice.set_busy(bool(self._busy()))
         self.voice.set_enabled(bool(self.host.get("wake")) and not self._speech_guard())
         question = self.host.get("clarification")
@@ -276,6 +282,7 @@ class Controller:
             if type(speech["audio"]) is not dict or speech["audio"].get("id") != identifier:
                 return
             audio["audio"] = speech["audio"]
+            if speech.get("provider") == "meta_mms": audio["provider"] = "meta_mms"
         try:
             # Only accepted speech interrupts capture. Unavailable output is
             # retried by heartbeat without invalidating every wake recording.
@@ -311,9 +318,10 @@ class Controller:
                 self.feedback = None
                 return True
             if time.monotonic() - self.last_response > 4:
-                # The current prototype hosts AI on the companion. Explain that
-                # limitation without turning an ordinary request into setup.
-                self._feedback("AI service offline", "New requests run on the\nMac companion in this build.\nNothing was sent.")
+                local = getattr(self, "standalone", False) or (self.host.get("setup_status") or {}).get("ai_host") == "pi"
+                self._feedback("AI service restarting" if local else "Mac companion offline",
+                               "Retrying the local agent.\nYour saved app is retained." if local else
+                               "The Mac companion is offline.\nNothing was sent.")
                 return False
             try:
                 self.requests.put_nowait({"text": text, "followup_id": followup_id, "unclear": _unclear}
@@ -466,6 +474,8 @@ class Controller:
                                                        **{key: (self.build or {}).get(key) for key in
                                                           ("job_id", "job_sequence", "phase", "title")}},
                                         "display": dict(self.display_state),
+                                        "app": {key: self.state.get(key) for key in
+                                                ("suspended", "missing_controls", "suspension_reason")},
                                         "runtime": "physical", "error": self.state.get("error")}}
                 if self.state.get("failure"):
                     packet["failure"] = self.state["failure"]
@@ -494,7 +504,8 @@ class Controller:
                         pass
             with self.lock:
                 self.last_response = time.monotonic()
-                self.link_state = "Connected to Mac"
+                self.link_state = ("On-device AI ready" if (response.get("setup_status") or {}).get("ai_host") == "pi"
+                                   else "Connected to Mac")
             try:
                 text = self.requests.get_nowait()
             except queue.Empty:
@@ -800,7 +811,9 @@ class Controller:
             self._update_build(response)
             self._update_speech(response)
             if hasattr(self, "speaker_volume"):
-                if response.get("paired") is True:
+                local_agent = (getattr(self, "standalone", False)
+                               and (response.get("setup_status") or {}).get("ai_host") == "pi")
+                if response.get("paired") is True or local_agent:
                     self.speaker_volume.offer(response.get("speaker_volume"))
                 else:
                     self.speaker_volume.disconnect()
@@ -1118,8 +1131,8 @@ class Controller:
                     self.status("Mac speaker", detail + "\nB: stop · Both buttons: talk")
                     self._displayed("computer_audio", "Mac speaker")
                 elif suspended:
-                    self.status("App saved", "A required control is missing\nSay Hey Meta:\nCheck my hardware", mode="error")
-                    self._displayed("hardware_missing", "App saved")
+                    self.status("Controls changed", "Your app is saved.\nSay Hey Meta:\nAdapt this app", mode="instructions")
+                    self._displayed("hardware_missing", "Controls changed")
                 elif self.host.get("agent_running") and not current.get("kind"):
                     self.status("Reinventing...", "Meta is building and testing\nFollow progress in Studio", mode="building")
                 elif success:
@@ -1161,6 +1174,7 @@ def main():
     parser.add_argument("--state-dir", default="/home/pi/modulate-product/state")
     parser.add_argument("--enrollment", help="Private enrollment file; defaults to the device state directory")
     parser.add_argument("--microphone", type=int)
+    parser.add_argument("--standalone", action="store_true", help="Connect to the Pi's local agent; Mac setup is optional")
     parser.add_argument("--pair-code", help="Pair with the one-time code shown by the Mac studio, then exit")
     args = parser.parse_args()
     os.umask(0o077)
@@ -1177,9 +1191,10 @@ def main():
     enrollment_setup = None
     try:
         controller = Controller(directory, args.enrollment, microphone=args.microphone)
+        controller.standalone = args.standalone
         # An unreadable or invalid existing file needs repair; it is not an
         # invitation to replace an enrollment, including a dangling symlink.
-        if not os.path.lexists(args.enrollment):
+        if not args.standalone and not os.path.lexists(args.enrollment):
             from .device_enrollment import EnrollmentServer
             enrollment_setup = EnrollmentServer(directory / "setup", args.enrollment)
             enrollment_setup.start()

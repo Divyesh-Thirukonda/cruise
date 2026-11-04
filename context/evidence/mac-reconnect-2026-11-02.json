@@ -1,0 +1,73 @@
+{
+  "date_eastern": "2026-11-02",
+  "scope": "Reconnect existing Mac companion to Pi; verify native computer use and physical brightness control",
+  "reconnect": {
+    "cause": "Saved Pi IPv6 address was stale; Mac pairing had expired",
+    "identity": "Existing pinned TLS certificate matched at current Wi-Fi address",
+    "method": "Existing trusted companion and physical comparison-code A-button confirmation",
+    "native_pairing_expires_at": "2026-11-03T05:31:56.773915-05:00",
+    "duration_hours": 8,
+    "screen_recording": true,
+    "accessibility": true
+  },
+  "native_trial": {
+    "input_mode": "typed local Pi API; live Meta agent",
+    "seconds": 55.789,
+    "model_calls": 12,
+    "cost_dollars": 0.159724,
+    "brightness_sequence": [
+      44,
+      45,
+      44
+    ],
+    "independent_brightness_samples": [
+      {
+        "seconds": 0.035,
+        "brightness": 44
+      },
+      {
+        "seconds": 31.459,
+        "brightness": 45
+      },
+      {
+        "seconds": 34.552,
+        "brightness": 44
+      }
+    ],
+    "computer_task": "Open Calculator and compute 7 × 8",
+    "independent_native_ui_result": "56",
+    "active_revision_preserved": true
+  },
+  "knob_trial": {
+    "input_mode": "typed local Pi API; live Meta agent",
+    "seconds": 17.81,
+    "model_calls": 6,
+    "cost_dollars": 0.080661,
+    "title": "Mac Brightness Knob",
+    "revision": "deb948396063d5da0d0c823c1bff24a8f4131b2ccb4a9294a009054049f86774",
+    "binding": {
+      "control": "encoder",
+      "action": "brightness.delta",
+      "scale": 2
+    },
+    "fixed_checks_passed": [
+      "paired target and allowed action",
+      "connected encoder and bounded scale"
+    ],
+    "device_activation_acknowledged": true,
+    "physical_confirmation": "User confirmed screen brightens and dims when turning knob in both directions"
+  },
+  "website": {
+    "browser_reconnected": true,
+    "device_page": "Mac Paired; native controls through Mac companion",
+    "studio_active_title": "Mac Brightness Knob"
+  },
+  "limits": {
+    "shared_model_budget_dollars": 50,
+    "budget_changed": false,
+    "permissions_or_pairing_duration_expanded": false,
+    "voice_reliability_tested": false,
+    "broad_computer_task_reliability_tested": false
+  },
+  "implementation": "Configuration repair and live generated mapping; no runtime source changes or new dependencies"
+}

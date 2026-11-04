@@ -129,6 +129,16 @@ class ProviderFailureMetadataTests(unittest.TestCase):
         self.assertFalse(caught.exception.repairable)
         adapter._opener.open.assert_not_called()
 
+    def test_only_transient_http_categories_allow_an_orchestrator_retry(self):
+        for status in (400, 401, 403, 404, 429, 500, 502, 503, 504):
+            with self.subTest(status=status):
+                adapter = self.provider()
+                adapter._opener.open.side_effect = urllib.error.HTTPError(
+                    "https://api.meta.ai/v1/chat/completions", status, "private", {}, None)
+                error = self.failure(adapter)
+                self.assertEqual(error.transient, status in {429, 502, 503, 504})
+                self.assertIsNone(error.billed_cost_microdollars)
+
 
 if __name__ == "__main__":
     unittest.main()

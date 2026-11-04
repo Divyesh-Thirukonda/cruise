@@ -92,6 +92,25 @@ class ProductTests(unittest.TestCase):
         future, pending = self.begin(package)
         self.finish(future, pending)
 
+    def test_successful_app_switch_leaves_speaker_mode_after_ack(self):
+        self.heartbeat(revision=None)
+        with patch.object(self.product, 'audio_status', return_value={**self.product.audio_status(), 'running': True}), \
+                patch.object(self.product, 'stop_computer_audio') as stop:
+            future, pending = self.begin(game())
+            stop.assert_not_called()
+            self.finish(future, pending)
+            stop.assert_called_once()
+
+    def test_rejected_activation_keeps_speaker_route(self):
+        self.heartbeat(revision=None)
+        with patch.object(self.product, 'audio_status', return_value={**self.product.audio_status(), 'running': True}), \
+                patch.object(self.product, 'stop_computer_audio') as stop:
+            future, pending = self.begin(game())
+            self.heartbeat(revision=None, ack={'id':pending['id'], 'revision':pending['revision'],
+                                             'phase':'failed','error':'Synthetic rejection'})
+            with self.assertRaises(AgentError): future.result(timeout=1)
+            stop.assert_not_called()
+
     def pair(self):
         code = self.product.bridge.create_pairing()["code"]
         return self.product.pair(code, "Synthetic controller")

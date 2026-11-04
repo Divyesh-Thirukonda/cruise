@@ -1,0 +1,80 @@
+{
+  "date": "2026-10-30",
+  "code_commit": "e5092eb",
+  "input": "typed requests through authenticated Pi tunnel",
+  "physical_verification": false,
+  "mac_paired": false,
+  "timing": "submission to agent ready, sampled about every 1.2 s; excludes capture/transcription and spoken playback",
+  "runs": [
+    {
+      "label": "speed2-kart",
+      "seconds": 7.5,
+      "model_calls": 3,
+      "cost_or_holds_dollars": 0.038247,
+      "status": "completed",
+      "summary": "Reopened Pixel Kart.",
+      "revision": "d4e130d025930a047b65b17156586208fb88a48d6600c468dddc3b7e56cc8c0e",
+      "inference_seconds": 4.362,
+      "tools_seconds": 2.012
+    },
+    {
+      "label": "speed2-coins",
+      "seconds": 5.3,
+      "model_calls": 3,
+      "cost_or_holds_dollars": 0.040321,
+      "status": "completed",
+      "summary": "Coins are already red in Pixel Kart.",
+      "revision": "d4e130d025930a047b65b17156586208fb88a48d6600c468dddc3b7e56cc8c0e",
+      "inference_seconds": 4.563,
+      "tools_seconds": 0.007
+    },
+    {
+      "label": "speed2-kart-repeat",
+      "seconds": 6.4,
+      "model_calls": 2,
+      "cost_or_holds_dollars": 0.026178,
+      "status": "completed",
+      "summary": "Reopened Pixel Kart.",
+      "revision": "d4e130d025930a047b65b17156586208fb88a48d6600c468dddc3b7e56cc8c0e",
+      "inference_seconds": 4.108,
+      "tools_seconds": 0.782
+    },
+    {
+      "label": "speed2-library",
+      "seconds": 5.2,
+      "model_calls": 3,
+      "cost_or_holds_dollars": 0.038487,
+      "status": "completed",
+      "summary": "Library is open with Pixel Kart, Orbit Catch, and Demo Circuit.",
+      "revision": "d4e130d025930a047b65b17156586208fb88a48d6600c468dddc3b7e56cc8c0e",
+      "inference_seconds": 4.043,
+      "tools_seconds": 0.032
+    },
+    {
+      "label": "speed2-reverse",
+      "seconds": 5.3,
+      "model_calls": 3,
+      "cost_or_holds_dollars": 0.038073,
+      "status": "completed",
+      "summary": "Reversed the library knob.",
+      "revision": "d4e130d025930a047b65b17156586208fb88a48d6600c468dddc3b7e56cc8c0e",
+      "inference_seconds": 4.311,
+      "tools_seconds": 0.016
+    }
+  ],
+  "saved_revisions_before": 8,
+  "saved_revisions_after": 8,
+  "original_game_and_library_direction_restored": true,
+  "notes": [
+    "Current coins were already red; measured this as an idempotent edit, not a fresh color change.",
+    "Five targeted cached/local trials under 15 seconds are not a reliability percentile.",
+    "Mac-only commands remain unmeasured because physical pairing cannot be renewed remotely."
+  ],
+  "final_policy": {
+    "code_commit": "2566c08",
+    "seconds": 7.6,
+    "model_calls": 3,
+    "status": "completed",
+    "revision": "d4e130d025930a047b65b17156586208fb88a48d6600c468dddc3b7e56cc8c0e"
+  }
+}

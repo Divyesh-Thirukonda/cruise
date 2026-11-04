@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from contextlib import contextmanager
+import copy
 import fcntl
 import hashlib
 import json
@@ -24,6 +25,28 @@ class AgentError(ValueError):
     pass
 
 
+class AttemptIncomplete(AgentError):
+    """Bounded work stopped; completed effects are observations, not full success."""
+
+    def __init__(self, actions):
+        super().__init__("Shared agent-call limit reached; the attempt is incomplete")
+        activated = any(action.get("tool") == "activate_package" and
+                        action.get("observed", {}).get("activated") is True for action in actions)
+        self.guidance = ("I used the steps available for this attempt. " +
+                         ("The device confirmed the new app, but I couldn't finish every part of the request. "
+                          if activated else "I couldn't confirm that the whole request is complete. ") +
+                         "Check the current result and ask for the remaining change. "
+                         "This is a per-attempt work limit, not a speech or daily usage allowance.")
+
+
+_SETUP_TOOLS = frozenset({"load_skill", "inspect_capabilities", "hardware_debug", "ask_user"})
+
+
+_ADAPT_TOOLS = frozenset({"load_skill", "inspect_capabilities", "read_runtime_api",
+                         "read_current_package", "write_package", "edit_package", "test_package",
+                         "preview_package", "activate_package"})
+
+
 def digest(package):
     return hashlib.sha256(json.dumps(package, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()).hexdigest()
 
@@ -35,7 +58,7 @@ they are not package content and these tools cannot edit or replace them.
 Create original gameplay and original pixel art.
 There are no bundled games, sprites, sounds, or game templates to select.
 Package EXACT fields: kind:'game', title:string<=80, code:string JavaScript<=40KiB,
-controls:[logical IDs actually available], assets:{sprites:{spriteId:{width:1..32,
+controls:[only logical IDs this version actually needs], assets:{sprites:{spriteId:{width:1..32,
 height:1..32,palette:['transparent','#RRGGBB',...](<=16),pixels:[[palette indexes]]}}}.
 An optional top-level camera:{target:paired_host.session_id} enables live camera
 drawing from that paired Mac. No other camera fields or permissions are generated.
@@ -46,7 +69,22 @@ draw returns an array of at most128 drawing commands. State<=64KiB. No imports,
 network, files, browser, async, Python, GPIO, or host access. Math is available.
 Input fields: joystick_x,joystick_y (-1..1); encoder_delta (integer relative step);
 button_a,button_b,encoder_pressed (booleans). Controls list logical IDs joystick,
-encoder,button_a,button_b,encoder_pressed. Do not assume unsupported controls.
+encoder,button_a,button_b,encoder_pressed,imu. Do not assume unsupported controls.
+With imu advertised, input.imu_ax/imu_ay/imu_az are acceleration including gravity
+in m/s^2 (-40..40); imu_gx/imu_gy/imu_gz are angular velocity in radians/s (-40..40).
+input.tilt_x/tilt_y are normalized gravity inclination (-1..1, +/-45 degrees full
+scale). These are sensor axes, not screen axes. Inspect the device description
+and input_sample, choose an axis suited to the requested interaction, and capture
+a neutral position when the user deliberately starts if useful. Apply a small
+deadzone/smoothing in the game as needed. No magnetometer, absolute heading or
+position tracking is implied. Missing/unreadable sensors supply neutral values.
+The controls list is this package's dependency list, not the whole inventory.
+Do not include unused controls. No particular peripheral or Mac is required for
+a local app. Choose controls from their observed capabilities and the requested
+experience, without a fixed device preference order. With no input controls,
+generate a clearly labeled automatic demo/visual experience with controls:[],
+not a game stuck waiting for an unavailable start button. Do not claim voice
+steering or other real-time input fields that this API does not expose.
 Drawing commands, exact keys (all coordinates finite; offscreen clipping allowed):
 {op:'clear',color:'#RRGGBB'}
 {op:'rect',x,y,w,h,color:'#RRGGBB'}
@@ -130,10 +168,17 @@ Your editable output is an application package: its logic, artwork and bindings.
 Listening, companion services, transport, verification and device control belong
 to the trusted runtime, outside that package. Explain this boundary when relevant;
 do not put infrastructure changes into an app or claim those services were edited.
+Build around the observed controls, not a fixed joystick/encoder/button inventory.
+Missing optional modules call for a different design, not a device-wide failure.
+Adapt a saved game's controls when asked, preserving its other behavior. Local
+games and visual apps do not need computer pairing. Only actions targeting that
+computer need its connection. Never require pairing merely to make a local game.
 Build only what the current hardware and explicitly paired host support. Generate
-the entire game logic and original pixel artwork fresh; no preloaded game exists.
-A request for Mario Kart means an original compact kart racer, not claiming to
-deliver Nintendo's game. Natural-language refinements modify the current program.
+original game logic and artwork when no suitable saved creation exists or the
+user requests something fresh. Saved creations are previous user-generated apps,
+not presets. Requests inspired by existing commercial games should produce an
+original compact experience, never claim to deliver the commercial game.
+Natural-language refinements modify the current program.
 Only activate a candidate whose exact hash has passed independent verification.
 The package runtime enforces that invariant: package tools cannot waive checks,
 install libraries, change the harness, read secrets, use a shell, or grant new
@@ -228,16 +273,17 @@ def tool(name, description, properties=None, required=None):
 
 TOOLS = [
     tool("load_skill", "Read a bundled Modulate skill for the current task. Choose from the catalog in your instructions; skills guide decisions without granting extra tools or permissions.",
-         {"name": {"type": "string", "enum": ["computer-use", "device-apps", "games", "hardware-controls", "hardware-debugger", "connection-setup", "app-library"]}}, ["name"]),
+         {"name": {"type": "string", "enum": ["computer-use", "device-apps", "games", "hardware-controls", "hardware-debugger", "component-setup", "connection-setup", "app-library"]}}, ["name"]),
     tool("app_library", "Browse/open saved apps, manage favorites/Trash, or change launcher preferences. set_preferences saves encoder_direction for library navigation only; it never edits the active app or drivers. Use an absolute forward/reversed value based on current preferences. Saved packages are rechecked before launch. Omit entry_id for the selected item (current app outside the menu). purge requires a trusted human confirmation.",
          {"action": {"type": "string", "enum": ["list", "open", "close", "select", "tab", "favorite", "trash", "restore", "launch", "purge", "cancel_purge", "set_preferences"]},
           "entry_id": {"type": "string"}, "tab": {"type": "string", "enum": ["all", "favorites", "trash"]},
           "favorite": {"type": "boolean"}, "encoder_direction": {"type": "string", "enum": ["forward", "reversed"]}}, ["action"]),
     tool("connection_setup", "Inspect connection/OS permission metadata, show setup guidance on Modulate, prepare Mac pairing for physical small-A confirmation, or display a one-use browser code on the device. Never authorizes the Mac or grants native permissions itself; no raw codes are returned to the model.",
          {"action": {"type": "string", "enum": ["status", "show", "start_pairing", "create_browser_code"]}}, ["action"]),
-    tool("hardware_debug", "Inspect device health, scan the I2C bus, retry input drivers, or guide a factory Qwiic button address repair. Actions begin_button_repair and continue persist a workflow across power cycles. Only direct user confirmation can authorize an isolated write; tools cannot supply that confirmation. label is used only when beginning a repair.",
-         {"action": {"type": "string", "enum": ["inspect", "scan", "reinitialize", "begin_button_repair", "continue", "cancel"]},
-          "label": {"type": "string", "maxLength": 40}}, ["action"]),
+    tool("hardware_debug", "Inspect/scan hardware, retry drivers, install an identified supported driver pack, or guide Qwiic button repair. install_driver requires driver from the reported catalog, verifies chip identity and real readings, and retains the previous setup on failure. It may take up to 55 seconds. It accepts no URLs, commands or generated code. Physical button repair still requires direct user confirmation. label belongs only to begin_button_repair; driver only to install_driver.",
+         {"action": {"type": "string", "enum": ["inspect", "scan", "reinitialize", "install_driver", "begin_button_repair", "continue", "cancel"]},
+          "label": {"type": "string", "maxLength": 40},
+          "driver": {"type": "string", "enum": ["lsm6ds3trc"]}}, ["action"]),
     tool("read_recent_context", "Recover recent requests and confirmed actions. Set include_private only when continuing a computer task: those details expire after two minutes and enter private computer-task mode. Current state and the new request take precedence.",
          {"include_private": {"type": "boolean"}}),
     tool("speaker_control", "Read or change the Modulate Pi speaker's actual level, including streamed Mac audio and spoken replies. get needs no value; set is 0–100; delta is nonzero -10–10 percentage points; mute is boolean. Returns physical readback and before/after values.",
@@ -261,8 +307,11 @@ TOOLS = [
     tool("inspect_capabilities", "Read connected controls, display, current revision and paired host permissions."),
     tool("read_runtime_api", "Read the game language, graphics/assets format, local live-camera drawing and volume/brightness binding contracts."),
     tool("read_current_package", "Read the active source, assets or bindings for a refinement."),
-    tool("write_package", "Write a complete game/code/assets or control mapping candidate. This does not activate it.",
-         {"package": {"type": "object"}}, ["package"]),
+    tool("write_package", "Write a complete game/code/assets or control mapping candidate. Set verify=true to run the independent checks immediately and return their report in this call. Never activates.",
+         {"package": {"type": "object"}, "verify": {"type": "boolean"}}, ["package"]),
+    tool("edit_package", "Refine the current package without resending unchanged code/assets. Requires the exact revision from read_current_package. Each change has path (array of existing keys/indices), old and new. Default op=replace requires the whole field to equal old. op=replace_text replaces an exact nonempty substring in a string field; count (default 1) must match its actual occurrences. All changes are atomic. Returns an independently checked candidate, never activates.",
+         {"base_revision": {"type": "string"}, "changes": {"type": "array", "items": {"type": "object"}, "minItems": 1, "maxItems": 16}},
+         ["base_revision", "changes"]),
     tool("test_package", "Run the independently maintained isolated harness against a candidate's exact hash.",
          {"candidate_id": {"type": "string"}}, ["candidate_id"]),
     tool("preview_package", "Render a checked candidate for the human preview and return visual metrics and sample commands.",
@@ -404,7 +453,7 @@ def _tool_error_category(result):
 
 
 class Orchestrator:
-    def __init__(self, provider, service, state_dir, ledger, *, max_calls=18):
+    def __init__(self, provider, service, state_dir, ledger, *, max_calls=32):
         self.provider, self.service = provider, service
         self.directory = Path(state_dir)
         self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -418,7 +467,10 @@ class Orchestrator:
         self.candidates = {}
         self.request_id = None
         self.private_request = False
+        self.setting_up_components = False
+        self.adapting_controls = False
         self.protocol_repairs = 0
+        self.transport_retries = 0
         self.tool_failures = {}
         self.turn_actions = []
         self.loaded_skills = []
@@ -434,15 +486,15 @@ class Orchestrator:
         with (self.directory / "trace.jsonl").open("a") as stream:
             stream.write(json.dumps(entry) + "\n")
 
-    def run(self, text, *, private=False):
+    def run(self, text, *, private=False, adapt_controls=False, component_setup=False):
         if not self.run_lock.acquire(blocking=False):
             raise AgentError("Another request is already running")
         try:
-            return self._run(text, private=private)
+            return self._run(text, private=private, adapt_controls=adapt_controls, component_setup=component_setup)
         finally:
             self.run_lock.release()
 
-    def _run(self, text, *, private=False):
+    def _run(self, text, *, private=False, adapt_controls=False, component_setup=False):
         # Public requests remain <=4000 chars. Trusted conversation assembly
         # retains the original and at most four bounded question/reply turns.
         if not isinstance(text, str) or not 1 <= len(text.strip()) <= 24_000:
@@ -451,18 +503,21 @@ class Orchestrator:
         self.cancelled.clear()
         self.calls = self.delegations = 0
         self.protocol_repairs = 0
+        self.transport_retries = 0
         self.tool_failures = {}
         self.turn_actions = []
         self.loaded_skills = []
         self.candidates = {}
         self.clarification = None
         self.private_request = bool(private)
+        self.setting_up_components = bool(component_setup)
+        self.adapting_controls = bool(adapt_controls)
         self.base_revision = self.service.revision
         self.manifest = self.service.capabilities()
         self.manifest_revision = digest(self.manifest)
         self.event("request_started", title="Listening to your idea", detail=text, role="orchestrator")
         try:
-            result = self.loop(text, "orchestrator", self.max_calls)
+            result = self.loop(text, "orchestrator", min(8, self.max_calls) if self.setting_up_components else self.max_calls)
             self.event("request_finished", title="Agent finished", detail=result, role="orchestrator")
             return result
         except Exception as error:
@@ -474,6 +529,30 @@ class Orchestrator:
         prompt = SYSTEM if role == "orchestrator" else SYSTEM + f"\nYou are the {role} specialist. Return candidate IDs, observations and any missing user intent to the orchestrator. Never activate or ask the user directly."
         prompt += "\nAvailable Modulate skills (choose and load the relevant skill before acting):\n" + json.dumps(catalog())
         prompt += """
+Prefer the shortest verified path to the requested outcome. When independent,
+load the relevant skill and inspect the needed live state in the same response
+using multiple tool calls, rather than separate model round trips. Do not inspect
+unrelated systems or delegate a simple task. Never skip verification or replay
+an uncertain computer action to save time.
+The context library.saved_apps is a bounded catalog of real saved creations,
+not presets. For a request to make/open an experience already represented there,
+reuse the most suitable saved app with app_library launch unless the user asks
+for a fresh/different version or specifies changes requiring generation. You
+choose semantic suitability; no title/keyword router selects an app. Reuse must
+still pass current hardware/permission checks. If the launch fails due to changed
+controls, inspect live capabilities and create a suitable adaptation with the normal checked tools.
+Say that you reopened a saved app; never describe a cache hit as new generation.
+For an edit to the active experience, refine it rather than launch an unrelated
+saved version. First inspect the current package. If it already satisfies the
+requested change, report that observed fact without writing, testing or activating
+an identical replacement. Do not manufacture a revision merely to show activity. If no suitable app exists, generate normally.
+For a small refinement, prefer edit_package with exact revision and narrowly
+scoped changes instead of repeating unchanged source and artwork. It returns
+fresh independent checks: inspect the report, repair failures, then activate the
+passing candidate. For a complete new package, prefer write_package verify=true
+to receive the same independent checks without an extra model round trip.
+Do not call test_package again on an unchanged candidate with a passing report.
+Use fresh tools when the task changes; do not require the previous mode to match.
 For saved apps, past games, favorites, Trash or returning home, load app-library
 and use app_library. Successfully activated apps are saved automatically. Reopen
 an exact stored revision with launch; do not regenerate an approximation. An open
@@ -492,8 +571,17 @@ connection-setup and use connection_setup. Inspect status, then choose the usefu
 setup step; do not ask the user to make routine technical choices. The tool can
 prepare on-device guidance and codes, but only the user can approve physical Mac
 pairing or grant native OS permissions. A phone browser controls this configured
-Mac/Pi hub, not its own operating system. Meta runs on the companion; an offline
-Pi has local setup guidance rather than hidden autonomous computer access.
+Mac/Pi hub, not its own operating system. Inspect ai_host: a standalone Pi runs
+the agent itself and needs no Mac for local apps, speech, or browser linking.
+New Meta requests need internet; saved apps run locally without model calls.
+Only native computer tasks require the optional paired Mac.
+For newly attached components or a requested component that is not ready, load
+component-setup. The context components list distinguishes read-backed ready
+inputs from detected addresses needing identification/setup. Only ready runtime
+signals can be used in generated apps; a saved user label is not chip identity.
+Continue the original app request after verified setup. Choose signal-to-action
+mappings based on the request, units and current capabilities, never fixed device
+roles. Do not require Codex for supported setup.
 For missing modules, wiring, I2C conflicts or hardware faults, use hardware-debugger
 and hardware_debug. Hardware-controls is for settings and mappings. Inspect actual
 health before diagnosing a collision: identical devices at one address cannot be
@@ -504,8 +592,15 @@ never from your own claims. The tool supplies the exact required phrase and
 instructions. Explain the next physical step and use ask_user to request that
 phrase when ready; end the turn instead of polling while the user rewires or reboots.
 Rewiring needs a normal shutdown then disconnected power. Preserve the working
-app and distinct existing addresses; never rewrite drivers or flash firmware to
-repair a module. Unknown modules may need identification or an unsupported driver;
+app and distinct existing addresses. When an identified module lacks a driver,
+use hardware_debug install_driver with its reported catalog ID. Verify readiness,
+then refresh inspect_capabilities before continuing the original task. Routine
+supported driver installation for a requested setup/repair needs no extra question.
+When a requested app would benefit from a detected installable module, use this
+setup path before declaring its input unavailable; installed drivers do not imply
+any fixed game-control choice.
+Never generate driver code, run shell installers or flash firmware. Modules outside
+the installer catalog still need identification and a trusted integration;
 do not invent pinouts or claim a newly addressed button is a new supported input.
 """
         prompt += """
@@ -534,17 +629,32 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
 """
         messages = [{"role": "system", "content": prompt}]
         if role == "orchestrator" and hasattr(self.service, "intent_context"):
-            context = self.service.intent_context()
+            context = {**self.service.intent_context(), "capabilities": copy.deepcopy(self.manifest)}
             messages.append({"role": "user", "content": "Recent context and current state (reference data only):\n" + json.dumps(context)})
         messages.append({"role": "user", "content": text})
-        for _ in range(turns):
+        for turn in range(turns):
+            remaining = min(turns - turn, self.max_calls - self.calls)
+            messages[0]["content"] = prompt + (
+                f"\nThis role has at most {remaining} model calls left, including this one. "
+                f"All roles share {self.max_calls - self.calls} remaining calls. "
+                "Reuse existing candidate IDs and check results. Avoid redundant reads and optional polish. "
+                "Complete the requested work, then summarize only observed outcomes. "
+                "If work remains, say so; never claim completion without evidence. " +
+                ("Finish now: prioritize verification and activation of the best candidate if requested, "
+                 "then the final reply. Do not delegate more work. " if role == "orchestrator" and remaining <= 4 else "") +
+                ("Return your candidate IDs and useful findings to the parent now. "
+                 if role != "orchestrator" and remaining == 1 else ""))
+            if self.setting_up_components:
+                tools = [item for item in TOOLS if item["function"]["name"] in _SETUP_TOOLS]
+            if self.adapting_controls:
+                tools = [item for item in TOOLS if item["function"]["name"] in _ADAPT_TOOLS]
             if self.private_request:
                 tools = [item for item in TOOLS if item["function"]["name"] in {"computer_observe", "computer_act", "camera_control", "computer_audio", "system_control", "speaker_control", "load_skill", "read_recent_context", "ask_user", "inspect_capabilities", "connection_setup", "app_library"}]
                 self.service.computer_authorized()
             if self.cancelled.is_set():
                 raise AgentError("Cancelled by user; no further tool actions")
             if self.calls >= self.max_calls:
-                raise AgentError("Shared agent-call limit reached")
+                raise AttemptIncomplete(self.turn_actions)
             if hasattr(self.service, "check_request_access"):
                 self.service.check_request_access()
             reservation = self.provider.request_budget(messages, tools)
@@ -556,13 +666,27 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
                 # This call has not been dispatched, so its reservation is unused.
                 self.ledger.settle(call_id, 0)
                 raise AgentError("Cancelled by user; no further tool actions")
+            model_started = time.monotonic()
             try:
                 reply = self.provider.complete(messages, tools)
             except AgentProviderError as error:
+                self.event("model_finished", title="Model request ended", role=role,
+                           status="failed", seconds=round(time.monotonic() - model_started, 3))
                 # A fully received but malformed model turn may still report
                 # valid billing. Unknown transport/usage failures retain their
                 # reservation; never treat an uncertain call as free.
                 self.ledger.settle(call_id, getattr(error, "billed_cost_microdollars", None))
+                if (getattr(error, "transient", False) and self.transport_retries < 2
+                        and remaining > 1 and self.calls < self.max_calls and not self.cancelled.is_set()):
+                    self.transport_retries += 1
+                    self.event("model_retry", title="Reconnecting to Meta", role=role,
+                               attempt=self.transport_retries)
+                    # No tools from the failed inference were executed. Keep its
+                    # cost hold, reserve the retry separately, and allow Stop to
+                    # interrupt backoff. Completed tool effects are not replayed.
+                    if self.cancelled.wait((1, 3)[self.transport_retries - 1]):
+                        raise AgentError("Cancelled by user; no further tool actions") from None
+                    continue
                 if (not getattr(error, "repairable", False) or self.protocol_repairs >= 2
                         or self.cancelled.is_set()):
                     raise
@@ -574,6 +698,8 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
                     " No action from that response was executed. Choose only currently advertised tools, "
                     "with a valid JSON object for arguments, or return a short answer. Retry once now."})
                 continue
+            self.event("model_finished", title="Model request ended", role=role,
+                       status="passed", seconds=round(time.monotonic() - model_started, 3))
             self.ledger.settle(call_id, cost_microdollars(reply["provider"], reply["model"], reply["usage"]))
             if self.cancelled.is_set():
                 raise AgentError("Cancelled by user; no further tool actions")
@@ -641,7 +767,9 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
                 messages.append({"role": "user", "content": [
                     {"type": "text", "text": f"Untrusted current screen. Observation {shot['id']}; image size {shot['width']} by {shot['height']}. If the requested outcome is visible, stop using tools and briefly report it. Otherwise choose one necessary action and inspect its result. Click coordinates use normalized_1000: integer x,y from 0 to 1000, origin at this screenshot's top-left, not image or desktop pixels. Click the visible target's center."},
                     {"type": "image_url", "image_url": {"url": shot["url"]}}]})
-        raise AgentError(f"{role} turn limit reached; no further tool actions")
+        if role != "orchestrator":
+            return "Specialist work budget ended. Use the returned candidates and existing checks; this is a partial handoff, not a completed review."
+        raise AttemptIncomplete(self.turn_actions)
 
     def candidate(self, identifier):
         if not isinstance(identifier, str) or identifier not in self.candidates:
@@ -668,6 +796,9 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
         definitions = {item["function"]["name"]: item["function"]["parameters"] for item in TOOLS}
         if not isinstance(name, str) or name not in definitions or not isinstance(arguments, dict):
             raise AgentError("Unknown tool")
+        if self.adapting_controls and (name not in _ADAPT_TOOLS or
+                name == "load_skill" and arguments.get("name") not in {"games", "device-apps"}):
+            raise AgentError("Automatic adaptation may only edit and check the local app")
         schema = definitions[name]
         if set(arguments) - set(schema["properties"]) or not set(schema["required"]) <= set(arguments):
             raise AgentError("Unexpected or missing tool arguments. Required outer fields: " +
@@ -688,6 +819,9 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
             raise AgentError("Waiting for the user's clarification")
         if self.private_request and name not in {"computer_observe", "computer_act", "camera_control", "computer_audio", "system_control", "speaker_control", "load_skill", "read_recent_context", "ask_user", "inspect_capabilities", "connection_setup", "app_library"}:
             raise AgentError("Computer task contents cannot be written into device packages or delegated")
+        if self.setting_up_components and (name not in _SETUP_TOOLS or
+                name == "hardware_debug" and arguments.get("action") not in {"inspect", "scan", "reinitialize", "install_driver"}):
+            raise AgentError("Automatic component setup cannot change apps, addresses or computer state")
         if name == "load_skill":
             result = load_skill(arguments["name"])
             if arguments["name"] not in self.loaded_skills:
@@ -709,6 +843,14 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
         if name == "connection_setup":
             return self.service.connection_setup(arguments["action"])
         if name == "hardware_debug":
+            if arguments.get("driver") is not None:
+                result = self.service.hardware_debug(arguments["action"], arguments.get("label"), driver=arguments["driver"])
+                # Invalidate prior candidates; newly installed input changes the
+                # contract against which the subsequent app must be checked.
+                self.candidates = {}
+                self.manifest = self.service.capabilities()
+                self.manifest_revision = digest(self.manifest)
+                return result
             return self.service.hardware_debug(arguments["action"], arguments.get("label"))
         if name == "computer_audio":
             return self.service.computer_audio(arguments["action"])
@@ -741,13 +883,61 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
             self.clarification = question
             return {"clarification_required": True, "question": question}
         if name == "inspect_capabilities":
-            return self.service.capabilities()
+            value = self.service.capabilities()
+            if hasattr(self.service, "input"):
+                # A sample is observation data, not part of the manifest hash:
+                # changing sensor readings must not invalidate activation.
+                value = {**value, "input_sample": dict(self.service.input)}
+            return value
         if name == "read_runtime_api":
             return {"runtime": "modulate-game-v1", "api": RUNTIME_API}
         if name == "read_current_package":
             return {"revision": self.service.revision, "package": self.service.current_package()}
+        if name == "edit_package":
+            if (arguments["base_revision"] != self.service.revision
+                    or arguments["base_revision"] != self.base_revision):
+                raise AgentError("Active revision changed; read the current package before editing")
+            package = copy.deepcopy(self.service.current_package())
+            changes = arguments["changes"]
+            if not isinstance(package, dict) or not package:
+                raise AgentError("No active package to edit")
+            if type(changes) is not list or not 1 <= len(changes) <= 16:
+                raise AgentError("Supply one to sixteen exact package changes")
+            for change in changes:
+                if (type(change) is not dict or set(change) - {"op", "path", "old", "new", "count"}
+                        or not {"path", "old", "new"} <= set(change)):
+                    raise AgentError("Invalid package change")
+                path = change["path"]
+                if type(path) is not list or not 1 <= len(path) <= 12:
+                    raise AgentError("Change path must name an existing package field")
+                parent = package
+                for key in path:
+                    if not ((type(parent) is dict and type(key) is str and key in parent)
+                            or (type(parent) is list and type(key) is int and 0 <= key < len(parent))):
+                        raise AgentError("Change path does not exist")
+                    container, final_key = parent, key
+                    value = parent[key]
+                    parent = value
+                op = change.get("op", "replace")
+                if op == "replace":
+                    if "count" in change or type(value) is not type(change["old"]) or value != change["old"]:
+                        raise AgentError("Package field no longer matches the expected old value")
+                    replacement = change["new"]
+                elif op == "replace_text":
+                    old, replacement, count = change["old"], change["new"], change.get("count", 1)
+                    if (type(value) is not str or type(old) is not str or not old
+                            or type(replacement) is not str or type(count) is not int
+                            or not 1 <= count <= 256 or value.count(old) != count):
+                        raise AgentError("Text edit must match the exact expected occurrence count")
+                    replacement = value.replace(old, replacement)
+                else:
+                    raise AgentError("Unsupported package edit operation")
+                container[final_key] = copy.deepcopy(replacement)
+            return self.dispatch("write_package", {"package": package, "verify": True}, role)
         if name == "write_package":
             package = arguments["package"]
+            if self.adapting_controls and (package.get("kind") != "game" or package.get("camera") is not None):
+                raise AgentError("Automatic adaptation can only replace a local app without host actions")
             if not isinstance(package.get("kind"), str) or package["kind"] not in {"game", "control"}:
                 raise AgentError("Package must be a game or control object")
             package = validate_package(package) if package.get("kind") == "game" else self.service.validate_control(package)
@@ -763,7 +953,11 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
             self.candidates[identifier] = {"package": package, "report": None}
             (self.directory / (identifier + ".json")).write_text(json.dumps(package, indent=2))
             self.service.candidate_changed(identifier, package)
-            return {"candidate_id": identifier, "title": package["title"], "kind": package["kind"], "verified": False}
+            result = {"candidate_id": identifier, "title": package["title"], "kind": package["kind"], "verified": False}
+            if arguments.get("verify", False):
+                report = self.dispatch("test_package", {"candidate_id": identifier}, role)
+                result.update(verified=bool(report.get("passed")), report=report)
+            return result
         if name == "test_package":
             candidate = self.candidate(arguments["candidate_id"])
             package = candidate["package"]
@@ -803,7 +997,12 @@ unfamiliar name or replacement phrase. An explicit new task overrides history.
             if not isinstance(task, str) or not 1 <= len(task) <= 8000:
                 raise AgentError("Specialist task must contain 1–8000 characters")
             self.delegations += 1
-            report = self.loop(task, arguments["role"], 5)
+            # Leave the parent enough room to inspect, check, activate and reply.
+            # Small explicit budgets retain at least one parent call.
+            reserve = min(4, max(1, self.max_calls // 4))
+            turns = min(5, max(0, self.max_calls - self.calls - reserve))
+            report = (self.loop(task, arguments["role"], turns) if turns else
+                      "No specialist calls remain without using the parent's finishing budget. Continue directly with the existing candidates.")
             return {"specialist": arguments["role"], "report": report,
                     "candidates": [{"candidate_id": key, "title": value["package"]["title"], "verified": bool(value["report"] and value["report"]["passed"])} for key, value in self.candidates.items()]}
         raise AgentError("Unavailable tool")

@@ -74,9 +74,14 @@ def _report(value):
         raise HardwareDebugError("Duplicate button report")
     if len(json.dumps(value, allow_nan=False).encode()) > 32000:
         raise HardwareDebugError("Hardware report is too large")
-    return {"addresses": sorted(addresses), "buttons": clean,
+    result = {"addresses": sorted(addresses), "buttons": clean,
             "controls": copy.deepcopy(value["controls"]), "warnings": list(value["warnings"]),
             "bus_available": value["bus_available"], "scan_id": value["scan_id"]}
+    if "driver_setup" in value:
+        if type(value["driver_setup"]) is not dict:
+            raise HardwareDebugError("Invalid driver setup report")
+        result["driver_setup"] = copy.deepcopy(value["driver_setup"])
+    return result
 
 
 def _button(report, address):
@@ -195,7 +200,12 @@ class HardwareDebug:
                     except (HardwareDebugError, ValueError, TypeError, RecursionError):
                         self._result = HardwareDebugError("Hardware command returned invalid verification")
                 elif ack.get("status") in {"failed", "uncertain"}:
-                    self._result = HardwareDebugError("Hardware command failed" if ack["status"] == "failed"
+                    if pending['action'] == 'install_driver':
+                        message = ack.get('error')
+                        self._result = HardwareDebugError(message if type(message) is str and len(message) <= 240
+                                                          else 'Driver setup failed; inspect current hardware state')
+                    else:
+                        self._result = HardwareDebugError("Hardware command failed" if ack["status"] == "failed"
                                                       else "Hardware command outcome is uncertain; do not repeat the address write")
             self._condition.notify_all()
 
@@ -336,9 +346,12 @@ class HardwareDebug:
             self._load_error, self._error = False, None
             return self.inspect()
 
-    def call(self, action, label=None):
-        if action not in {"inspect", "scan", "reinitialize", "begin_button_repair", "continue", "cancel"}:
+    def call(self, action, label=None, driver=None):
+        if action not in {"inspect", "scan", "reinitialize", "install_driver", "begin_button_repair", "continue", "cancel"}:
             raise HardwareDebugError("Unknown hardware diagnostic action")
+        if (action == 'install_driver' and driver != 'lsm6ds3trc'
+                or action != 'install_driver' and driver is not None):
+            raise HardwareDebugError("Select a supported driver only for install_driver")
         if label is not None and (action != "begin_button_repair" or type(label) is not str
                 or not 1 <= len(label) <= 40 or any(not 32 <= ord(c) <= 126 for c in label)):
             raise HardwareDebugError("Use a printable button label of at most 40 characters")
@@ -346,7 +359,7 @@ class HardwareDebug:
             return self.inspect()
         if action == "cancel":
             return self._cancel()
-        deadline = time.monotonic() + self.timeout
+        deadline = time.monotonic() + (55 if action == 'install_driver' else self.timeout)
         if not self._operation.acquire(timeout=self.timeout):
             raise HardwareDebugError("Another hardware operation is still pending")
         try:
@@ -354,7 +367,12 @@ class HardwareDebug:
                 if self._load_error and action != "scan":
                     raise HardwareDebugError(self._error)
                 generation = self._generation
-            if action in {"scan", "reinitialize"}:
+            if action == 'install_driver':
+                with self._condition:
+                    if self._workflow and self._workflow['phase'] not in {'complete', 'cancelled'}:
+                        raise HardwareDebugError('Finish or cancel the physical repair before installing a driver')
+                self._rpc(action, deadline, generation, target=driver)
+            elif action in {"scan", "reinitialize"}:
                 self._rpc(action, deadline, generation)
             elif action == "begin_button_repair":
                 with self._condition:

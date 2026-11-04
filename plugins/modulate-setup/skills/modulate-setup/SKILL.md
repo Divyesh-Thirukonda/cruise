@@ -5,6 +5,19 @@ description: Set up or repair Modulate's local Mac companion, Raspberry Pi runti
 
 # Modulate setup
 
+## Pi-owned standalone installations (current default)
+
+Before the legacy steps below, inspect whether the Pi owns its AI agent. For a
+standalone device, follow [the optional Mac guide](https://github.com/Divyesh-Thirukonda/cruise/blob/codex/pi-standalone-agent/context/optional-mac.md).
+Run the optional `modulate.mac_companion` helper, not `modulate.studio` or the
+legacy enrollment helper. Preserve the Pi's ledgers and all existing permissions.
+Browser codes are entered in the website. Native comparison codes are compared
+on the Mac's localhost setup page and Pi, then confirmed by a fresh physical A
+press. The helper reconnects valid sessions without re-pairing. The remaining
+legacy host/enrollment sections apply only when the installation actually uses a
+Mac-owned AI agent.
+
+
 These instructions are portable: read this file in any coding agent with local
 file and command tools and follow the linked reference. No vendor-specific
 plugin installation is needed. If the user wants to keep the skill, use their

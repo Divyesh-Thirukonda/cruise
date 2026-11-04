@@ -35,7 +35,7 @@ class HardwareIntegrationTests(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.directory = Path(temporary.name)
         self.provider = SyntheticProvider([])
-        with patch.dict("os.environ", {"MODULATE_TTS_PROVIDER": "disabled-test"}):
+        with patch.dict("os.environ", {"MODULATE_TTS_PROVIDER": "local"}):
             self.product = Product(self.directory, self.provider, backend=FakeBackend(), computer=FakeComputer())
         self.product.hardware.timeout = 1
         self.pool = ThreadPoolExecutor(max_workers=2)
@@ -179,7 +179,8 @@ class HardwareIntegrationTests(unittest.TestCase):
         agent = self.product.agent
         schema = next(item["function"]["parameters"] for item in TOOLS
                       if item["function"]["name"] == "hardware_debug")
-        self.assertEqual(set(schema["properties"]), {"action", "label"})
+        self.assertEqual(set(schema["properties"]), {"action", "label", "driver"})
+        self.assertEqual(schema["properties"]["driver"]["enum"], ["lsm6ds3trc"])
         with self.assertRaises(AgentError):
             agent.dispatch("hardware_debug", {"action": "inspect"}, "hardware-specialist")
         for field in ("confirmation", "confirmed", "phrase", "target", "register"):

@@ -1,0 +1,100 @@
+{
+  "date_eastern": "2026-10-29",
+  "mode": "live Pi-owned orchestration using existing Vercel provider gateway",
+  "mac_agent_stopped": true,
+  "paired_mac": false,
+  "answer": {
+    "input_mode": "typed",
+    "request_id": "d501d9ee6b85442f8341304c1ef1b4f4",
+    "model_calls": 1,
+    "text": "Modulate is running on its own.",
+    "tts": {
+      "provider": "elevenlabs",
+      "pending": false,
+      "error": null
+    },
+    "user_confirmed_audible": true
+  },
+  "initial_speaker_failure": {
+    "input_mode": "not independently recorded",
+    "request_id": "5eaacadc7c13412a9847b2b93d67c167",
+    "model_calls": 8,
+    "cause": "Controller discarded speaker-volume offers without a Mac pairing; bounded retries stopped.",
+    "game_probe_rejected_before_submission": true
+  },
+  "game": {
+    "input_mode": "typed",
+    "request_id": "90d90c4b9dc44a4e90361ffab8307375",
+    "model_calls": 13,
+    "agent_seconds_observed": 37.37,
+    "timing_excludes": "voice capture/transcription; typed probe polled completion at one-second intervals",
+    "title": "Orbit Catch",
+    "revision": "491f6971e962eff1495c40374430d8d27004fdba49742c49e31787cfb10046b8",
+    "check_passed": true,
+    "activation_device_acknowledged": true,
+    "activation_seconds": 1.215,
+    "malformed_tool_call_repaired": true,
+    "sprites": [
+      "ship",
+      "star"
+    ],
+    "user_confirmed_after_reboot": "Yes, the game and controls work"
+  },
+  "reboot": {
+    "boot_identity_changed": true,
+    "agent_device_tunnel_services_active": true,
+    "same_revision": true,
+    "wake_state": "wake_listening",
+    "model_calls_added": 0
+  },
+  "speaker_repair": {
+    "input_mode": "typed",
+    "request_id": "6b5fcc018e0a419387dd6c80288325e0",
+    "model_calls": 3,
+    "result": "Pi speaker is at 30%.",
+    "readback_verified": true,
+    "volume_before": 30,
+    "volume_after": 30,
+    "tts": {
+      "provider": "elevenlabs",
+      "pending": false,
+      "error": null
+    }
+  },
+  "final_voice_check": {
+    "input_mode": "spoken, user reported",
+    "prompt_suggested": "Hey Meta, what game is running?",
+    "user_confirmation": "Yes, it answered aloud",
+    "trace_match": "No new matching request was present in the final collected trace; recorded as user confirmation only."
+  },
+  "model_ledger": {
+    "limit_dollars": 50.0,
+    "charged_or_reserved_dollars": 11.390532,
+    "calls": 595,
+    "halted": false
+  },
+  "speech_ledger": {
+    "version": 1,
+    "reserved_characters": 5011,
+    "settled_characters": 4793,
+    "requests": 73,
+    "uncertain_requests": 5
+  },
+  "speech_character_ceiling": 10000,
+  "speech_ceiling_explicitly_approved": true,
+  "website": {
+    "url": "https://modulate-connect.vercel.app/",
+    "deployment": "dpl_2t4qdN1FbxfLx8njCmoSPFspvSLE",
+    "code_commit": "995c16095b84538c3f1795134b0c247716f393bf",
+    "session_gateway_online": true,
+    "platform": "linux",
+    "new_browser_paired": false,
+    "setup_heading_verified": "Just Modulate and Wi-Fi."
+  },
+  "limits": [
+    "Internet required for new AI requests",
+    "Dashboard Quick Tunnel hostname changes on restart; Vercel upstream must be updated",
+    "Separate native Mac bridge not connected to Pi-owned agent",
+    "Individual trials do not establish wake/noise or provider reliability"
+  ]
+}

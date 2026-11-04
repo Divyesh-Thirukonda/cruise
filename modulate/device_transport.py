@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import base64
 import hashlib
 import http.client
 import os
@@ -67,6 +68,9 @@ class PendingCompanion:
 
     def speech_audio(self, descriptor, cancel):
         return self._ready().speech_audio(descriptor, cancel)
+
+    def transcribe_audio(self, audio):
+        return self._ready().transcribe_audio(audio)
 
 
 class Companion:
@@ -172,6 +176,28 @@ class Companion:
             raise TransportError(f"Speech audio unavailable or expired (HTTP {code})") from None
         except (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException):
             raise TransportError("Speech audio unavailable; check the companion connection") from None
+
+    def transcribe_audio(self, audio):
+        if type(audio) is not bytes or not 2 <= len(audio) <= 800000 or len(audio) % 2:
+            raise TransportError("Invalid command recording")
+        request = urllib.request.Request(self.origin + "/device/transcribe",
+            data=json.dumps({"pcm": base64.b64encode(audio).decode("ascii")}).encode(),
+            headers={"Content-Type": "application/json", "Authorization": "Bearer " + self.key})
+        try:
+            with self.opener.open(request, timeout=15) as response:
+                raw = response.read(16385)
+                if len(raw) > 16384:
+                    raise ValueError()
+                result = json.loads(raw)
+            if (type(result) is not dict or result.get("provider") != "meta_muse"
+                    or type(result.get("text")) is not str or len(result["text"]) > 2000):
+                raise ValueError()
+            return result["text"]
+        except urllib.error.HTTPError as error:
+            error.close()
+            raise TransportError("Muse transcription unavailable; request discarded. Try again or use Studio.") from None
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError, http.client.HTTPException):
+            raise TransportError("Muse transcription unavailable; request discarded. Try again or use Studio.") from None
 
 
 def save_private(path, data):

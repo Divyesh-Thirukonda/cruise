@@ -1367,3 +1367,20 @@ Reused work: Meta wav2vec 2.0 (Apache-2.0), Meta MMS (CC-BY-NC-4.0), Silero VAD
 the worker protocol, resource/lifecycle boundaries, installer and integration;
 no model training is claimed. Full pins and license links are in
 [Meta speech](meta-speech.md).
+
+
+## November 3 — Integrate Meta speech with the current main branch
+
+Resolved the README merge conflict against `37eedb5` while preserving the updated
+project presentation, online-demo scenes, in-browser Meta MMS voice and evidence.
+Updated its model table, dependency attribution, installation link and limits to
+match the new local Meta recognizer. The current tracked tree contains no retired
+recognizer references; historical measured outcomes retain their input-mode and
+hardware limitations.
+
+Combined-source validation: `.venv-asr/bin/python -m unittest discover -s tests`
+passed **1,182 tests**. In `webapp/connect-app-code`, `npm ci` followed by
+`npm run check` passed source-manifest verification, **78 API/runtime tests**, **66
+UI tests**, and the Next.js production build. No paid model calls, new physical
+trials, external assets or additional dependencies were introduced by this merge.
+The documented physical speech-installation and wake-verification limits remain.

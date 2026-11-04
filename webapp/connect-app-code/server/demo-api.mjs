@@ -1,6 +1,6 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import { getQuickJS } from 'quickjs-emscripten';
-import { generateApp, MODEL } from './demo-generation.mjs';
+import { runAgent, MODEL } from './demo-generation.mjs';
 import { MODULE_IDS, validatePackage } from '../shared/demo-runtime.mjs';
 const cookieName = 'modulate_demo';
 const json = (data, status = 200, headers = {}) =>
@@ -10,6 +10,56 @@ const equal = (a, b) =>
   typeof b === 'string' &&
   Buffer.byteLength(a) === Buffer.byteLength(b) &&
   timingSafeEqual(Buffer.from(a), Buffer.from(b));
+const short = (value, max) =>
+  typeof value === 'string' ? value.replace(/[\u0000-\u001f]/g, ' ').slice(0, max) : '';
+// Client state is untrusted data for the model; keep only the expected shape and sizes.
+export function sanitizeLibrary(library) {
+  if (!library || typeof library !== 'object') return { open: false, entries: [] };
+  const entries = Array.isArray(library.entries) ? library.entries.slice(0, 24) : [];
+  return {
+    open: library.open === true,
+    entries: entries
+      .filter((e) => e && /^[a-f0-9]{64}$/.test(e.id))
+      .map((e) => ({
+        id: e.id,
+        title: short(e.title, 80),
+        kind: e.kind === 'controls' ? 'controls' : 'app',
+        favorite: e.favorite === true,
+        trashed: e.trashed === true,
+      })),
+  };
+}
+export function sanitizeComputer(computer) {
+  const level = (v) => (Number.isInteger(v) && v >= 0 && v <= 100 ? v : null);
+  if (!computer || typeof computer !== 'object') return null;
+  return { brightness: level(computer.brightness), volume: level(computer.volume) };
+}
+export function sanitizeHardware(hardware) {
+  if (!hardware || typeof hardware !== 'object') return null;
+  const bus = Array.isArray(hardware.bus) ? hardware.bus.slice(0, 12) : [];
+  return {
+    bus: bus
+      .filter((d) => d && /^0x[0-7][0-9a-f]$/.test(d.address))
+      .map((d) => ({
+        address: d.address,
+        device: short(d.device, 60),
+        status: short(d.status, 80),
+      })),
+    imu: {
+      attached: hardware.imu?.attached === true,
+      driver: ['ready', 'missing'].includes(hardware.imu?.driver) ? hardware.imu.driver : 'none',
+    },
+    conflict: hardware.conflict === true,
+    repair: short(hardware.repair, 40) || null,
+  };
+}
+export function sanitizeHistory(history) {
+  if (!Array.isArray(history)) return [];
+  return history
+    .slice(-8)
+    .filter((h) => h && ['user', 'assistant'].includes(h.role))
+    .map((h) => ({ role: h.role, text: short(h.text, 300) }));
+}
 export function demoHandler(env = process.env, fetchImpl = fetch) {
   const hmac = (text) =>
     createHmac('sha256', env.MODULATE_REMOTE_SECRET).update(text).digest('hex');
@@ -112,12 +162,17 @@ export function demoHandler(env = process.env, fetchImpl = fetch) {
         body.prompt.length > 1200 ||
         !Array.isArray(body.modules) ||
         !body.modules.includes('display') ||
-        body.modules.length > 5 ||
+        body.modules.length > MODULE_IDS.length ||
         new Set(body.modules).size !== body.modules.length ||
         body.modules.some((m) => !MODULE_IDS.includes(m))
       )
         throw Error();
       if (body.previous) validatePackage(body.previous);
+      body.channel = body.channel === 'muse' ? 'muse' : 'device';
+      body.library = sanitizeLibrary(body.library);
+      body.computer = sanitizeComputer(body.computer);
+      body.hardware = sanitizeHardware(body.hardware);
+      body.history = sanitizeHistory(body.history);
     } catch {
       return json(
         { error: 'Provide a request and attach a display with supported components.' },
@@ -149,10 +204,15 @@ export function demoHandler(env = process.env, fetchImpl = fetch) {
           } catch {}
         };
         try {
-          const result = await generateApp({
+          const result = await runAgent({
             prompt: body.prompt.trim(),
+            channel: body.channel,
             modules: body.modules,
             previous: body.previous,
+            library: body.library,
+            computer: body.computer,
+            hardware: body.hardware,
+            history: body.history,
             id,
             budget,
             emit,

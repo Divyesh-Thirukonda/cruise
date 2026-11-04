@@ -49,8 +49,9 @@ A call holds 1,345,536 microdollars (full 1,048,576 input context at $1.25/M plu
 8,192 output at $4.25/M). Validated provider usage refunds the difference; missing
 usage or transport failures retain the hold. An overage halts the pool. Global
 reservations are transactional, including concurrent server instances. Each
-visitor gets up to six generations per UTC day, each network 24, with ten-second
-spacing and one active request per session. Unknown-cost holds need operator
+visitor gets up to 15 requests per UTC day, each network 60, with five-second
+spacing and one active request per session (raised November 3 so one visitor can
+follow all ten video scenes; the $25 total is unchanged). Unknown-cost holds need operator
 review; timeouts never refund them automatically.
 
 Runtime model/price documentation verified November 3, 2026:

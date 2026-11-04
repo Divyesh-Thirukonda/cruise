@@ -33,39 +33,64 @@ apply to the whole device, and macOS still owns its native permission dialogs.
 ## Online demo
 
 The homepage's **Online demo** button opens `/demo`, with Studio, App library and
-Device views. Visitors attach virtual Pi components and type a request. The server
-calls Meta `muse-spark-1.3` to generate original JavaScript, runs independent checks,
-and sends the results back to Meta for approval or repair (at most three calls).
-There are no preset apps or keyword-to-template fallback paths.
+Device views. Visitors attach virtual Pi parts (display, joystick, knob, buttons,
+motion sensor, speaker, camera) and a virtual paired Mac, then type a request or
+send it on the page's “Message from Muse” channel. Numbered buttons follow the
+three-minute video's scenes in order.
 
-Generated apps run inside QuickJS/WASM, in a dedicated browser worker with no
-host callbacks, imports, DOM, network or privileged services. The contract allows
-only bounded drawing and sound commands and declarative input descriptions.
-Both server and browser verify 151 frames before activation. Revision-matching
-acknowledgement, cancellation and failure handling preserve the previous app.
-Playing, restarting and restoring saved apps make no model calls. The generated
-source, Meta response IDs, usage and check results are visible in Code & checks.
+Each request makes at most three Meta `muse-spark-1.3` calls. An **orchestrator**
+call reads the attached parts, current app, library, virtual Mac levels and a
+simulated I²C report, then picks one skill and action: build, edit, control
+mapping, library action, hardware-debug workflow, question, refusal or reply.
+For apps, a **coder** subagent writes original JavaScript and a **reviewer**
+subagent approves it or repairs it against the independent check report. The trace
+streams to the page. There are no preset apps or keyword-to-template paths.
+
+Generated apps run inside QuickJS/WASM in a dedicated browser worker with no host
+callbacks, imports, DOM, network or privileged services. The contract allows
+bounded drawing, sound and one `camera` rectangle that the host paints from the
+visitor's webcam; frames never reach the model or generated code. Server and
+browser each verify 151 frames before activation, and sandbox errors name the
+failing line. Control mappings are declarative bindings checked by the verifier and
+applied locally per knob detent, joystick tick or press. Driver installs and the
+Qwiic button re-address run only through trusted simulated workflows the model can
+start but not script. Revision-matching acknowledgement, cancellation and failure
+handling preserve the previous app; playing, restarting, restoring, library
+navigation and knob mappings make no model calls.
 
 Hardware is conceptual, not electrical/firmware emulation or Arduino compatibility.
-No physical device, native Mac action, camera or microphone is accessed. Prompts
-and the previous app's code go to Meta; apps persist locally under
-`modulate.playground.live.v2`, capped at 24 entries. Old preset storage is not
-imported. Storage failures allow a clearly labeled session-only workspace.
+No physical device or OS setting is touched. Prompts, the current app's code and
+compact state go to Meta; apps persist locally under `modulate.playground.live.v2`
+(capped at 24, with favorites and Trash). Storage failures allow a clearly labeled
+session-only workspace.
 
 `/api/demo` uses the existing server-only Meta key, signed HttpOnly anonymous
-sessions, same-origin/CSRF checks, bounded requests and fixed provider/model IDs.
-The existing Cloudflare Worker supplies an independent **$25 total demo budget**
-with daily visitor/network limits, per-call reservations and unknown-cost holds.
-The user authorized this separate budget on November 3. It has no dependency on
-a Pi, its ledger, a tunnel, physical-device discovery or pairing. See
-`deploy/discovery-worker/README.md` for one-time cloud initialization. The native
-prototype's $50 ledger is unchanged. Initialization never resets accrued usage.
+sessions, same-origin/CSRF checks, bounded and sanitized request state, and fixed
+provider/model IDs. The existing Cloudflare Worker supplies an independent **$25
+total demo budget** with per-call reservations, unknown-cost holds and per-visitor
+daily allowances (15 requests per browser session and 60 per network per UTC day
+in this revision). The user authorized this separate budget on November 3. It has
+no dependency on a Pi, its ledger, a tunnel, physical-device discovery or pairing.
+See `deploy/discovery-worker/README.md` for one-time cloud initialization. The
+native prototype's $50 ledger is unchanged.
 
-Implementation: `src/modulate/demo/`, `shared/demo-runtime.mjs`, and `server/demo-*.mjs`.
-`prebuild`/`predev` bundle the pinned QuickJS browser worker; generated bundles are
-ignored. Tests cover sandbox limits, malformed/missing capabilities, review/repair,
-CSRF, concurrency, unknown billing, stale acknowledgements, cancellation and
-persistence. Tests with fixtures do not establish live Meta inference.
+Implementation: `src/modulate/demo/`, `shared/demo-runtime.mjs`, and
+`server/demo-*.mjs`. `prebuild`/`predev` bundle the pinned QuickJS browser worker;
+generated bundles are ignored. Tests cover sandbox limits, camera/tilt/binding
+contracts, orchestrator routing, review/repair, the trusted bench boundary, CSRF,
+concurrency, unknown billing, stale acknowledgements, cancellation, allowances and
+persistence. Tests with fixtures do not establish live Meta inference; see
+`context/evidence/online-demo/scenes-2026-11-03.json` for live runs.
+
+**Spoken replies (opt-in).** `src/modulate/demo/speech.js` runs Meta's open-weight
+MMS English voice, as the Pi does, entirely in the visitor's browser: the 38 MB
+8-bit ONNX port `Xenova/mms-tts-eng` (pinned commit) of `facebook/mms-tts-eng`, via
+`@huggingface/transformers` 4.3.1 and onnxruntime-web WASM in ORT's same-origin
+proxy worker. Nothing downloads until the visitor enables it; reply text never
+leaves the browser and the Cache API serves later visits. `prebuild`/`predev` copy
+the ORT runtime into ignored `public/ort/` (no CDN scripts), and only `/demo` adds
+`https://huggingface.co` and Hugging Face's regional `https://*.cdn.hf.co` to
+`connect-src`. The checkpoint is third-party and licensed CC-BY-NC-4.0 (noncommercial).
 
 ## Read the implementation
 

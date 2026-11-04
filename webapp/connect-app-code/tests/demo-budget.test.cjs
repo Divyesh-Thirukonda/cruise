@@ -83,3 +83,34 @@ test('independent demo can use its own $25 ceiling without a Pi allocation', asy
     409,
   );
 });
+
+test('a visitor gets a bounded daily allowance with spacing between requests', async () => {
+  const { call } = await setup();
+  const { SESSION_DAILY, SPACING_MS } = await import(
+    '../../../deploy/discovery-worker/demo-budget.mjs'
+  );
+  await call('initialize', { budgetId: 'a'.repeat(32), amount: 25000000 });
+  const realNow = Date.now;
+  let now = realNow();
+  Date.now = () => now;
+  try {
+    // Each request finishes before the next; one active request per browser is a separate rule.
+    const start = async () => {
+      const id = randomUUID();
+      const result = await call('start', { id, session: 'e'.repeat(64), network: 'f'.repeat(64) });
+      if (result.status === 200) await call('finish', { id });
+      return result;
+    };
+    const first = await start();
+    assert.equal(first.status, 200);
+    assert.equal((await start()).status, 429);
+    for (let i = 1; i < SESSION_DAILY; i++) {
+      now += SPACING_MS;
+      assert.equal((await start()).status, 200);
+    }
+    now += SPACING_MS;
+    assert.equal((await start()).status, 429);
+  } finally {
+    Date.now = realNow;
+  }
+});

@@ -67,7 +67,14 @@
           "cost_dollars": 0.0036,
           "detail": "After the prompt stated the report is already a fresh inspection, the orchestrator chose install_driver lsm6ds3trc."
         }
-      ]
+      ],
+      "button_conflict": {
+        "setup": "third Qwiic Button added at factory address 0x6F; button B flickers",
+        "outcome": "guided re-address to 0x6D after three human confirmations; bus scan clean; B stable",
+        "seconds": 3.8,
+        "calls": 1,
+        "detail": "The orchestrator chose begin_button_repair; the trusted simulated workflow chose the address and performed the identity check and write."
+      }
     },
     {
       "scene": 4,
@@ -109,7 +116,10 @@
     {
       "scene": 8,
       "request": "Hey Meta, use the joystick to scroll the apps.",
-      "outcome": "not run live; the test allowance was exhausted. Covered by server validation and UI tests only."
+      "outcome": "library opened with joystick scrolling",
+      "seconds": 6.1,
+      "calls": 1,
+      "detail": "Run in a fresh session with three seeded fixture apps; the joystick then moved the selection and button A opened the selected app. A quick flick could skip two entries, so the first step now happens on press and repeats start after 400 ms of holding."
     },
     {
       "scene": 9,

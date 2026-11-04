@@ -16,6 +16,12 @@ import { checkApp } from './model';
 import { applyBinding, idleInput, verifyPackage } from '../../../shared/demo-runtime.mjs';
 
 const clamp = (v, lo = -1, hi = 1) => Math.max(lo, Math.min(hi, v));
+// Capture can throw for a pointer that is no longer active; input must still register.
+const capture = (e) => {
+  try {
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  } catch {}
+};
 // Palette effects run on downsampled local pixels; nothing leaves the tab.
 function tint(data, palette) {
   for (let i = 0; i < data.length; i += 4) {
@@ -238,7 +244,8 @@ export default function VirtualDevice({
     knobDrag = useRef(null),
     tiltPad = useRef(null),
     motion = useRef(null),
-    lastFrame = useRef(null);
+    lastFrame = useRef(null),
+    heldSince = useRef(0);
   callbacks.current = { onReady, onReject, onComputer, onLibrary };
   const [playing, setPlaying] = useState(false),
     [loaded, setLoaded] = useState(null),
@@ -432,9 +439,11 @@ export default function VirtualDevice({
     const timer = setInterval(() => {
       const { joystick } = input.current;
       const { library: menu, controlsApp: mapping, app: current, computer: levels } = live.current;
-      if (menu?.open && menu.control === 'joystick' && Math.abs(joystick.y) > 0.5)
-        callbacks.current.onLibrary({ type: 'move', delta: Math.sign(joystick.y) });
-      else if (mapping && levels) {
+      // The press itself moved once; repeat only while the stick stays held.
+      if (menu?.open && menu.control === 'joystick') {
+        if (Math.abs(joystick.y) > 0.5 && performance.now() - heldSince.current > 400)
+          callbacks.current.onLibrary({ type: 'move', delta: Math.sign(joystick.y) });
+      } else if (mapping && levels) {
         let next = levels;
         for (const b of current.bindings) {
           if (b.control === 'joystick_x' && Math.abs(joystick.x) > 0.5)
@@ -499,6 +508,12 @@ export default function VirtualDevice({
     return true;
   };
   const setControl = (kind, value) => {
+    if (kind === 'y' && value && !input.current.joystick.y) {
+      heldSince.current = performance.now();
+      const menu = live.current.library;
+      if (menu?.open && menu.control === 'joystick')
+        callbacks.current.onLibrary({ type: 'move', delta: Math.sign(value) });
+    }
     if (kind === 'x' || kind === 'y') input.current.joystick[kind] = value;
     else if (!value) input.current[kind] = false;
     else if (press(kind)) input.current[kind] = true;
@@ -521,7 +536,7 @@ export default function VirtualDevice({
   };
   const hold = (kind, value) => ({
     onPointerDown: (e) => {
-      e.currentTarget.setPointerCapture?.(e.pointerId);
+      capture(e);
       setControl(kind, value);
     },
     onPointerUp: () => setControl(kind, 0),
@@ -547,7 +562,7 @@ export default function VirtualDevice({
   const knobEvents = {
     onPointerDown: (e) => {
       if (!knobReady) return;
-      e.currentTarget.setPointerCapture?.(e.pointerId);
+      capture(e);
       knobDrag.current = { angle: knobAngle(e), rest: 0 };
     },
     onPointerMove: (e) => {
@@ -586,7 +601,7 @@ export default function VirtualDevice({
   const tiltEvents = {
     onPointerDown: (e) => {
       if (!tiltReady) return;
-      e.currentTarget.setPointerCapture?.(e.pointerId);
+      capture(e);
       tiltPad.current = e.currentTarget.getBoundingClientRect();
       tiltEvents.onPointerMove(e);
     },

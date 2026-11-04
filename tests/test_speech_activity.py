@@ -34,16 +34,16 @@ class FakeSession:
 @unittest.skipIf(np is None, "NumPy is a Pi speech dependency, absent from this host environment")
 class SpeechActivityTests(unittest.TestCase):
     def test_lazy_constructor_uses_only_bundled_model_and_reset_does_not_reload(self):
-        model = Mock(return_value=SimpleNamespace(session=FakeSession()))
-        with patch.dict(sys.modules, {"faster_whisper.vad": SimpleNamespace(get_vad_model=model)}):
+        model = Mock(return_value=FakeSession())
+        with patch("modulate.speech_activity._load_session", model):
             detector = SpeechActivity()
             detector.reset()
         model.assert_called_once_with()
 
     def test_missing_model_fails_clearly_without_exposing_native_diagnostic(self):
         model = Mock(side_effect=RuntimeError("SYNTHETIC_PRIVATE_PATH"))
-        with patch.dict(sys.modules, {"faster_whisper.vad": SimpleNamespace(get_vad_model=model)}):
-            with self.assertRaisesRegex(SpeechActivityError, "bundled faster-whisper") as raised:
+        with patch("modulate.speech_activity._load_session", model):
+            with self.assertRaisesRegex(SpeechActivityError, "install_meta_asr") as raised:
                 SpeechActivity()
         self.assertNotIn("PRIVATE", str(raised.exception))
 

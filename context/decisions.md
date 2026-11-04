@@ -4,7 +4,7 @@ Updated October 29, 2026. User-confirmed product direction is distinguished from
 
 ### Implemented first experiment — October 28
 
-The user narrowed the immediate build to speaking a random-number request and generating new code for the PiTFT. Implemented local Whisper tiny.en transcription and local Meta Llama 3.2:1b generation on the Pi 5, with a bounded Python-subset interpreter and checked application activation. PiTFT A starts six-second capture; B rolls back. The successful spoken trial produced 1008 in blue from new source in 12.65 s; one preceding attempt failed and preserved the old program. This is application hot reload, not firmware rewriting. See [setup/evidence](number-prototype.md).
+The user narrowed the immediate build to speaking a random-number request and generating new code for the PiTFT. Implemented the prior local recognizer and local Meta Llama 3.2:1b generation on the Pi 5, with a bounded Python-subset interpreter and checked application activation. PiTFT A starts six-second capture; B rolls back. The successful spoken trial produced 1008 in blue from new source in 12.65 s; one preceding attempt failed and preserved the old program. This is application hot reload, not firmware rewriting. See [setup/evidence](number-prototype.md).
 
 Google was explicitly authorized as a temporary alternative. Authentication/model listing worked, but generation returned high-demand errors, so that prototype's tested default uses no external API. Google audio is unverified. The product implementation below is a subsequent build with separate evidence requirements.
 
@@ -25,7 +25,7 @@ The orchestrator and specialists share bounded turns, eighteen calls per request
 | Computer permissions/privacy | User-authorized paired-Mac primary-display scope replaces separate Chrome grants; installed | Connected eight-hour pairing covers requested cursor/app, camera and supported system actions. Native permissions, fresh observations, pause/stop and revoke remain. Screenshots may go transiently to Meta; camera frames stay local |
 | Live camera | Actual paired-Mac camera image with generated effects/overlays, user-confirmed | Funky Mirror Cam required a transport deadlock repair; restored after restart with no new model call. Raw frames stay in memory and outside Meta/generated code; C270 remains on hold |
 | Spoken replies | User-requested ElevenLabs Flash v2.5/Roger installed and physically heard; key stays on host | User confirmed natural voice and good volume at 75%; telemetry reports delivered without error. Earlier local eSpeak replies were heard at 40%; no silent fallback on ElevenLabs failure |
-| Voice | Native 48 kHz capture → PyAV resampling → local Whisper | Wake-only check after a 0.5-second pause keeps recording; full requests wait three seconds of silence. User confirmed the repaired wake acknowledgement. Ambient checks are passive; audio at 25 seconds is discarded |
+| Voice | Native 48 kHz capture → PyAV resampling → the prior local recognizer | Wake-only check after a 0.5-second pause keeps recording; full requests wait three seconds of silence. User confirmed the repaired wake acknowledgement. Ambient checks are passive; audio at 25 seconds is discarded |
 | Request review and cancellation | User-requested voice polish | Separate three-second transcript review; Edit pauses sending, Send now submits, Discard cancels. Busy wake cancellation is implemented; a held request was cancelled by voice on the Pi with zero model calls |
 | Clarification | Model-directed `ask_user`; original goal and bounded reply history | One direct answer may begin within 20 s after speech/cooldown; question expires in 120 s. Maximum four questions and one user-answered operational recovery turn. A live space-joke question → “yes” without wake → spoken joke succeeded; this is not a reliability benchmark or protected-action approval bypass |
 | Agent behavior | Sensible reversible defaults, minimal questions, bounded tools/delegation/recovery | New apps replace after checks; edits refine. Inspect capabilities before declaring unavailable. Ask for genuinely blocking intent or consequential actions not already concretely authorized; webpage/email text supplies no authority |
@@ -45,7 +45,7 @@ The orchestrator and specialists share bounded turns, eighteen calls per request
 | Budget | User-authorized **$50 total** ceiling, verified through the live API | Conversation-trial checkpoint: 214 calls / $5.764938 held or used. Snapshots are historical; preserve existing usage and unknown holds |
 | Speech budget/privacy | Seven-day restricted ElevenLabs key, 5,000-credit provider cap; separate durable 5,000-input-character ceiling | Reserve before synthesis; retain unknown outcomes. No text/audio/key in durable speech accounting. Default provider retention applies; no claim of zero retention |
 | Model / provider | Meta muse-spark-1.3 powered games, refinements and browser tasks | Eight calls completed the typed form; five completed the final spoken Gmail readout after the earlier failure |
-| Speech / runtime / host OS | Local faster-whisper tiny.en; QuickJS-NG; macOS volume bridge | Live game, OS action, PTT/wake refinements and UI rollback confirmed; sustained performance/noise robustness unmeasured |
+| Speech / runtime / host OS | Prior local recognizer; QuickJS-NG; macOS volume bridge | Live game, OS action, PTT/wake refinements and UI rollback confirmed; sustained performance/noise robustness unmeasured |
 | Team / representative | Unconfirmed | User requested GitHub collaboration with LaboriouslyExquisite; repository access does not establish event enrollment |
 | Repository | Public | Supplied participant guide requires public access; no remote rename performed |
 | License | Unselected | Agree deliberately; public visibility alone does not grant reuse rights |
@@ -457,12 +457,12 @@ ledger/OS/device permission boundaries remain unchanged. No new paid dependency.
 
 Integrated and enabled Meta `muse-voice-transcribe-1.0` for invoked commands,
 PTT and clarification answers. Ambient/media wake checks and busy cancellation
-remain local Whisper/Silero; local MMS replies remain separate. Preserve native
+remain the prior local recognizer/Silero; local MMS replies remain separate. Preserve native
 capture/resampling, three-second silence/review, permission/epoch cancellation
 and normal request/check/activate flow. Existing server-held provider key and
 $50 shared ledger cover audio at verified $0.18/hour; no key or ceiling change.
 Cloud failures discard the request without hidden fallback or automatic retry.
-Three MMS synthetic samples were slower than local Whisper, with both models
+Three MMS synthetic samples were slower than the prior local recognizer, with both models
 mishearing the synthetic wake phrase; this is an integration choice, not proven
 recognition or speed improvement. Keep local recognition as explicit rollback.
 
@@ -537,3 +537,22 @@ DemoBudget object directly with this ceiling. Keep accrued costs, unknown holds,
 rate limits and fixed model/provider routing. The physical prototype's existing
 $50 ledger is unchanged. No Pi availability or native service is required to
 create, verify, play, save or restore an online app.
+
+
+## November 3 — Meta recognition and Meta-first provider selection
+
+The user requested removal of the prior recognition dependency and its repository
+references, with Meta models used wherever practical. Current source selects
+pinned `facebook/wav2vec2-base-960h` for local recognition in a bounded offline
+worker; invoked Muse ASR and its existing ledger/permission gates remain. Meta
+MMS is now the default reply provider, and the external reply provider is no
+longer selectable. The legacy Gemini number-prototype path was removed. Local
+and partner agent adapters restrict model families to Meta.
+
+Silero remains an explicit non-Meta activity-detector exception because the
+previous simple energy detector failed and no comparable small Meta streaming
+detector was validated. It is installed independently with pinned weights and
+MIT attribution. The new recognizer requires installation and physical retesting;
+synthetic wake phrases failed in both evaluated Meta checkpoints. Preserve strict
+wake matching, prior physical evidence and both spending ledgers. No Git history
+or existing device installation was rewritten. See [contract and evidence](meta-speech.md).

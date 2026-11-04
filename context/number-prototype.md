@@ -8,7 +8,7 @@ The installed directory is `/home/pi/modulate-prototype`. The running user servi
 
 1. Press the small **A / GPIO23** button on the PiTFT board itself. External red/green Qwiic buttons are not used by this prototype.
 2. Wait for **Listening**, then speak within six seconds: “Show a random number between one and one hundred in green.”
-3. The display shows transcription/generation status, then the number and source-hash prefix. The default speech model is **Whisper tiny.en**, running locally. **Meta Llama 3.2 1B**, through the Pi's existing Ollama installation, generates the program locally.
+3. The display shows transcription/generation status, then the number and source-hash prefix. Current source uses **Meta wav2vec 2.0**, running locally after the new speech setup. Historical physical measurements below predate this replacement. **Meta Llama 3.2 1B**, through the Pi's existing Ollama installation, generates the program locally.
 4. Press A again for a fresh request, such as “Now make the range 1000 to 2000 and use blue.” Previous source is provided as context.
 5. **B / GPIO24** restores the previous committed program and its previously displayed number. It is a rollback, not a fresh model call.
 
@@ -51,7 +51,7 @@ sudo apt install python3-venv python3-pil python3-lgpio alsa-utils
 python3 -m venv --system-site-packages .venv
 .venv/bin/pip install -r requirements-pi.txt
 ollama pull llama3.2:1b
-.venv/bin/python -c 'from faster_whisper import WhisperModel; WhisperModel("tiny.en", device="cpu", compute_type="int8", cpu_threads=2)'
+python3.11 scripts/install_meta_asr.py
 arecord -l
 .venv/bin/python -m modulate --display-test
 .venv/bin/python -m modulate --state-dir context/private/runtime --trigger button
@@ -69,12 +69,6 @@ For typed debugging (clearly distinct from voice):
 
 For a preview without GPIO, add `--simulate`; an actual model provider is still required. For one immediate microphone recording, use `--once`. Stop the service first so only one process uses the screen/state directory.
 
-## Optional Google development path
-
-The Google adapter targets the documented `gemini-3.8-flash` Interactions API. Key authentication/model listing succeeded during setup, but live generation returned HTTP503/high-demand errors (and a generateContent probe timed out). **Google audio transcription is not verified.** There is no automatic provider fallback.
-
-To explicitly select it later, supply `GEMINI_API_KEY` on the trusted Pi process or in an owner-readable `chmod 600` environment file, then use `--provider google --speech google --env-file /private/path`. The API key is never included in generated code. The default working path uses local speech and Meta generation, with no Google credential required.
-
 ## Verification and limits
 
 ```sh
@@ -87,10 +81,10 @@ Verified during bring-up: actual Pi 5 identification, USB capture-device detecti
 
 The physical voice trial then produced **1008 in blue**, confirmed by the user, with a different source hash `516799652c2fbb52dfdd9e5b173cc09fe381ae0086f11c8a5cece2fe75b15675`. It took 12.65 s including 6 s recording; transcription completed about 1 s after capture, and generation/check/activation took about 5.6 s. One preceding voice attempt exhausted the model-output limit and preserved number 24. That is **one successful activation out of two observed voice attempts**, not a reliability claim. Earlier untuned model prompts also failed checks. The successful model additionally chose a green background; the user confirmed the requested blue number, but exact preservation of unspecified styling is not guaranteed. See [sanitized evidence](evidence/number-prototype-2026-10-28.json).
 
-This prototype does not implement a generated game, host-volume pairing, joystick/encoder controls, automatic component discovery, arbitrary Python, firmware flashing, guaranteed semantic correctness, or wake-word detection. A successful bounded program check does not prove the model interpreted every spoken instruction correctly. Whisper tiny.en and Llama 1B are intentionally small; failures remain visible and preserve the last working revision.
+This prototype does not implement a generated game, host-volume pairing, joystick/encoder controls, automatic component discovery, arbitrary Python, firmware flashing, guaranteed semantic correctness, or wake-word detection. A successful bounded program check does not prove the model interpreted every spoken instruction correctly. The local speech and Llama models have limited accuracy; failures remain visible and preserve the last working revision.
 
 ## Prior work and dependencies
 
 Hardware/capture parameters were checked against [Viktor Radev / LaboriouslyExquisite's prior lab work](https://github.com/LaboriouslyExquisite/Interactive-Lab-Hub/tree/3ef4fa566cd6881db97dc44d36090905f650b0ee), a fork of IRL-CT/Interactive-Lab-Hub. No repository-wide license was identified there, so the small adapters were independently written rather than copying its application code. That repository and Adafruit's examples are pre-event references, not new hackathon contributions.
 
-Dependencies: [Adafruit Blinka](https://github.com/adafruit/Adafruit_Blinka) and [RGB display driver](https://github.com/adafruit/Adafruit_CircuitPython_RGB_Display) (MIT), [Pillow](https://github.com/python-pillow/Pillow) (HPND), [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (MIT), [Ollama](https://github.com/ollama/ollama) (MIT) and Meta Llama 3.2 weights (Llama 3.2 Community License). Whisper model weights and their upstream license are distinct from Meta's generation model. No third-party photo, game asset or private chat was added to the repository.
+Dependencies: [Adafruit Blinka](https://github.com/adafruit/Adafruit_Blinka) and [RGB display driver](https://github.com/adafruit/Adafruit_CircuitPython_RGB_Display) (MIT), [Pillow](https://github.com/python-pillow/Pillow) (HPND), [Ollama](https://github.com/ollama/ollama) (MIT) and Meta Llama 3.2 weights (Llama 3.2 Community License). Current speech weights and their Apache-2.0 license are described in [Meta speech](meta-speech.md). No third-party photo, game asset or private chat was added to the repository.

@@ -61,6 +61,11 @@ class AgentProviderTests(unittest.TestCase):
         self.assertNotIn("temperature", body)
         self.assertFalse(body["stream"])
 
+    def test_hosting_adapter_rejects_non_meta_model_before_network(self):
+        for kind, model in (("ollama", "qwen:7b"), ("fireworks", "accounts/fireworks/models/deepseek-v3")):
+            with self.subTest(provider=kind), self.assertRaisesRegex(AgentProviderError, "Meta"):
+                self.make(kind, model=model)
+
     def test_fireworks_uses_verified_endpoint_and_parameters(self):
         adapter = self.make("fireworks", reasoning_effort="low", temperature=0.4)
         self.reply(adapter, cloud_response())

@@ -316,12 +316,10 @@ class ListenerTests(unittest.TestCase):
         self.listener.on_request.assert_called_once_with("make a game")
 
     def test_cached_model_loads_once_and_uses_bounded_cpu(self):
-        constructor = Mock()
-        with patch.dict("sys.modules", {"faster_whisper": SimpleNamespace(WhisperModel=constructor)}):
+        with patch("modulate.voice.LocalSpeech") as constructor:
             self.listener._load_model()
             self.listener._load_model()
-        constructor.assert_called_once_with("tiny.en", device="cpu", compute_type="int8", cpu_threads=2,
-                                            local_files_only=True)
+        constructor.assert_called_once_with()
 
     def test_same_wake_setting_does_not_interrupt_retry_backoff(self):
         self.listener.set_enabled(True)
@@ -375,47 +373,20 @@ class ListenerTests(unittest.TestCase):
         self.assertEqual(self.statuses[-1]["state"], "wake_listening")
         self.assertEqual(self.listener._wake_status(), "Listening locally for Hey Meta")
 
-    def test_transcription_vocabulary_does_not_inject_the_wake_phrase(self):
-        class FakeArray:
-            def astype(self, dtype):
-                return self
-
-            def __truediv__(self, value):
-                return self
-
-        numpy = SimpleNamespace(frombuffer=Mock(return_value=FakeArray()), int16="int16", float32="float32")
+    def test_recognition_uses_local_meta_worker_with_stop_signal_and_no_prompt(self):
         self.listener._model = Mock()
-        self.listener._model.transcribe.return_value = ([SimpleNamespace(
-            text="Hey Meta, make a kart", no_speech_prob=.1, avg_logprob=-.2)], None)
-        with patch.dict("sys.modules", {"numpy": numpy}):
-            self.assertEqual(self.listener._transcribe(SPEECH), "Hey Meta, make a kart")
-        kwargs = self.listener._model.transcribe.call_args.kwargs
-        self.assertEqual(kwargs["initial_prompt"], "Modulate, Meta, kart, knob, coins.")
-        self.assertNotIn("Hey Meta", kwargs["initial_prompt"])
-        self.assertFalse(kwargs["condition_on_previous_text"])
-        self.assertEqual(kwargs["no_speech_threshold"], .6)
-        self.assertEqual(kwargs["log_prob_threshold"], -1.0)
+        self.listener._model.transcribe_pcm.return_value = "HEY META MAKE A KART"
+        self.assertEqual(self.listener._transcribe(SPEECH), "HEY META MAKE A KART")
+        self.listener._model.transcribe_pcm.assert_called_once_with(SPEECH, self.listener._stop)
 
-    def test_a_decoded_wake_string_marked_as_low_confidence_silence_cannot_arm(self):
-        class FakeArray:
-            def astype(self, dtype):
-                return self
-
-            def __truediv__(self, value):
-                return self
-
-        numpy = SimpleNamespace(frombuffer=Mock(return_value=FakeArray()), int16="int16", float32="float32")
+    def test_silent_recognition_cannot_arm_wake(self):
         self.listener._model = Mock()
-        self.listener._model.transcribe.return_value = ([SimpleNamespace(
-            text="Hey Meta", no_speech_prob=.95, avg_logprob=-1.4)], None)
+        self.listener._model.transcribe_pcm.return_value = ""
         self.listener.set_enabled(True)
-        with patch.dict("sys.modules", {"numpy": numpy}):
-            text = self.listener._transcribe(SILENCE * 24)
-        self.assertEqual(text, "")
+        text = self.listener._transcribe(SILENCE * 24)
         self.listener._deliver(text, Utterance(SILENCE * 24, time.monotonic()), False, self.listener._epoch)
         self.assertEqual(self.requests, [])
         self.assertFalse(self.listener._gate.armed(time.monotonic()))
-        self.assertFalse(any(status["state"] == "listening" for status in self.statuses))
 
     def test_worker_delivers_one_ptt_request_and_clears_transcription_state(self):
         delivered = threading.Event()
@@ -784,7 +755,7 @@ class ListenerTests(unittest.TestCase):
         self.listener.on_unclear.assert_called_once_with("empty", followup_id=None)
         self.assertEqual(self.requests, [])
 
-    def test_explicit_silent_ptt_requests_clarification_without_whisper(self):
+    def test_explicit_silent_ptt_requests_clarification_without_recognition(self):
         self.listener.on_unclear = Mock(return_value=True)
         sd = FakeSoundDevice()
         self.listener._audio = SyntheticQueue(NATIVE_SILENCE)
@@ -1013,7 +984,7 @@ class RealResamplerTests(unittest.TestCase):
         aliased_rms = math.sqrt(sum(value * value for value in above_nyquist) / len(above_nyquist))
         self.assertLess(aliased_rms, 100)
 
-    def test_six_seconds_native_pcm_gives_exact_six_seconds_for_whisper(self):
+    def test_six_seconds_native_pcm_gives_exact_six_seconds_for_recognition(self):
         converter = PCMResampler()
         blocks = []
         for _ in range(240):

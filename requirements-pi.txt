@@ -2,4 +2,6 @@
 adafruit-blinka==10.0.0
 adafruit-circuitpython-rgb-display==3.14.6
 Pillow==9.4.0
-faster-whisper==1.2.1
+numpy==2.2.6
+onnxruntime==1.23.2
+# Meta recognition worker: python3.11 scripts/install_meta_asr.py

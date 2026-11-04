@@ -10,11 +10,13 @@ The new behavior comes from generated code and mappings. Physical controls and g
 
 ## Status
 
-**Invoked voice requests now support Muse Voice Transcribe.** The installed Pi keeps “Hey Meta” checks and busy cancellation local, then uses the existing Meta gateway for command/PTT/follow-up transcription. A complete synthetic pinned-device trial returned text in 1.182s without executing the command. Three synthetic comparisons were slightly slower than cached local Whisper; no physical wake/noise or accuracy improvement is claimed. [Integration, measurements and rollback](context/muse-voice-transcribe.md).
+**Speech recognition now uses Meta models.** Current source replaces the prior local recognizer with pinned `facebook/wav2vec2-base-960h` for wake recognition and cancellation. [Install and verify the new speech stack](context/meta-speech.md). The following installed-device measurements predate this local replacement.
+
+**Invoked voice requests support Muse Voice Transcribe.** The installed Pi keeps “Hey Meta” checks and busy cancellation local, then uses the existing Meta gateway for command/PTT/follow-up transcription. A complete synthetic pinned-device trial returned text in 1.182s without executing the command. Three synthetic comparisons were slightly slower than the cached prior local recognizer; no physical wake/noise or accuracy improvement is claimed. [Integration, measurements and rollback](context/muse-voice-transcribe.md).
 
 **Controls follow connected hardware.** A saved game that depended on the unplugged joystick now adapts through the live Meta agent; the user confirmed the generated knob version works. A second live Meta edit used the detected LSM6DS3TR-C IMU; the user confirmed tilt steering. [Evidence and current limits](context/adaptive-controls.md).
 
-Planning began October 27, 2026 for the Meta Global AI Developer Hackathon. The user renamed Cruise to **Modulate** and set this voice-first direction on October 28. **The first voice-to-number prototype runs on the physical Pi:** USB microphone → local Whisper transcription → local Meta Llama 3.2 generation → fixed code checks → PiTFT activation. A spoken trial displayed 1008 in blue from a newly generated program.
+Planning began October 27, 2026 for the Meta Global AI Developer Hackathon. The user renamed Cruise to **Modulate** and set this voice-first direction on October 28. **The first voice-to-number prototype runs on the physical Pi:** USB microphone → the prior local recognizer → local Meta Llama 3.2 generation → fixed code checks → PiTFT activation. A spoken trial displayed 1008 in blue from a newly generated program.
 
 **Live generated games now run on the Pi.** The first typed Meta request produced **Pixel Kart Sprint**, with code and three original sprites, in about 49 seconds; the user confirmed steering and both large buttons. A later spoken “Make yourself” request produced **MODULATE: Self Assembly**, with four generated sprites, in about 38 seconds. Observed device rates were about 13 fps, not a sustained guarantee. See [exact revisions, costs, setup and limits](context/product-runtime.md#first-live-generated-game--october-28).
 
@@ -31,8 +33,8 @@ Later spoken requests created and refined Metro Dash, then generated **Star Dash
 ## Run the development studio
 
 The Pi now runs the trusted AI agent, app library and speech coordinator itself.
-Its Wi-Fi connection reaches the existing Vercel provider gateway for Meta and
-ElevenLabs. Normal device AI no longer needs a running Mac. Internet is still
+Its Wi-Fi connection reaches the existing Vercel provider gateway for Meta.
+Current source uses local Meta MMS for spoken replies. Normal device AI no longer needs a running Mac. Internet is still
 required for new AI requests; installed games run locally. See the
 [standalone setup and evidence](context/standalone.md).
 
@@ -132,7 +134,7 @@ Voice is a core demo goal. Push-to-talk can establish it before wake-word detect
 
 The product generates **JavaScript application/game code on a stable device runtime**, with original sprite data. Firmware generation is a longer-term ambition; this build does not reflash the Pi or peripherals with model output. Generated code runs in a bounded QuickJS-NG worker with OS restrictions, separate from fixed hardware drivers and the allowlisted computer-action bridge. Verification is tied to the exact candidate and capability manifest; a model saying its code works is insufficient.
 
-The local website handles pairing, preview, requests and status. Meta, Fireworks and Ollama adapters are implemented; `muse-spark-1.3` powered the live games and control changes. The current stack uses local Whisper speech recognition, a macOS host bridge and pinned TLS for the Pi connection. The wake phrase uses a local transcript matcher and is not an official Meta assistant integration. Evidence distinguishes typed and spoken runs.
+The local website handles pairing, preview, requests and status. Meta, Fireworks and Ollama adapters are implemented; `muse-spark-1.3` powered the live games and control changes. Current source uses local Meta wav2vec 2.0 speech recognition, a macOS host bridge and pinned TLS for the Pi connection. The wake phrase uses a local transcript matcher and is not an official Meta assistant integration. Evidence distinguishes typed and spoken runs.
 
 Computer tasks use an independently implemented native Python helper, separate from generated packages and volume pairing. The agent receives temporary screenshots and chooses bounded actions. Existing Codex app services, credentials and proprietary computer-use runtime were not copied. Dependency attribution and the permission boundary are in the [architecture](context/architecture.md#computer-tasks-and-spoken-replies).
 

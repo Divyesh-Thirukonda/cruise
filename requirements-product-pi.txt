@@ -11,6 +11,8 @@ adafruit-circuitpython-register==1.13.0
 sparkfun-qwiic-joystick==2.0.0
 sparkfun-qwiic-button==2.0.3
 sounddevice==0.5.6
-faster-whisper==1.2.1
+numpy==2.2.6
+onnxruntime==1.23.2
+# Meta recognition worker: python3.11 scripts/install_meta_asr.py
 # Explicit streaming 48 kHz -> 16 kHz microphone conversion.
 av==12.3.0

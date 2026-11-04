@@ -13,7 +13,7 @@
         "transcript": "He made a show me the connected controls.",
         "transcription_ms": 1448
       },
-      "local_whisper": {
+      "previous_local_asr": {
         "transcript": "He made to show me the connected controls.",
         "transcription_ms": 955
       }
@@ -25,7 +25,7 @@
         "transcript": "He to make the background purple.",
         "transcription_ms": 1000
       },
-      "local_whisper": {
+      "previous_local_asr": {
         "transcript": "He made the background purple.",
         "transcription_ms": 895
       }
@@ -37,14 +37,14 @@
         "transcript": "Turn the speaker volume down to 30%.",
         "transcription_ms": 1100
       },
-      "local_whisper": {
+      "previous_local_asr": {
         "transcript": "Turn the speaker volume down to 30%.",
         "transcription_ms": 939
       }
     }
   ],
   "comparison_notes": [
-    "Local Whisper model loading excluded; Muse includes Pi-to-Vercel-to-Meta network round trip.",
+    "Prior local recognition model loading excluded; Muse includes Pi-to-Vercel-to-Meta network round trip.",
     "MMS synthesis and capture/silence/review/agent work excluded from both timings.",
     "Both recognizers misheard the synthesized wake phrase; these are not physical wake trials or a recognition-rate benchmark.",
     "Muse was slower in this small sample; no accuracy or latency improvement is claimed."

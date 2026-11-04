@@ -7,7 +7,7 @@ agent reasoning/generation and local Meta MMS spoken replies.
 ## Audio path
 
 The Pi keeps native 48 kHz capture, local 16 kHz resampling, Silero activity
-checks and cached Whisper `tiny.en` wake recognition. A confirmed wake command,
+checks and local Meta wav2vec 2.0 wake recognition in current source. A confirmed wake command,
 explicit push-to-talk recording, or active clarification answer may use Muse
 ASR. Ambient wake checks, computer-media rolling wake checks and busy voice
 cancellation stay local. Late recognition cannot deliver a command after an
@@ -67,7 +67,7 @@ have focused synthetic coverage; physical room recognition remains separate.
 The existing account accepted live `muse-voice-transcribe-1.0` requests. Three
 in-memory Meta MMS synthetic clips (3.488s, 2.704s and 3.008s) were sent directly
 to ASR, never played or executed. Muse took 1.448s, 1.000s and 1.100s including
-the gateway network round trip; cached local Whisper took 0.955s, 0.895s and
+the gateway network round trip; the cached prior local recognizer took 0.955s, 0.895s and
 0.939s excluding model loading. Synthesis/capture/silence/review/agent time is
 excluded from both. These samples added $0.000400 to the existing ledger.
 
@@ -102,7 +102,7 @@ this new ASR path.
 
 This project adds the ASR adapter, bounded device/gateway transport and invocation,
 permission and ledger integration. It reuses Meta's hosted recognition model,
-existing local Whisper/Silero and MMS models, and the project's existing TLS,
+local Meta wav2vec 2.0/MMS models and the standalone Silero activity detector, and the project's existing TLS,
 credential gateway and durable ledger. No model training is claimed. The adapter
 was implemented independently from the official API documentation; no cookbook
 source was copied into production.

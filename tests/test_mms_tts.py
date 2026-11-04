@@ -11,6 +11,19 @@ from modulate.mms_worker import normalize
 
 
 class MMSTests(unittest.TestCase):
+    def test_product_defaults_to_meta_and_rejects_external_voice_selection(self):
+        from modulate.product import Product
+        from tests.test_assistant_io import FakeComputer, SyntheticProvider
+        from tests.test_product import FakeBackend
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as directory, patch.dict("os.environ", {"MODULATE_TTS_PROVIDER": ""}):
+            product = Product(directory, SyntheticProvider([]), backend=FakeBackend(), computer=FakeComputer())
+            self.assertEqual(product.tts_provider, "meta_mms")
+            self.assertIsInstance(product.tts, MMSTTS)
+        with TemporaryDirectory() as directory, patch.dict("os.environ", {"MODULATE_TTS_PROVIDER": "elevenlabs"}):
+            with self.assertRaisesRegex(ValueError, "Unsupported speech provider"):
+                Product(directory, SyntheticProvider([]), backend=FakeBackend(), computer=FakeComputer())
+
     def tts(self, script, timeout=1):
         value = MMSTTS(command=[sys.executable, "-u", "-c", script], timeout=timeout)
         self.addCleanup(value.close)

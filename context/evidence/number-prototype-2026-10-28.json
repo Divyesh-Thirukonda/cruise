@@ -3,7 +3,7 @@
   "kind": "live-device-observations",
   "hardware": "Raspberry Pi 5 Model B Rev 1.1; Mini PiTFT 135x240; USB PnP microphone",
   "generation": {"provider": "local Ollama 0.40.11", "model": "llama3.2:1b", "model_digest_prefix": "baf6a787fdff"},
-  "speech": {"provider": "local faster-whisper 1.2.1", "model": "tiny.en", "capture_seconds": 6},
+  "speech": {"provider": "retired local recognizer", "model": "retired-local-asr", "capture_seconds": 6},
   "typed_baseline": {
     "number": 24,
     "elapsed_seconds": 4.69,

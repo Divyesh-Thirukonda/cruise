@@ -1,6 +1,5 @@
 """Provider protocol and failure-boundary tests; no network or credentials."""
 
-import base64
 import io
 import json
 import os
@@ -12,14 +11,6 @@ from modulate import provider
 
 
 CODE = 'value = randint(1, 20)\nshow(value, label="Roll", foreground="#FFFFFF", background="#000000")'
-WAV = b"RIFF\x04\x00\x00\x00WAVE"
-
-
-def google_output(text, *, status="completed"):
-    return {"status": status, "steps": [
-        {"type": "thought", "content": [{"type": "text", "text": "not output"}]},
-        {"type": "model_output", "content": [{"type": "text", "text": text}]},
-    ]}
 
 
 class ProviderTests(unittest.TestCase):
@@ -41,10 +32,6 @@ class ProviderTests(unittest.TestCase):
         request = self.open.call_args.args[0]
         return request, json.loads(request.data)
 
-    def google(self, payload):
-        # Headers are mocked rather than using a secret-shaped fixture.
-        self.reply(payload)
-        return patch.object(provider, "_google_headers", return_value={})
 
     def test_local_generation_preserves_source_and_provenance(self):
         self.reply({"done": True, "response": json.dumps({"code": CODE})})
@@ -57,17 +44,6 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(body["options"], {"num_predict": 300, "num_ctx": 2048, "temperature": 0.4})
         self.assertEqual(self.open.call_args.kwargs["timeout"], 90)
 
-    def test_google_uses_typed_steps_and_json_schema(self):
-        with self.google(google_output(json.dumps({"code": CODE}))):
-            result = provider.generate("roll a die", provider="google", model=" gemini-3.8-flash ")
-        self.assertEqual(result["code"], CODE)
-        self.assertEqual(result["model"], "gemini-3.8-flash")
-        request, body = self.request()
-        self.assertEqual(request.full_url, provider.GOOGLE_URL)
-        self.assertEqual(body["response_format"]["mime_type"], "application/json")
-        self.assertFalse(body["store"])
-        self.assertEqual(body["generation_config"]["max_output_tokens"], 1024)
-        self.assertEqual(self.open.call_args.kwargs["timeout"], 45)
 
     def test_refinement_is_data_and_does_not_replace_contract(self):
         self.reply({"done": True, "response": json.dumps({"code": CODE})})
@@ -78,23 +54,6 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(context["verification_feedback"], "A color is invalid.")
         self.assertEqual(body["system"], provider._CONTRACT)
 
-    def test_transcription_sends_wav_and_strips_response(self):
-        with self.google(google_output("  choose a number  \n")):
-            result = provider.transcribe(WAV)
-        self.assertEqual(result, "choose a number")
-        _, body = self.request()
-        audio = body["input"][1]
-        self.assertEqual(audio["mime_type"], "audio/wav")
-        self.assertEqual(base64.b64decode(audio["data"]), WAV)
-
-    def test_silence_is_empty_transcript(self):
-        with self.google(google_output("  ")):
-            self.assertEqual(provider.transcribe(WAV), "")
-
-    def test_google_missing_key_fails_before_network(self):
-        with self.assertRaisesRegex(provider.ProviderError, "GEMINI_API_KEY"):
-            provider.generate("choose a number", provider="google", model="gemini-3.8-flash")
-        self.open.assert_not_called()
 
     def test_input_limits_and_invalid_models_do_not_reach_network(self):
         cases = [
@@ -105,8 +64,8 @@ class ProviderTests(unittest.TestCase):
             lambda: provider.generate("go", model="x" * 129),
             lambda: provider.generate("go", model="bad\nmodel"),
             lambda: provider.generate("go", provider="automatic"),
-            lambda: provider.transcribe(b"not wave audio"),
-            lambda: provider.transcribe(WAV + b"x" * provider.MAX_AUDIO_BYTES),
+            lambda: provider.generate("go", model="qwen:7b"),
+            lambda: provider.generate("go", provider="google"),
         ]
         for case in cases:
             with self.subTest(case=case), self.assertRaises(provider.ProviderError):
@@ -134,14 +93,6 @@ class ProviderTests(unittest.TestCase):
                 with self.assertRaisesRegex(provider.ProviderError, "did not complete"):
                     provider.generate("go")
 
-    def test_google_rejects_incomplete_missing_and_oversized_text(self):
-        cases = [google_output("x", status="failed"), {"status": "completed", "steps": []},
-                 google_output("x" * 2001),
-                 {"status": "completed", "steps": [{"type": "model_output", "content": [{"type": "text", "text": 5}]}]}]
-        for response in cases:
-            with self.subTest(response=response.get("status")), self.google(response):
-                with self.assertRaises(provider.ProviderError):
-                    provider.transcribe(WAV)
 
     def test_http_error_does_not_expose_response_body_or_reason(self):
         self.open.side_effect = urllib.error.HTTPError(

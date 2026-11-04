@@ -1,0 +1,91 @@
+{
+  "model": "facebook/wav2vec2-base-960h",
+  "revision": "22aad52d435eb6dbaf354bdad9b0da84ce7d6156",
+  "host": "development Mac CPU",
+  "live_model_inference": true,
+  "physical_microphone_tested": false,
+  "paid_provider_calls": 0,
+  "runs": [
+    {
+      "synthetic_input": "Hey Meta, make a blue racing game.",
+      "source": "local Meta MMS synthesis, not room capture",
+      "transcript": "AMY TO MAKE A BLUE RACING GAME",
+      "seconds": 1.712,
+      "audio_seconds": 2.448,
+      "wake_remainder": null,
+      "activity_detected": true
+    },
+    {
+      "synthetic_input": "Hey Meta, cancel build.",
+      "source": "local Meta MMS synthesis, not room capture",
+      "transcript": "HE ME TO CANCEL BUILD",
+      "seconds": 0.053,
+      "audio_seconds": 2.16,
+      "wake_remainder": null,
+      "activity_detected": true
+    },
+    {
+      "synthetic_input": "Turn the knob less quickly.",
+      "source": "local Meta MMS synthesis, not room capture",
+      "transcript": "TURN THE NOB LESS QUICKLY",
+      "seconds": 0.053,
+      "audio_seconds": 2.336,
+      "wake_remainder": null,
+      "activity_detected": true
+    },
+    {
+      "synthetic_input": "silence",
+      "transcript": "",
+      "wake_remainder": null
+    },
+    {
+      "synthetic_input": "white_noise",
+      "transcript": "",
+      "wake_remainder": null
+    }
+  ],
+  "larger_checkpoint_trial": {
+    "model": "facebook/wav2vec2-large-960h-lv60-self",
+    "revision": "54074b1c16f4de6a5ad59affb4caa8f2ea03a119",
+    "selected": false,
+    "runs": [
+      {
+        "synthetic_input": "Hey Meta, make a blue racing game.",
+        "transcript": "AMY TO MAKE A BLUE RACING DAME",
+        "wake_remainder": null,
+        "seconds": 0.247
+      },
+      {
+        "synthetic_input": "Hey Meta, cancel build.",
+        "transcript": "HE ME TO KENSOL DILL",
+        "wake_remainder": null,
+        "seconds": 0.153
+      },
+      {
+        "synthetic_input": "Turn the knob less quickly.",
+        "transcript": "TURN THE NUB LESS QUICKLY",
+        "wake_remainder": null,
+        "seconds": 0.14
+      },
+      {
+        "synthetic_input": "Hey Meta, reverse the knob here.",
+        "transcript": "AIM IT TO REVERSE THE NOTERE",
+        "wake_remainder": null,
+        "seconds": 0.14
+      }
+    ]
+  },
+  "limitations": [
+    "No physical microphone or Pi deployment was tested.",
+    "Synthetic Meta MMS wake phrases were misrecognized by both tested Meta recognizers; anchored matcher was not weakened.",
+    "No API calls or budget ledger changes."
+  ],
+  "date": "2026-11-03",
+  "verification": {
+    "python_tests": 1182,
+    "result": "passed",
+    "command": ".venv-asr/bin/python -m unittest discover -s tests",
+    "physical_pi_installed": false,
+    "physical_wake_verified": false
+  }
+}
